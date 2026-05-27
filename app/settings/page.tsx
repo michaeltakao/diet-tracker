@@ -1,10 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Save, Check } from 'lucide-react';
+import { ChevronLeft, Save, Check, Download, Upload, Trash2, Database, FileJson, FileSpreadsheet } from 'lucide-react';
 import { getAppData, updateGoals } from '@/lib/storage';
 import { DailyGoals } from '@/lib/types';
+import {
+  getStorageStats, exportDataAsJSON, exportDataAsCSV,
+  importFromFile, clearAllData, StorageStats,
+} from '@/lib/export';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -40,6 +44,10 @@ export default function SettingsPage() {
     goalWeight: '',
   });
   const [saved, setSaved] = useState(false);
+  const [stats, setStats] = useState<StorageStats | null>(null);
+  const [clearConfirm, setClearConfirm] = useState(false);
+  const [importMsg, setImportMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const data = getAppData();
@@ -51,7 +59,33 @@ export default function SettingsPage() {
       water:      String(data.goals.water ?? 2000),
       goalWeight: data.goals.goalWeight ? String(data.goals.goalWeight) : '',
     });
+    setStats(getStorageStats());
   }, []);
+
+  const refreshStats = () => setStats(getStorageStats());
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const result = await importFromFile(file);
+    if (result.success) {
+      refreshStats();
+      setImportMsg({ ok: true, text: `インポート完了 — ${result.stats.foodCount} 食事 / ${result.stats.workoutCount} ワークアウト / ${result.stats.weightCount} 体重` });
+    } else {
+      setImportMsg({ ok: false, text: `エラー: ${result.error}` });
+    }
+    setTimeout(() => setImportMsg(null), 4000);
+    e.target.value = '';
+  };
+
+  const handleClear = () => {
+    if (!clearConfirm) { setClearConfirm(true); return; }
+    clearAllData();
+    refreshStats();
+    setClearConfirm(false);
+    setImportMsg({ ok: true, text: 'データをすべて削除しました' });
+    setTimeout(() => setImportMsg(null), 3000);
+  };
 
   const handleSave = () => {
     const goals: DailyGoals = {
@@ -231,6 +265,150 @@ export default function SettingsPage() {
           </>
         )}
       </button>
+
+      {/* ── Data & Storage ────────────────────── */}
+      <div className={`${cardCls} mt-5 mb-3`}>
+        <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+          <Database size={13} />
+          データ管理
+        </p>
+
+        {/* Storage stats */}
+        {stats && (
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            {[
+              { label: '食事', value: stats.foodCount,    icon: '🍽️' },
+              { label: 'ワークアウト', value: stats.workoutCount, icon: '💪' },
+              { label: '体重', value: stats.weightCount,  icon: '⚖️' },
+            ].map(({ label, value, icon }) => (
+              <div
+                key={label}
+                className="bg-gray-50 dark:bg-gray-700/60 rounded-2xl p-2.5 text-center"
+              >
+                <div className="text-base">{icon}</div>
+                <div className="text-lg font-black text-gray-800 dark:text-gray-100 tabular-nums leading-tight">
+                  {value}
+                </div>
+                <div className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 mt-0.5">
+                  {label}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Storage usage bar */}
+        {stats && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-semibold text-gray-400 dark:text-gray-500">
+                使用容量
+              </span>
+              <span className="text-xs font-black text-gray-600 dark:text-gray-300 tabular-nums">
+                {stats.usedKB} KB
+              </span>
+            </div>
+            <div className="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500"
+                style={{ width: `${Math.min((stats.usedBytes / (4 * 1024 * 1024)) * 100, 100)}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1 text-right">
+              最大 4 MB
+            </p>
+          </div>
+        )}
+
+        {/* Export buttons */}
+        <div className="flex gap-2 mb-2">
+          <button
+            onClick={() => exportDataAsJSON()}
+            className="
+              flex-1 flex items-center justify-center gap-2
+              py-3 rounded-2xl text-xs font-bold
+              bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400
+              border border-blue-100 dark:border-blue-800
+              hover:bg-blue-100 dark:hover:bg-blue-900/50
+              hover:scale-[1.02] active:scale-[0.97]
+              transition-all duration-200
+            "
+          >
+            <FileJson size={14} />
+            JSON バックアップ
+          </button>
+          <button
+            onClick={() => exportDataAsCSV()}
+            className="
+              flex-1 flex items-center justify-center gap-2
+              py-3 rounded-2xl text-xs font-bold
+              bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400
+              border border-emerald-100 dark:border-emerald-800
+              hover:bg-emerald-100 dark:hover:bg-emerald-900/50
+              hover:scale-[1.02] active:scale-[0.97]
+              transition-all duration-200
+            "
+          >
+            <FileSpreadsheet size={14} />
+            CSV エクスポート
+          </button>
+        </div>
+
+        {/* Import button */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          className="hidden"
+          onChange={handleImport}
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="
+            w-full flex items-center justify-center gap-2
+            py-3 rounded-2xl text-xs font-bold
+            bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400
+            border border-indigo-100 dark:border-indigo-800
+            hover:bg-indigo-100 dark:hover:bg-indigo-900/50
+            hover:scale-[1.02] active:scale-[0.97]
+            transition-all duration-200
+            mb-2
+          "
+        >
+          <Upload size={14} />
+          バックアップから復元（JSON）
+        </button>
+
+        {/* Import result toast */}
+        {importMsg && (
+          <div className={`
+            text-xs font-semibold px-3 py-2.5 rounded-xl mb-2 animate-slide-in-up
+            ${importMsg.ok
+              ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+              : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800'}
+          `}>
+            {importMsg.ok ? '✅ ' : '❌ '}{importMsg.text}
+          </div>
+        )}
+
+        {/* Clear all data */}
+        <button
+          onClick={handleClear}
+          onBlur={() => setClearConfirm(false)}
+          className={`
+            w-full flex items-center justify-center gap-2
+            py-3 rounded-2xl text-xs font-bold
+            transition-all duration-200
+            hover:scale-[1.02] active:scale-[0.97]
+            ${clearConfirm
+              ? 'bg-red-500 text-white shadow-[0_4px_12px_rgba(239,68,68,0.4)]'
+              : 'bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 border border-red-100 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50'}
+          `}
+        >
+          <Trash2 size={14} />
+          {clearConfirm ? '本当に削除する？（もう一度タップで確定）' : 'すべてのデータを削除'}
+        </button>
+      </div>
 
       <BottomNav />
     </div>
