@@ -53,10 +53,33 @@ export interface DailyGoals {
   goalWeight?: number; // kg target
 }
 
+export type BadgeType =
+  | 'streak3' | 'streak7' | 'streak30'
+  | 'water_goal' | 'calorie_goal'
+  | 'workout_master' | 'pr_achieved';
+
+export interface Badge {
+  id: string;
+  type: BadgeType;
+  name: string;
+  description: string;
+  icon: string;
+  earnedAt: string; // ISO
+}
+
+export interface PersonalRecord {
+  exerciseName: string;
+  maxWeight: number;
+  achievedAt: string; // ISO
+  date: string; // YYYY-MM-DD
+}
+
 export interface AppData {
   foodEntries: FoodEntry[];
   workoutEntries: WorkoutEntry[];
   weightEntries: WeightEntry[];
   goals: DailyGoals;
   waterByDate: Record<string, number>; // date -> ml consumed
+  badges: Badge[];
+  personalRecords: Record<string, PersonalRecord>; // exercise name -> best PR
 }

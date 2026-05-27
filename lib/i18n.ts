@@ -75,6 +75,16 @@ export const translations = {
     // Streak
     streak: '連続記録',
     streakDays: '日',
+    // Badges
+    badgeEarned: 'バッジ獲得！',
+    badgeYay: 'やった！🎉',
+    myBadges: '獲得バッジ',
+    noBadges: 'まだバッジがありません。記録を続けよう！',
+    // AI Coach
+    aiCoach: 'AIパーソナルコーチ',
+    aiAdvice: 'AIアドバイスを取得',
+    aiAnalyzing: '分析中...',
+    aiCoachTitle: '今日のAIアドバイス',
     // Settings
     settings: '設定',
     dailyGoals: '1日の目標',
@@ -166,6 +176,16 @@ export const translations = {
     // Streak
     streak: 'Streak',
     streakDays: 'days',
+    // Badges
+    badgeEarned: 'Badge Earned!',
+    badgeYay: 'Awesome! 🎉',
+    myBadges: 'My Badges',
+    noBadges: 'No badges yet. Keep logging!',
+    // AI Coach
+    aiCoach: 'AI Personal Coach',
+    aiAdvice: 'Get AI Advice',
+    aiAnalyzing: 'Analyzing...',
+    aiCoachTitle: "Today's AI Advice",
     // Settings
     settings: 'Settings',
     dailyGoals: 'Daily Goals',

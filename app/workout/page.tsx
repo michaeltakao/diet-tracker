@@ -1,10 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { getAppData, addWorkoutEntry, removeWorkoutEntry } from '@/lib/storage';
-import { WorkoutEntry, MusclePart, CoachMenu, FoodEntry } from '@/lib/types';
-import { Dumbbell, Clock, Flame, ShieldAlert, CheckCircle, Trash2, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  getAppData, addWorkoutEntry, removeWorkoutEntry,
+  checkAndUpdatePR, addBadge, checkAndAwardBadges, getStreak,
+} from '@/lib/storage';
+import { WorkoutEntry, MusclePart, CoachMenu, FoodEntry, Badge } from '@/lib/types';
+import {
+  Dumbbell, Clock, Flame, ShieldAlert, CheckCircle,
+  Trash2, ChevronRight, Sparkles, Trophy,
+} from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
+import BadgeCelebration from '@/components/BadgeCelebration';
 
 const RECOMMENDED_MENUS: CoachMenu[] = [
   { id: 'c1', name: 'ベンチプレス', musclePart: 'chest', defaultWeight: 40, defaultReps: 10, defaultSets: 3, coachTip: '大胸筋をしっかりストレッチさせる意識で、バーを胸まで下ろしましょう！' },
@@ -30,6 +37,13 @@ const PARTS = [
   { id: 'abs' as MusclePart, label: '腹筋' },
 ];
 
+interface CoachAdvice {
+  todayAdvice: string;
+  habitInsight: string;
+  tomorrowTip: string;
+  motivationMessage: string;
+}
+
 function getTodayDate() {
   return new Date().toISOString().split('T')[0];
 }
@@ -52,13 +66,29 @@ export default function WorkoutPage() {
   const [sets, setSets] = useState('3');
   const [coachAdvice, setCoachAdvice] = useState('メニューを選択すると、ここにパーソナルアドバイスが表示されます。');
 
-  const loadData = () => {
+  // AI coach
+  const [aiAdvice, setAiAdvice] = useState<CoachAdvice | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+
+  // PR & Badge celebration
+  const [celebrationBadges, setCelebrationBadges] = useState<Badge[]>([]);
+  const [prToast, setPrToast] = useState<string | null>(null);
+
+  const loadData = useCallback(() => {
     const data = getAppData();
     setWorkouts(data.workoutEntries.filter((w) => w.date === today));
     setFoodEntries(data.foodEntries.filter((f) => f.date === today));
-  };
+  }, [today]);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // Dismiss PR toast after 3s
+  useEffect(() => {
+    if (!prToast) return;
+    const t = setTimeout(() => setPrToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [prToast]);
 
   const handleSelectMenu = (menu: CoachMenu) => {
     setName(menu.name);
@@ -72,17 +102,43 @@ export default function WorkoutPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+
+    const wt = parseFloat(weight) || 0;
+    const isNewPR = checkAndUpdatePR(name.trim(), wt, today);
+
     addWorkoutEntry({
       id: crypto.randomUUID(),
       date: today,
       name: name.trim(),
       category: 'strength',
       musclePart,
-      weight: parseFloat(weight) || 0,
+      weight: wt,
       reps: parseInt(reps) || 0,
       sets: parseInt(sets) || 0,
       addedAt: new Date().toISOString(),
     });
+
+    // PR badge & toast
+    if (isNewPR && wt > 0) {
+      const prBadge: Badge = {
+        id: crypto.randomUUID(),
+        type: 'pr_achieved',
+        name: `💪 ${name.trim()} PR達成！`,
+        description: `${name.trim()} で ${wt}kg の自己ベストを更新しました！`,
+        icon: '💪',
+        earnedAt: new Date().toISOString(),
+      };
+      addBadge(prBadge);
+      setPrToast(`🏆 PR更新！${name.trim()} ${wt}kg`);
+      setCelebrationBadges([prBadge]);
+    }
+
+    // Check other badges
+    const newBadges = checkAndAwardBadges(today);
+    if (newBadges.length > 0 && !isNewPR) {
+      setCelebrationBadges(newBadges);
+    }
+
     loadData();
     setName('');
   };
@@ -92,6 +148,81 @@ export default function WorkoutPage() {
     loadData();
   };
 
+  const handleGetAIAdvice = async () => {
+    setAiLoading(true);
+    setAiError('');
+    try {
+      const data = getAppData();
+      const todayFood = data.foodEntries.filter((e) => e.date === today);
+      const totals = todayFood.reduce(
+        (acc, e) => ({
+          calories: acc.calories + e.calories,
+          protein: acc.protein + e.protein,
+          fat: acc.fat + e.fat,
+          carbs: acc.carbs + e.carbs,
+        }),
+        { calories: 0, protein: 0, fat: 0, carbs: 0 }
+      );
+
+      // Recent food log (last 14 entries)
+      const recentFoodLog = [...data.foodEntries]
+        .sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime())
+        .slice(0, 14)
+        .map((f) => ({
+          date: f.date,
+          time: formatTime(f.addedAt),
+          name: f.name,
+          calories: f.calories,
+          mealType: f.mealType,
+        }));
+
+      // Recent workout log (last 10)
+      const recentWorkoutLog = [...data.workoutEntries]
+        .sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime())
+        .slice(0, 10)
+        .map((w) => ({ date: w.date, name: w.name, weight: w.weight ?? 0 }));
+
+      const res = await fetch('/api/coach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          today,
+          todayCalories: totals.calories,
+          todayProtein: totals.protein,
+          todayFat: totals.fat,
+          todayCarbs: totals.carbs,
+          calorieGoal: data.goals.calories,
+          proteinGoal: data.goals.protein,
+          fatGoal: data.goals.fat,
+          carbsGoal: data.goals.carbs,
+          waterConsumed: data.waterByDate[today] ?? 0,
+          waterGoal: data.goals.water ?? 2000,
+          todayWorkouts: workouts.map((w) => ({
+            name: w.name,
+            weight: w.weight ?? 0,
+            reps: w.reps ?? 0,
+            sets: w.sets ?? 0,
+          })),
+          recentFoodLog,
+          recentWorkoutLog,
+          streak: getStreak(),
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json() as { error: string };
+        throw new Error(err.error);
+      }
+
+      const advice = await res.json() as CoachAdvice;
+      setAiAdvice(advice);
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'エラーが発生しました');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const timeline = [
     ...foodEntries.map((f) => ({ ...f, _type: 'food' as const })),
     ...workouts.map((w) => ({ ...w, _type: 'workout' as const })),
@@ -99,6 +230,21 @@ export default function WorkoutPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 pb-24 max-w-md mx-auto">
+      {/* Badge Celebration Overlay */}
+      {celebrationBadges.length > 0 && (
+        <BadgeCelebration
+          badges={celebrationBadges}
+          onClose={() => setCelebrationBadges([])}
+        />
+      )}
+
+      {/* PR Toast */}
+      {prToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-40 bg-yellow-400 text-yellow-900 font-bold text-sm px-5 py-3 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap">
+          {prToast}
+        </div>
+      )}
+
       <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 pt-12 pb-6 rounded-b-3xl">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Dumbbell className="w-6 h-6" /> AIパーソナルコーチ
@@ -165,7 +311,65 @@ export default function WorkoutPage() {
           </form>
         </section>
 
-        {/* 3. 習慣タイムライン */}
+        {/* 3. AI パーソナルコーチ */}
+        <section className="bg-white rounded-2xl p-4 shadow-sm space-y-4">
+          <h2 className="font-bold text-gray-800 flex items-center gap-1.5">
+            <Sparkles className="w-5 h-5 text-purple-500" /> AIパーソナルコーチ
+          </h2>
+          <p className="text-xs text-gray-400">今日の食事・トレーニングを分析してアドバイスを生成します</p>
+
+          {!aiAdvice && !aiLoading && (
+            <button
+              onClick={handleGetAIAdvice}
+              className="w-full py-3 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 transition-all"
+            >
+              <Sparkles className="w-4 h-4" />
+              AIアドバイスを取得する
+            </button>
+          )}
+
+          {aiLoading && (
+            <div className="flex items-center justify-center gap-3 py-6 text-purple-500">
+              <div className="w-5 h-5 border-2 border-purple-300 border-t-purple-500 rounded-full animate-spin" />
+              <span className="text-sm font-medium">Geminiが分析中...</span>
+            </div>
+          )}
+
+          {aiError && (
+            <div className="bg-red-50 text-red-600 text-xs p-3 rounded-xl">
+              ⚠️ {aiError}
+              <button onClick={handleGetAIAdvice} className="ml-2 underline">再試行</button>
+            </div>
+          )}
+
+          {aiAdvice && (
+            <div className="space-y-3">
+              <div className="bg-purple-50 rounded-xl p-3 border border-purple-100">
+                <p className="text-xs font-bold text-purple-600 mb-1.5">📊 今日の総評</p>
+                <p className="text-sm text-gray-700 leading-relaxed">{aiAdvice.todayAdvice}</p>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+                <p className="text-xs font-bold text-blue-600 mb-1.5">🕐 習慣インサイト</p>
+                <p className="text-sm text-gray-700 leading-relaxed">{aiAdvice.habitInsight}</p>
+              </div>
+              <div className="bg-green-50 rounded-xl p-3 border border-green-100">
+                <p className="text-xs font-bold text-green-600 mb-1.5">💡 明日のアドバイス</p>
+                <p className="text-sm text-gray-700 leading-relaxed">{aiAdvice.tomorrowTip}</p>
+              </div>
+              <div className="bg-yellow-50 rounded-xl p-3 border border-yellow-100 text-center">
+                <p className="text-sm font-bold text-yellow-700">{aiAdvice.motivationMessage}</p>
+              </div>
+              <button
+                onClick={() => { setAiAdvice(null); setAiError(''); }}
+                className="w-full py-2 text-xs text-gray-400 hover:text-gray-600 underline"
+              >
+                再取得する
+              </button>
+            </div>
+          )}
+        </section>
+
+        {/* 4. 習慣タイムライン */}
         <section className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
           <h2 className="font-bold text-gray-800 flex items-center gap-1.5">
             <Clock className="w-5 h-5 text-blue-500" /> 今日の行動タイムライン
@@ -197,7 +401,7 @@ export default function WorkoutPage() {
           )}
         </section>
 
-        {/* 4. 実施済み */}
+        {/* 5. 実施済み */}
         {workouts.length > 0 && (
           <section className="space-y-2">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">実施済み</h3>
@@ -220,8 +424,39 @@ export default function WorkoutPage() {
             ))}
           </section>
         )}
+
+        {/* 6. My Badges (quick view) */}
+        <BadgesQuickView />
       </div>
       <BottomNav />
     </main>
+  );
+}
+
+function BadgesQuickView() {
+  const badges = getAppData().badges ?? [];
+  if (badges.length === 0) return null;
+
+  return (
+    <section className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+      <h2 className="font-bold text-gray-800 flex items-center gap-1.5">
+        <Trophy className="w-5 h-5 text-yellow-500" /> 獲得バッジ
+      </h2>
+      <div className="flex flex-wrap gap-2">
+        {[...badges]
+          .sort((a, b) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime())
+          .slice(0, 12)
+          .map((b) => (
+            <div
+              key={b.id}
+              title={b.description}
+              className="flex items-center gap-1.5 bg-yellow-50 border border-yellow-100 rounded-full px-3 py-1.5"
+            >
+              <span className="text-base">{b.icon}</span>
+              <span className="text-xs font-semibold text-yellow-800">{b.name.replace(/^[^\s]+\s/, '')}</span>
+            </div>
+          ))}
+      </div>
+    </section>
   );
 }

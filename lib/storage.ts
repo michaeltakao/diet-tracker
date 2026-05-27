@@ -1,4 +1,4 @@
-import { AppData, DailyGoals, FoodEntry, WeightEntry, WorkoutEntry } from './types';
+import { AppData, Badge, BadgeType, DailyGoals, FoodEntry, PersonalRecord, WeightEntry, WorkoutEntry } from './types';
 
 const STORAGE_KEY = 'diet-tracker-v1';
 
@@ -16,6 +16,8 @@ const DEFAULT_DATA: AppData = {
   weightEntries: [],
   goals: DEFAULT_GOALS,
   waterByDate: {},
+  badges: [],
+  personalRecords: {},
 };
 
 export function getAppData(): AppData {
@@ -30,6 +32,8 @@ export function getAppData(): AppData {
       weightEntries: parsed.weightEntries ?? [],
       goals: { ...DEFAULT_GOALS, ...(parsed.goals ?? {}) },
       waterByDate: parsed.waterByDate ?? {},
+      badges: parsed.badges ?? [],
+      personalRecords: parsed.personalRecords ?? {},
     };
   } catch {
     return { ...DEFAULT_DATA, goals: { ...DEFAULT_GOALS } };
@@ -144,6 +148,106 @@ export function updateGoals(goals: DailyGoals): void {
   const data = getAppData();
   data.goals = goals;
   saveAppData(data);
+}
+
+// ── Badges ───────────────────────────────────────────────
+export function getBadges(): Badge[] {
+  return getAppData().badges ?? [];
+}
+
+export function hasBadge(type: BadgeType, date?: string): boolean {
+  const badges = getBadges();
+  if (date) {
+    return badges.some((b) => b.type === type && b.earnedAt.startsWith(date));
+  }
+  return badges.some((b) => b.type === type);
+}
+
+export function addBadge(badge: Badge): void {
+  const data = getAppData();
+  if (!data.badges) data.badges = [];
+  data.badges.push(badge);
+  saveAppData(data);
+}
+
+// ── Personal Records ─────────────────────────────────────
+export function getPersonalRecord(exerciseName: string): PersonalRecord | undefined {
+  const data = getAppData();
+  return (data.personalRecords ?? {})[exerciseName];
+}
+
+/**
+ * Returns true if this is a new PR for the exercise.
+ * Only tracks exercises with weight > 0.
+ */
+export function checkAndUpdatePR(exerciseName: string, weight: number, date: string): boolean {
+  if (weight <= 0) return false;
+  const data = getAppData();
+  if (!data.personalRecords) data.personalRecords = {};
+  const existing = data.personalRecords[exerciseName];
+  if (!existing || weight > existing.maxWeight) {
+    data.personalRecords[exerciseName] = {
+      exerciseName,
+      maxWeight: weight,
+      achievedAt: new Date().toISOString(),
+      date,
+    };
+    saveAppData(data);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Check all badge conditions and award any newly earned badges.
+ * Returns array of newly awarded badges.
+ */
+export function checkAndAwardBadges(today: string): Badge[] {
+  const newBadges: Badge[] = [];
+  const data = getAppData();
+  const streak = getStreak();
+
+  const award = (badge: Omit<Badge, 'id' | 'earnedAt'>, dateCheck?: string) => {
+    if (hasBadge(badge.type, dateCheck)) return;
+    const full: Badge = { ...badge, id: crypto.randomUUID(), earnedAt: new Date().toISOString() };
+    addBadge(full);
+    newBadges.push(full);
+  };
+
+  // Streak badges (once ever)
+  if (streak >= 3) award({ type: 'streak3', name: '🔥 3日連続！', description: '3日間連続して食事を記録しました！', icon: '🔥' });
+  if (streak >= 7) award({ type: 'streak7', name: '🏆 1週間継続！', description: '7日間連続して食事を記録しました！', icon: '🏆' });
+  if (streak >= 30) award({ type: 'streak30', name: '💎 1ヶ月継続！', description: '30日間連続して食事を記録しました！', icon: '💎' });
+
+  // Water goal (once per day)
+  const water = data.waterByDate[today] ?? 0;
+  const waterGoal = data.goals.water ?? 2000;
+  if (water >= waterGoal) {
+    award({ type: 'water_goal', name: '💧 水分目標達成！', description: '今日の水分目標をクリアしました！', icon: '💧' }, today);
+  }
+
+  // Calorie goal within 200kcal below (once per day)
+  const todayCals = data.foodEntries
+    .filter((e) => e.date === today)
+    .reduce((s, e) => s + e.calories, 0);
+  const calGoal = data.goals.calories;
+  if (todayCals > 0 && todayCals <= calGoal && todayCals >= calGoal - 200) {
+    award({ type: 'calorie_goal', name: '🎯 カロリー目標達成！', description: 'カロリー目標をぴったりクリアしました！', icon: '🎯' }, today);
+  }
+
+  // Workout master: 5+ unique workout days in last 7 days (once ever)
+  const weekAgo = new Date(today);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const workoutDays = new Set(
+    data.workoutEntries
+      .filter((w) => w.date >= weekAgo.toISOString().split('T')[0])
+      .map((w) => w.date)
+  );
+  if (workoutDays.size >= 5) {
+    award({ type: 'workout_master', name: '🏋️ ワークアウトマスター！', description: '7日間で5日以上トレーニングしました！', icon: '🏋️' });
+  }
+
+  return newBadges;
 }
 
 // ── Streak ───────────────────────────────────────────────

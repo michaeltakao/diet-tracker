@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Settings, Flame } from 'lucide-react';
-import { getAppData, removeFoodEntry, addWater, getWaterForDate, getStreak } from '@/lib/storage';
-import { FoodEntry, DailyGoals } from '@/lib/types';
+import { getAppData, removeFoodEntry, addWater, getWaterForDate, getStreak, checkAndAwardBadges, getBadges } from '@/lib/storage';
+import { FoodEntry, DailyGoals, Badge } from '@/lib/types';
+import BadgeCelebration from '@/components/BadgeCelebration';
 import CalorieBar from '@/components/CalorieBar';
 import PFCDonut from '@/components/PFCDonut';
 import MacroBar from '@/components/MacroBar';
@@ -31,6 +32,8 @@ export default function HomePage() {
   const [water, setWater] = useState(0);
   const [streak, setStreak] = useState(0);
   const [today] = useState(getTodayDate());
+  const [celebrationBadges, setCelebrationBadges] = useState<Badge[]>([]);
+  const [earnedBadges, setEarnedBadges] = useState<Badge[]>([]);
 
   const loadData = () => {
     const data = getAppData();
@@ -39,9 +42,18 @@ export default function HomePage() {
     setGoals(data.goals);
     setWater(getWaterForDate(today));
     setStreak(getStreak());
+    setEarnedBadges(getBadges());
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+    // Check badges when home page loads (after adding meals, etc.)
+    const newBadges = checkAndAwardBadges(getTodayDate());
+    if (newBadges.length > 0) {
+      setCelebrationBadges(newBadges);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDelete = (id: string) => {
     removeFoodEntry(id);
@@ -51,6 +63,12 @@ export default function HomePage() {
   const handleAddWater = (ml: number) => {
     addWater(today, ml);
     setWater(getWaterForDate(today));
+    // Check water goal badge after adding water
+    const newBadges = checkAndAwardBadges(today);
+    if (newBadges.length > 0) {
+      setCelebrationBadges(newBadges);
+      setEarnedBadges(getBadges());
+    }
   };
 
   const totals = entries.reduce(
@@ -83,6 +101,13 @@ export default function HomePage() {
 
   return (
     <div className="max-w-md mx-auto pb-24 px-4">
+      {/* Badge Celebration */}
+      {celebrationBadges.length > 0 && (
+        <BadgeCelebration
+          badges={celebrationBadges}
+          onClose={() => setCelebrationBadges([])}
+        />
+      )}
       {/* Header */}
       <div className="flex items-center justify-between pt-6 pb-4">
         <div>
@@ -188,6 +213,30 @@ export default function HomePage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Badge shelf */}
+      {earnedBadges.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">🏅 獲得バッジ</h2>
+          <div className="flex flex-wrap gap-2">
+            {[...earnedBadges]
+              .sort((a, b) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime())
+              .slice(0, 8)
+              .map((b) => (
+                <div
+                  key={b.id}
+                  title={b.description}
+                  className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 rounded-full px-2.5 py-1"
+                >
+                  <span className="text-sm">{b.icon}</span>
+                  <span className="text-xs font-semibold text-yellow-800">
+                    {b.name.replace(/^[^\s]+\s/, '')}
+                  </span>
+                </div>
+              ))}
+          </div>
         </div>
       )}
 
