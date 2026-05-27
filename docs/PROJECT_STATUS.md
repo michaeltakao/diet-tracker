@@ -1,7 +1,7 @@
 # Diet Tracker — Project Status
 
 > Last updated: 2026-05-27
-> Status: **Active Development — Phase A (Pre-Auth)**
+> Status: **Active Development — Phase A (Auth Code Complete)**
 
 ## Current State
 
@@ -11,7 +11,7 @@
 | Build | ✅ Passing | 13/13 pages |
 | CI (GitHub Actions) | ✅ Passing | tsc + build + lint |
 | Vercel Deploy | ✅ Live | Production URL on main push |
-| Authentication | ❌ Not implemented | STEP 5 pending Supabase setup |
+| Authentication | ✅ Code complete | ProfileContext, login, proxy, callback — awaiting Supabase setup |
 | Database | ❌ Not connected | Schema ready, awaiting Supabase project |
 | AI Coaching | ✅ Working | Gemini 2.5 Flash, unauthenticated (risk) |
 | PWA | ✅ Working | Manifest + SW + install banner |
@@ -26,7 +26,7 @@
 | Components | 12 |
 | Lib/data | 7 |
 | Lib/core | 5 |
-| Contexts | 1 |
+| Contexts | 2 |
 | **Total** | **41** |
 
 ## Migration Progress (STEP 0–9)
@@ -41,7 +41,7 @@
 | ① | User: Supabase project creation | ⏳ Blocked (network) |
 | ② | User: SQL migration execution | ⏳ Blocked |
 | ③ | User: Google OAuth configuration | ⏳ Blocked |
-| STEP 5 | Authentication (login, middleware, ProfileContext) | ⏳ Ready to implement |
+| STEP 5 | Authentication (login, proxy, ProfileContext) | ✅ Complete |
 | STEP 6 | Dual-write layer | ⏳ Pending |
 | STEP 7 | localStorage migration utility | ⏳ Pending |
 | STEP 8 | API hardening + Weekly Report | ⏳ Pending |
