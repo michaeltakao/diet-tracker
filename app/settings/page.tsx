@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Save, Check, Download, Upload, Trash2, Database, FileJson, FileSpreadsheet } from 'lucide-react';
-import { getAppData, updateGoals } from '@/lib/storage';
+import { ChevronLeft, Save, Check, Upload, Trash2, Database, FileJson, FileSpreadsheet } from 'lucide-react';
+import { getAppData, updateGoals } from '@/lib/data';
 import { DailyGoals } from '@/lib/types';
 import {
   getStorageStats, exportDataAsJSON, exportDataAsCSV,

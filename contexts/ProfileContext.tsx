@@ -25,7 +25,7 @@ import React, {
 import type { User } from '@supabase/supabase-js';
 import type { ProfileRow } from '@/lib/database.types';
 import type { DailyGoals } from '@/lib/types';
-import { createClient } from '@/lib/supabase';
+import { createClient, isSupabaseConfigured } from '@/lib/supabase';
 import { getGoals, updateGoals as _updateLocalGoals } from '@/lib/data/profile';
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -49,18 +49,6 @@ function profileToGoals(p: ProfileRow): DailyGoals {
     water:      p.goal_water_ml,
     goalWeight: p.goal_weight_kg ?? undefined,
   };
-}
-
-/**
- * Returns true when the environment has real Supabase credentials.
- * False = placeholder/empty = localStorage-only guest mode.
- */
-export function isSupabaseConfigured(): boolean {
-  const url  = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '';
-  const key  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
-  const hasUrl = url.length > 0 && !url.includes('placeholder') && !url.includes('xxxx');
-  const hasKey = key.length > 0 && !key.includes('placeholder');
-  return hasUrl && hasKey;
 }
 
 // ── Context type ──────────────────────────────────────────────────────────────

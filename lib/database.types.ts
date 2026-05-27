@@ -22,7 +22,7 @@ export type BadgeTypeEnum    =
 
 // ── Row types (what Supabase SELECT returns) ───────────────────
 
-export interface ProfileRow {
+export type ProfileRow = {
   id:              string;
   display_name:    string | null;
   avatar_url:      string | null;
@@ -38,7 +38,7 @@ export interface ProfileRow {
   updated_at:      string;
 }
 
-export interface FoodLogRow {
+export type FoodLogRow = {
   id:          string;
   user_id:     string;
   logged_date: string;              // YYYY-MM-DD
@@ -53,7 +53,7 @@ export interface FoodLogRow {
   created_at:  string;
 }
 
-export interface WorkoutLogRow {
+export type WorkoutLogRow = {
   id:           string;
   user_id:      string;
   logged_date:  string;
@@ -69,7 +69,7 @@ export interface WorkoutLogRow {
   created_at:   string;
 }
 
-export interface WeightLogRow {
+export type WeightLogRow = {
   id:          string;
   user_id:     string;
   logged_date: string;
@@ -78,7 +78,7 @@ export interface WeightLogRow {
   created_at:  string;
 }
 
-export interface WaterLogRow {
+export type WaterLogRow = {
   id:          string;
   user_id:     string;
   logged_date: string;
@@ -86,7 +86,7 @@ export interface WaterLogRow {
   updated_at:  string;
 }
 
-export interface BadgeRow {
+export type BadgeRow = {
   id:          string;
   user_id:     string;
   type:        BadgeTypeEnum;
@@ -97,7 +97,7 @@ export interface BadgeRow {
   created_at:  string;
 }
 
-export interface PersonalRecordRow {
+export type PersonalRecordRow = {
   id:             string;
   user_id:        string;
   exercise_name:  string;
@@ -107,7 +107,7 @@ export interface PersonalRecordRow {
   created_at:     string;
 }
 
-export interface WeeklyReportRow {
+export type WeeklyReportRow = {
   id:               string;
   user_id:          string;
   week_start:       string;          // YYYY-MM-DD (Monday)
@@ -139,16 +139,22 @@ export type WeightLogInsert = Omit<WeightLogRow, 'id' | 'created_at'> & {
   created_at?: string;
 };
 
-export type WaterLogInsert = Omit<WaterLogRow, 'id'>;
+// water_logs.updated_at has DEFAULT NOW() — optional on insert
+export type WaterLogInsert = Omit<WaterLogRow, 'id' | 'updated_at'> & {
+  id?:         string;
+  updated_at?: string;
+};
 
 export type BadgeInsert = Omit<BadgeRow, 'id' | 'created_at'> & {
-  id?: string;
+  id?:         string;
   created_at?: string;
 };
 
-export type PersonalRecordInsert = Omit<PersonalRecordRow, 'id' | 'created_at'> & {
-  id?: string;
-  created_at?: string;
+// personal_records.achieved_at has DEFAULT NOW() — optional on insert
+export type PersonalRecordInsert = Omit<PersonalRecordRow, 'id' | 'created_at' | 'achieved_at'> & {
+  id?:          string;
+  created_at?:  string;
+  achieved_at?: string;
 };
 
 export type WeeklyReportInsert = Omit<WeeklyReportRow, 'id'> & {
@@ -171,51 +177,71 @@ export type ProfileUpdate = Partial<
 >;
 
 // ── Database schema type (for createClient<Database>()) ────────
+//
+// Each table MUST include `Relationships: []` to satisfy the `GenericTable`
+// constraint in @supabase/supabase-js, otherwise table Insert types resolve
+// to `never` and all write operations fail at the type level.
+//
+// The schema MUST include `Views: {}` and `Functions: {}` to satisfy
+// the `GenericSchema` constraint.
+//
+// Once the real Supabase project is connected, replace this entire file with:
+//   npx supabase gen types typescript --project-id <id> > lib/database.types.ts
 
 export type Database = {
   public: {
     Tables: {
       profiles: {
-        Row:    ProfileRow;
-        Insert: Omit<ProfileRow, 'created_at' | 'updated_at' | 'lang' | 'goal_calories' | 'goal_protein_g' | 'goal_fat_g' | 'goal_carbs_g' | 'goal_water_ml'> & { id: string };
-        Update: ProfileUpdate;
+        Row:           ProfileRow;
+        Insert:        Omit<ProfileRow, 'created_at' | 'updated_at' | 'lang' | 'goal_calories' | 'goal_protein_g' | 'goal_fat_g' | 'goal_carbs_g' | 'goal_water_ml'> & { id: string };
+        Update:        ProfileUpdate;
+        Relationships: [];
       };
       food_logs: {
-        Row:    FoodLogRow;
-        Insert: FoodLogInsert;
-        Update: Partial<FoodLogInsert>;
+        Row:           FoodLogRow;
+        Insert:        FoodLogInsert;
+        Update:        Partial<FoodLogInsert>;
+        Relationships: [];
       };
       workout_logs: {
-        Row:    WorkoutLogRow;
-        Insert: WorkoutLogInsert;
-        Update: Partial<WorkoutLogInsert>;
+        Row:           WorkoutLogRow;
+        Insert:        WorkoutLogInsert;
+        Update:        Partial<WorkoutLogInsert>;
+        Relationships: [];
       };
       weight_logs: {
-        Row:    WeightLogRow;
-        Insert: WeightLogInsert;
-        Update: Partial<WeightLogInsert>;
+        Row:           WeightLogRow;
+        Insert:        WeightLogInsert;
+        Update:        Partial<WeightLogInsert>;
+        Relationships: [];
       };
       water_logs: {
-        Row:    WaterLogRow;
-        Insert: WaterLogInsert;
-        Update: Partial<WaterLogInsert>;
+        Row:           WaterLogRow;
+        Insert:        WaterLogInsert;
+        Update:        Partial<WaterLogInsert>;
+        Relationships: [];
       };
       badges: {
-        Row:    BadgeRow;
-        Insert: BadgeInsert;
-        Update: Partial<BadgeInsert>;
+        Row:           BadgeRow;
+        Insert:        BadgeInsert;
+        Update:        Partial<BadgeInsert>;
+        Relationships: [];
       };
       personal_records: {
-        Row:    PersonalRecordRow;
-        Insert: PersonalRecordInsert;
-        Update: Partial<PersonalRecordInsert>;
+        Row:           PersonalRecordRow;
+        Insert:        PersonalRecordInsert;
+        Update:        Partial<PersonalRecordInsert>;
+        Relationships: [];
       };
       weekly_reports: {
-        Row:    WeeklyReportRow;
-        Insert: WeeklyReportInsert;
-        Update: Partial<WeeklyReportInsert>;
+        Row:           WeeklyReportRow;
+        Insert:        WeeklyReportInsert;
+        Update:        Partial<WeeklyReportInsert>;
+        Relationships: [];
       };
     };
+    Views:     Record<string, never>;
+    Functions: Record<string, never>;
     Enums: {
       meal_type:        MealTypeEnum;
       workout_category: WorkoutCatEnum;

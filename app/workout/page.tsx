@@ -4,11 +4,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   getAppData, addWorkoutEntry, removeWorkoutEntry,
   checkAndUpdatePR, addBadge, checkAndAwardBadges, getStreak, getBadges,
-} from '@/lib/storage';
+} from '@/lib/data';
 import { WorkoutEntry, MusclePart, CoachMenu, FoodEntry, Badge } from '@/lib/types';
 import {
   Dumbbell, Clock, Flame, ShieldAlert, CheckCircle,
-  Trash2, ChevronRight, Sparkles, Trophy,
+  Trash2, ChevronRight, Sparkles,
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import BadgeCelebration from '@/components/BadgeCelebration';
@@ -126,14 +126,14 @@ export default function WorkoutPage() {
     setCoachAdvice(menu.coachTip);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
     const wt = parseFloat(weight) || 0;
-    const isNewPR = checkAndUpdatePR(name.trim(), wt, today);
+    const isNewPR = await checkAndUpdatePR(name.trim(), wt, today);
 
-    addWorkoutEntry({
+    await addWorkoutEntry({
       id: crypto.randomUUID(),
       date: today,
       name: name.trim(),
@@ -154,12 +154,12 @@ export default function WorkoutPage() {
         icon: '💪',
         earnedAt: new Date().toISOString(),
       };
-      addBadge(prBadge);
+      await addBadge(prBadge);
       setPrToast(`🏆 PR更新！${name.trim()} ${wt}kg`);
       setCelebrationBadges([prBadge]);
     }
 
-    const newBadges = checkAndAwardBadges(today);
+    const newBadges = await checkAndAwardBadges(today);
     if (newBadges.length > 0 && !isNewPR) setCelebrationBadges(newBadges);
 
     loadData();

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, PenLine, Clock, Zap } from 'lucide-react';
-import { addFoodEntry, getRecentFoods } from '@/lib/storage';
+import { addFoodEntry, getRecentFoods } from '@/lib/data';
 import { FoodEntry } from '@/lib/types';
 import PhotoUpload from '@/components/PhotoUpload';
 import BottomNav from '@/components/BottomNav';

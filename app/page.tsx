@@ -6,7 +6,7 @@ import { Plus, Settings, Flame } from 'lucide-react';
 import {
   getAppData, removeFoodEntry, addWater, getWaterForDate, getStreak,
   checkAndAwardBadges, getBadges,
-} from '@/lib/storage';
+} from '@/lib/data';
 import { FoodEntry, DailyGoals, Badge } from '@/lib/types';
 import CalorieBar from '@/components/CalorieBar';
 import PFCDonut from '@/components/PFCDonut';
@@ -50,17 +50,18 @@ export default function HomePage() {
 
   useEffect(() => {
     loadData();
-    const newBadges = checkAndAwardBadges(getTodayDate());
-    if (newBadges.length > 0) setCelebrationBadges(newBadges);
+    void checkAndAwardBadges(getTodayDate()).then(newBadges => {
+      if (newBadges.length > 0) setCelebrationBadges(newBadges);
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDelete = (id: string) => { removeFoodEntry(id); loadData(); };
 
-  const handleAddWater = (ml: number) => {
-    addWater(today, ml);
+  const handleAddWater = async (ml: number) => {
+    await addWater(today, ml);
     setWater(getWaterForDate(today));
-    const newBadges = checkAndAwardBadges(today);
+    const newBadges = await checkAndAwardBadges(today);
     if (newBadges.length > 0) { setCelebrationBadges(newBadges); setEarnedBadges(getBadges()); }
   };
 

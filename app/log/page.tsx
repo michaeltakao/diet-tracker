@@ -2,12 +2,11 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Sparkles, BarChart3 } from 'lucide-react';
-import { getAppData } from '@/lib/storage';
+import { getAppData, removeFoodEntry } from '@/lib/data';
 import { FoodEntry, DailyGoals } from '@/lib/types';
 import MealCard from '@/components/MealCard';
 import CalorieBar from '@/components/CalorieBar';
 import BottomNav from '@/components/BottomNav';
-import { removeFoodEntry } from '@/lib/storage';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 function getTodayDate(): string { return new Date().toISOString().split('T')[0]; }
