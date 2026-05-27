@@ -1,65 +1,163 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Plus, Settings } from 'lucide-react';
+import { getAppData } from '@/lib/storage';
+import { FoodEntry, DailyGoals } from '@/lib/types';
+import CalorieBar from '@/components/CalorieBar';
+import PFCDonut from '@/components/PFCDonut';
+import MacroBar from '@/components/MacroBar';
+import MealCard from '@/components/MealCard';
+import BottomNav from '@/components/BottomNav';
+import { removeFoodEntry } from '@/lib/storage';
+import { useLanguage } from '@/contexts/LanguageContext';
+
+const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
+
+function getTodayDate(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+export default function HomePage() {
+  const { t } = useLanguage();
+  const [entries, setEntries] = useState<FoodEntry[]>([]);
+  const [goals, setGoals] = useState<DailyGoals>({ calories: 2000, protein: 150, fat: 60, carbs: 200 });
+  const [today] = useState(getTodayDate());
+
+  const loadData = () => {
+    const data = getAppData();
+    const todayEntries = data.foodEntries.filter((e) => e.date === today);
+    setEntries(todayEntries);
+    setGoals(data.goals);
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleDelete = (id: string) => {
+    removeFoodEntry(id);
+    loadData();
+  };
+
+  const totals = entries.reduce(
+    (acc, e) => ({
+      calories: acc.calories + e.calories,
+      protein: acc.protein + e.protein,
+      fat: acc.fat + e.fat,
+      carbs: acc.carbs + e.carbs,
+    }),
+    { calories: 0, protein: 0, fat: 0, carbs: 0 }
+  );
+
+  const grouped = MEAL_TYPES.reduce(
+    (acc, type) => {
+      acc[type] = entries.filter((e) => e.mealType === type);
+      return acc;
+    },
+    {} as Record<string, FoodEntry[]>
+  );
+
+  const MEAL_LABELS: Record<string, string> = {
+    breakfast: `🌅 ${t.breakfast}`,
+    lunch: `☀️ ${t.lunch}`,
+    dinner: `🌙 ${t.dinner}`,
+    snack: `🍎 ${t.snack}`,
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="max-w-md mx-auto pb-24 px-4">
+      {/* Header */}
+      <div className="flex items-center justify-between pt-6 pb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{t.appName}</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{formatDate(today)}</p>
+        </div>
+        <Link
+          href="/settings"
+          className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          <Settings size={20} />
+        </Link>
+      </div>
+
+      {/* Calorie Bar */}
+      <div className="bg-white rounded-2xl shadow-sm p-4 mb-3">
+        <CalorieBar current={totals.calories} goal={goals.calories} />
+      </div>
+
+      {/* PFC Donut */}
+      <div className="bg-white rounded-2xl shadow-sm p-4 mb-3">
+        <h2 className="text-sm font-semibold text-gray-700 mb-2">{t.macroBreakdown}</h2>
+        <PFCDonut
+          protein={totals.protein}
+          fat={totals.fat}
+          carbs={totals.carbs}
+          goalProtein={goals.protein}
+          goalFat={goals.fat}
+          goalCarbs={goals.carbs}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+      </div>
+
+      {/* Macro Bars */}
+      <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">{t.macros}</h2>
+        <MacroBar
+          protein={totals.protein}
+          fat={totals.fat}
+          carbs={totals.carbs}
+          goalProtein={goals.protein}
+          goalFat={goals.fat}
+          goalCarbs={goals.carbs}
+        />
+      </div>
+
+      {/* Meal List */}
+      <h2 className="text-sm font-semibold text-gray-700 mb-3">{t.todayMeals}</h2>
+
+      {entries.length === 0 ? (
+        <div className="bg-white rounded-2xl shadow-sm p-8 text-center text-gray-400">
+          <p className="text-3xl mb-2">🍽️</p>
+          <p className="text-sm font-medium">{t.noMeals}</p>
+          <p className="text-xs mt-1">{t.noMealsSub}</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      ) : (
+        <div className="space-y-4">
+          {MEAL_TYPES.map((type) => {
+            const typeEntries = grouped[type];
+            if (typeEntries.length === 0) return null;
+            return (
+              <div key={type}>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  {MEAL_LABELS[type]}
+                </h3>
+                <div className="space-y-2">
+                  {typeEntries.map((entry) => (
+                    <MealCard key={entry.id} entry={entry} onDelete={handleDelete} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      </main>
+      )}
+
+      {/* FAB */}
+      <Link
+        href="/add"
+        className="fixed bottom-20 right-4 w-14 h-14 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg flex items-center justify-center transition-colors z-40"
+        aria-label={t.addMeal}
+      >
+        <Plus size={28} />
+      </Link>
+
+      <BottomNav />
     </div>
   );
 }
