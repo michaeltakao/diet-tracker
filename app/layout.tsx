@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { ProfileProvider } from '@/contexts/ProfileContext';
 import PwaRegister from '@/components/PwaRegister';
 import PwaInstallBanner from '@/components/PwaInstallBanner';
 
@@ -51,10 +52,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ja">
       <body className={`${inter.className} bg-[var(--background)] min-h-screen`}>
-        <LanguageProvider>
-          {children}
-          <PwaInstallBanner />
-        </LanguageProvider>
+        <ProfileProvider>
+          <LanguageProvider>
+            {children}
+            <PwaInstallBanner />
+          </LanguageProvider>
+        </ProfileProvider>
         {/* SW registration — runs outside LanguageProvider to avoid re-renders */}
         <PwaRegister />
       </body>
