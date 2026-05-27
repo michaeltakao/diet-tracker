@@ -15,25 +15,27 @@ interface SingleBarProps {
   label: string;
   current: number;
   goal: number;
-  color: string;
-  bgColor: string;
+  fillClass: string;   // e.g. "bg-emerald-500"
+  trackClass: string;  // e.g. "bg-emerald-100 dark:bg-emerald-900/30"
+  textClass: string;   // e.g. "text-emerald-600 dark:text-emerald-400"
 }
 
-function SingleBar({ label, current, goal, color, bgColor }: SingleBarProps) {
-  const percentage = goal > 0 ? Math.min((current / goal) * 100, 100) : 0;
+function SingleBar({ label, current, goal, fillClass, trackClass, textClass }: SingleBarProps) {
+  const pct = goal > 0 ? Math.min((current / goal) * 100, 100) : 0;
+  const isOver = current > goal;
 
   return (
     <div className="w-full">
-      <div className="flex justify-between items-center mb-1">
-        <span className="text-xs font-medium text-gray-600">{label}</span>
-        <span className="text-xs font-semibold text-gray-700">
-          {current}g / {goal}g
+      <div className="flex justify-between items-center mb-1.5">
+        <span className={`text-xs font-semibold ${textClass}`}>{label}</span>
+        <span className={`text-xs font-bold ${isOver ? 'text-red-500' : 'text-gray-600 dark:text-gray-300'} tabular-nums`}>
+          {current}g <span className="font-normal text-gray-400 dark:text-gray-500">/ {goal}g</span>
         </span>
       </div>
-      <div className={`h-2 w-full rounded-full overflow-hidden ${bgColor}`}>
+      <div className={`h-2.5 w-full rounded-full overflow-hidden ${trackClass}`}>
         <div
-          className={`h-full rounded-full transition-all duration-500 ${color}`}
-          style={{ width: `${percentage}%` }}
+          className={`h-full rounded-full transition-all duration-700 ease-out ${isOver ? 'bg-red-400' : fillClass}`}
+          style={{ width: `${pct}%` }}
         />
       </div>
     </div>
@@ -44,27 +46,30 @@ export default function MacroBar({ protein, fat, carbs, goalProtein, goalFat, go
   const { t } = useLanguage();
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3.5">
       <SingleBar
         label={t.protein}
         current={protein}
         goal={goalProtein}
-        color="bg-green-500"
-        bgColor="bg-green-100"
+        fillClass="bg-gradient-to-r from-emerald-400 to-green-500"
+        trackClass="bg-emerald-100 dark:bg-emerald-900/30"
+        textClass="text-emerald-600 dark:text-emerald-400"
       />
       <SingleBar
         label={t.fat}
         current={fat}
         goal={goalFat}
-        color="bg-amber-400"
-        bgColor="bg-amber-100"
+        fillClass="bg-gradient-to-r from-amber-400 to-orange-400"
+        trackClass="bg-amber-100 dark:bg-amber-900/30"
+        textClass="text-amber-600 dark:text-amber-400"
       />
       <SingleBar
         label={t.carbs}
         current={carbs}
         goal={goalCarbs}
-        color="bg-blue-500"
-        bgColor="bg-blue-100"
+        fillClass="bg-gradient-to-r from-blue-400 to-indigo-500"
+        trackClass="bg-blue-100 dark:bg-blue-900/30"
+        textClass="text-blue-600 dark:text-blue-400"
       />
     </div>
   );

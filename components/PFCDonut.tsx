@@ -14,27 +14,30 @@ interface PFCDonutProps {
 
 const COLORS = {
   protein: '#22c55e',
-  fat: '#f59e0b',
-  carbs: '#3b82f6',
+  fat:     '#f59e0b',
+  carbs:   '#3b82f6',
+  empty:   '#e2e8f0',
 };
-
 
 export default function PFCDonut({ protein, fat, carbs, goalProtein, goalFat, goalCarbs }: PFCDonutProps) {
   const { t } = useLanguage();
   const totalCalories = Math.round(protein * 4 + fat * 9 + carbs * 4);
-  const goalCalories = Math.round(goalProtein * 4 + goalFat * 9 + goalCarbs * 4);
-
+  const goalCalories  = Math.round(goalProtein * 4 + goalFat * 9 + goalCarbs * 4);
   const hasData = protein > 0 || fat > 0 || carbs > 0;
 
   const data = hasData
     ? [
         { name: t.protein, value: protein, color: COLORS.protein },
-        { name: t.fat, value: fat, color: COLORS.fat },
-        { name: t.carbs, value: carbs, color: COLORS.carbs },
+        { name: t.fat,     value: fat,     color: COLORS.fat },
+        { name: t.carbs,   value: carbs,   color: COLORS.carbs },
       ]
-    : [
-        { name: 'Empty', value: 1, color: '#e5e7eb' },
-      ];
+    : [{ name: 'Empty', value: 1, color: COLORS.empty }];
+
+  const legendItems = [
+    { label: t.protein, value: protein, goal: goalProtein, color: COLORS.protein, text: 'text-emerald-600 dark:text-emerald-400' },
+    { label: t.fat,     value: fat,     goal: goalFat,     color: COLORS.fat,     text: 'text-amber-600 dark:text-amber-400' },
+    { label: t.carbs,   value: carbs,   goal: goalCarbs,   color: COLORS.carbs,   text: 'text-blue-600 dark:text-blue-400' },
+  ];
 
   return (
     <div className="flex flex-col items-center">
@@ -45,47 +48,63 @@ export default function PFCDonut({ protein, fat, carbs, goalProtein, goalFat, go
               data={data}
               cx="50%"
               cy="50%"
-              innerRadius={60}
-              outerRadius={85}
+              innerRadius={58}
+              outerRadius={82}
               paddingAngle={hasData ? 3 : 0}
               dataKey="value"
               labelLine={false}
+              strokeWidth={0}
             >
-              {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+              {data.map((entry, i) => (
+                <Cell key={`cell-${i}`} fill={entry.color} />
               ))}
             </Pie>
             {hasData && (
               <Tooltip
                 formatter={(value) => [`${value}g`]}
-                contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
+                contentStyle={{
+                  borderRadius: 12,
+                  border: 'none',
+                  boxShadow: '0 8px 30px rgb(0,0,0,0.1)',
+                  fontSize: 12,
+                }}
               />
             )}
           </PieChart>
         </ResponsiveContainer>
-        {/* Center label overlay */}
+
+        {/* Centre label */}
         <div
-          className="relative flex flex-col items-center justify-center"
-          style={{ marginTop: -200, height: 200, pointerEvents: 'none' }}
+          className="relative flex flex-col items-center justify-center pointer-events-none"
+          style={{ marginTop: -200, height: 200 }}
         >
-          <span className="text-xl font-bold text-gray-800">{totalCalories}</span>
-          <span className="text-xs text-gray-500">/ {goalCalories} kcal</span>
+          {hasData ? (
+            <>
+              <span className="text-2xl font-black text-gray-800 dark:text-gray-100 tabular-nums leading-tight">
+                {totalCalories.toLocaleString()}
+              </span>
+              <span className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">
+                / {goalCalories.toLocaleString()} kcal
+              </span>
+            </>
+          ) : (
+            <span className="text-xs text-gray-300 dark:text-gray-600 font-medium">記録なし</span>
+          )}
         </div>
       </div>
 
       {/* Legend */}
       <div className="flex gap-4 mt-1">
-        {[
-          { label: t.protein, value: protein, goal: goalProtein, color: COLORS.protein },
-          { label: t.fat, value: fat, goal: goalFat, color: COLORS.fat },
-          { label: t.carbs, value: carbs, goal: goalCarbs, color: COLORS.carbs },
-        ].map(({ label, value, goal, color }) => (
+        {legendItems.map(({ label, value, goal, color, text }) => (
           <div key={label} className="flex flex-col items-center">
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-              <span className="text-xs text-gray-500">{label}</span>
+            <div className="flex items-center gap-1 mb-0.5">
+              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+              <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">{label}</span>
             </div>
-            <span className="text-xs font-semibold text-gray-700">{value}g / {goal}g</span>
+            <span className={`text-xs font-bold ${text} tabular-nums`}>
+              {value}g
+              <span className="font-normal text-gray-400 dark:text-gray-500"> / {goal}g</span>
+            </span>
           </div>
         ))}
       </div>

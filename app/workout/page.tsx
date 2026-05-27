@@ -372,16 +372,22 @@ export default function WorkoutPage() {
 
           {aiAdvice && (
             <div className="space-y-2.5 animate-fade-in">
-              {[
-                { color: 'purple', label: '📊 今日の総評',       text: aiAdvice.todayAdvice },
-                { color: 'blue',   label: '🕐 習慣インサイト',  text: aiAdvice.habitInsight },
-                { color: 'green',  label: '💡 明日のアドバイス', text: aiAdvice.tomorrowTip },
-              ].map(({ color, label, text }) => (
-                <div key={label} className={`bg-${color}-50 dark:bg-${color}-900/20 rounded-2xl p-3 border border-${color}-100 dark:border-${color}-800`}>
-                  <p className={`text-xs font-bold text-${color}-600 dark:text-${color}-400 mb-1.5`}>{label}</p>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{text}</p>
-                </div>
-              ))}
+              {/* Today's advice */}
+              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-2xl p-3 border border-purple-100 dark:border-purple-800">
+                <p className="text-xs font-bold text-purple-600 dark:text-purple-400 mb-1.5">📊 今日の総評</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{aiAdvice.todayAdvice}</p>
+              </div>
+              {/* Habit insight */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-3 border border-blue-100 dark:border-blue-800">
+                <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1.5">🕐 習慣インサイト</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{aiAdvice.habitInsight}</p>
+              </div>
+              {/* Tomorrow tip */}
+              <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-3 border border-emerald-100 dark:border-emerald-800">
+                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1.5">💡 明日のアドバイス</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{aiAdvice.tomorrowTip}</p>
+              </div>
+              {/* Motivation */}
               <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl p-3 border border-yellow-100 dark:border-yellow-800 text-center">
                 <p className="text-sm font-black text-yellow-700 dark:text-yellow-400">{aiAdvice.motivationMessage}</p>
               </div>
