@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint app components lib contexts --ext .ts,.tsx"
   },
   "dependencies": {
     "@google/genai": "^2.6.0",
