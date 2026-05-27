@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -21,6 +22,11 @@ const COLORS = {
 
 export default function PFCDonut({ protein, fat, carbs, goalProtein, goalFat, goalCarbs }: PFCDonutProps) {
   const { t } = useLanguage();
+
+  // Prevent recharts ResponsiveContainer from measuring during SSG
+  // (getBoundingClientRect returns -1 width/height in jsdom → console warning)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const totalCalories = Math.round(protein * 4 + fat * 9 + carbs * 4);
   const goalCalories  = Math.round(goalProtein * 4 + goalFat * 9 + goalCarbs * 4);
   const hasData = protein > 0 || fat > 0 || carbs > 0;
@@ -38,6 +44,11 @@ export default function PFCDonut({ protein, fat, carbs, goalProtein, goalFat, go
     { label: t.fat,     value: fat,     goal: goalFat,     color: COLORS.fat,     text: 'text-amber-600 dark:text-amber-400' },
     { label: t.carbs,   value: carbs,   goal: goalCarbs,   color: COLORS.carbs,   text: 'text-blue-600 dark:text-blue-400' },
   ];
+
+  // Server-side placeholder — recharts needs a DOM to measure dimensions
+  if (!mounted) {
+    return <div style={{ height: 200 }} aria-hidden="true" />;
+  }
 
   return (
     <div className="flex flex-col items-center">

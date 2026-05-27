@@ -1,22 +1,28 @@
 /**
  * Food data access layer.
  *
- * Currently delegates to lib/storage.ts (localStorage).
- * STEP 6: replace internals with Supabase queries when user is authenticated.
+ * Read:  localStorage always (synchronous, immediate).
+ * Write: localStorage first; then Supabase when authenticated (async, fire-and-forget).
  *
- * All page components should import from here — never directly from storage.ts.
+ * STEP 6: dual-write added.
+ * STEP 7: reads will prefer Supabase after migration runs.
+ *
+ * See: docs/decisions/ADR-006-data-abstraction.md
+ *      docs/decisions/ADR-007-dual-write.md
  */
 
 import {
-  addFoodEntry as _add,
+  addFoodEntry    as _add,
   removeFoodEntry as _remove,
   getEntriesForDate as _getByDate,
-  getRecentFoods as _getRecent,
-  getAppData as _getAll,
+  getRecentFoods    as _getRecent,
+  getAppData        as _getAll,
 } from '@/lib/storage';
+import { getWriteContext } from './_write';
 import type { FoodEntry } from '@/lib/types';
+import type { MealTypeEnum } from '@/lib/database.types';
 
-// ── Read ──────────────────────────────────────────────────────
+// ── Read (localStorage, synchronous) ──────────────────────────────────────────
 
 /** All food entries for a specific date (YYYY-MM-DD). */
 export function getFoodEntriesForDate(date: string): FoodEntry[] {
@@ -40,12 +46,63 @@ export function getFoodEntriesForRange(startDate: string, endDate: string): Food
   );
 }
 
-// ── Write ─────────────────────────────────────────────────────
+// ── Write (localStorage + Supabase dual-write) ────────────────────────────────
 
-export function addFoodEntry(entry: FoodEntry): void {
+/**
+ * Add a food entry.
+ *
+ * 1. Writes synchronously to localStorage — UI updates immediately.
+ * 2. Fires async write to Supabase if user is authenticated.
+ *    Supabase failure is logged but never propagated to UI.
+ */
+export async function addFoodEntry(entry: FoodEntry): Promise<void> {
+  // Step 1: localStorage (synchronous)
   _add(entry);
+
+  // Step 2: Supabase (async, background)
+  const ctx = await getWriteContext();
+  if (!ctx) return;
+
+  const { error } = await ctx.supabase.from('food_logs').upsert({
+    id:          entry.id,
+    user_id:     ctx.userId,
+    logged_date: entry.date,
+    meal_type:   entry.mealType as MealTypeEnum,
+    name:        entry.name,
+    calories:    entry.calories,
+    protein_g:   entry.protein,
+    fat_g:       entry.fat,
+    carbs_g:     entry.carbs,
+    photo_url:   entry.photo_url ?? null,
+    logged_at:   entry.addedAt,
+  }, { onConflict: 'id' });
+
+  if (error) {
+    console.warn('[data/food] Supabase addFoodEntry failed:', error.message);
+  }
 }
 
-export function removeFoodEntry(id: string): void {
+/**
+ * Remove a food entry by ID.
+ *
+ * 1. Removes from localStorage immediately.
+ * 2. Deletes from Supabase if authenticated.
+ */
+export async function removeFoodEntry(id: string): Promise<void> {
+  // Step 1: localStorage
   _remove(id);
+
+  // Step 2: Supabase
+  const ctx = await getWriteContext();
+  if (!ctx) return;
+
+  const { error } = await ctx.supabase
+    .from('food_logs')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', ctx.userId);
+
+  if (error) {
+    console.warn('[data/food] Supabase removeFoodEntry failed:', error.message);
+  }
 }

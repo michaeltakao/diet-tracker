@@ -1,18 +1,22 @@
 /**
  * Water (hydration) data access layer.
  *
- * Currently delegates to lib/storage.ts (localStorage).
- * STEP 6: replace internals with Supabase queries when user is authenticated.
+ * Read:  localStorage always (synchronous, immediate).
+ * Write: localStorage first; then Supabase when authenticated (async, fire-and-forget).
+ *
+ * STEP 6: dual-write added.
+ * STEP 7: reads will prefer Supabase after migration runs.
  */
 
 import {
   getWaterForDate as _getByDate,
-  addWater as _add,
-  setWater as _set,
-  getAppData as _getAll,
+  addWater        as _add,
+  setWater        as _set,
+  getAppData      as _getAll,
 } from '@/lib/storage';
+import { getWriteContext } from './_write';
 
-// ── Read ──────────────────────────────────────────────────────
+// ── Read (localStorage, synchronous) ──────────────────────────────────────────
 
 /** Total ml consumed on a specific date (YYYY-MM-DD). Returns 0 if no record. */
 export function getWaterForDate(date: string): number {
@@ -32,14 +36,46 @@ export function getWaterForRange(startDate: string, endDate: string): Record<str
   );
 }
 
-// ── Write ─────────────────────────────────────────────────────
+// ── Write (localStorage + Supabase dual-write) ────────────────────────────────
 
 /** Add `ml` to the existing total for the date. */
-export function addWater(date: string, ml: number): void {
+export async function addWater(date: string, ml: number): Promise<void> {
+  // Step 1: localStorage (updates the running total)
   _add(date, ml);
+
+  // Step 2: Supabase — UPSERT with the new running total
+  const ctx = await getWriteContext();
+  if (!ctx) return;
+
+  const newTotal = _getByDate(date); // read back the updated total
+
+  const { error } = await ctx.supabase.from('water_logs').upsert({
+    user_id:     ctx.userId,
+    logged_date: date,
+    total_ml:    newTotal,
+  }, { onConflict: 'user_id,logged_date' });
+
+  if (error) {
+    console.warn('[data/water] Supabase addWater failed:', error.message);
+  }
 }
 
 /** Set the total for the date to exactly `ml`. */
-export function setWater(date: string, ml: number): void {
+export async function setWater(date: string, ml: number): Promise<void> {
+  // Step 1: localStorage
   _set(date, ml);
+
+  // Step 2: Supabase
+  const ctx = await getWriteContext();
+  if (!ctx) return;
+
+  const { error } = await ctx.supabase.from('water_logs').upsert({
+    user_id:     ctx.userId,
+    logged_date: date,
+    total_ml:    ml,
+  }, { onConflict: 'user_id,logged_date' });
+
+  if (error) {
+    console.warn('[data/water] Supabase setWater failed:', error.message);
+  }
 }

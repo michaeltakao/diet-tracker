@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Scale, Plus, Trash2, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import {
   addWeightEntry, getWeightEntries, removeWeightEntry, getAppData,
-} from '@/lib/storage';
+} from '@/lib/data';
 import { WeightEntry } from '@/lib/types';
 import WeightChart from '@/components/WeightChart';
 import BottomNav from '@/components/BottomNav';
