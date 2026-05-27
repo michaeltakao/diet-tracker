@@ -46,7 +46,7 @@ export default function LogPage() {
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
   const [weekOffset, setWeekOffset] = useState(0);
   const [allEntries, setAllEntries] = useState<FoodEntry[]>([]);
-  const [goals, setGoals] = useState<DailyGoals>({ calories: 2000, protein: 150, fat: 60, carbs: 200 });
+  const [goals, setGoals] = useState<DailyGoals>({ calories: 2000, protein: 150, fat: 60, carbs: 200, water: 2000 });
 
   const loadData = () => {
     const data = getAppData();

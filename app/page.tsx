@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Settings } from 'lucide-react';
-import { getAppData } from '@/lib/storage';
+import { Plus, Settings, Flame } from 'lucide-react';
+import { getAppData, removeFoodEntry, addWater, getWaterForDate, getStreak } from '@/lib/storage';
 import { FoodEntry, DailyGoals } from '@/lib/types';
 import CalorieBar from '@/components/CalorieBar';
 import PFCDonut from '@/components/PFCDonut';
 import MacroBar from '@/components/MacroBar';
 import MealCard from '@/components/MealCard';
+import WaterTracker from '@/components/WaterTracker';
 import BottomNav from '@/components/BottomNav';
-import { removeFoodEntry } from '@/lib/storage';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
@@ -21,13 +21,15 @@ function getTodayDate(): string {
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  return date.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
 }
 
 export default function HomePage() {
   const { t } = useLanguage();
   const [entries, setEntries] = useState<FoodEntry[]>([]);
-  const [goals, setGoals] = useState<DailyGoals>({ calories: 2000, protein: 150, fat: 60, carbs: 200 });
+  const [goals, setGoals] = useState<DailyGoals>({ calories: 2000, protein: 150, fat: 60, carbs: 200, water: 2000 });
+  const [water, setWater] = useState(0);
+  const [streak, setStreak] = useState(0);
   const [today] = useState(getTodayDate());
 
   const loadData = () => {
@@ -35,15 +37,20 @@ export default function HomePage() {
     const todayEntries = data.foodEntries.filter((e) => e.date === today);
     setEntries(todayEntries);
     setGoals(data.goals);
+    setWater(getWaterForDate(today));
+    setStreak(getStreak());
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const handleDelete = (id: string) => {
     removeFoodEntry(id);
     loadData();
+  };
+
+  const handleAddWater = (ml: number) => {
+    addWater(today, ml);
+    setWater(getWaterForDate(today));
   };
 
   const totals = entries.reduce(
@@ -55,6 +62,9 @@ export default function HomePage() {
     }),
     { calories: 0, protein: 0, fat: 0, carbs: 0 }
   );
+
+  const remaining = Math.max(0, goals.calories - totals.calories);
+  const over = totals.calories > goals.calories;
 
   const grouped = MEAL_TYPES.reduce(
     (acc, type) => {
@@ -79,12 +89,36 @@ export default function HomePage() {
           <h1 className="text-2xl font-bold text-gray-900">{t.appName}</h1>
           <p className="text-sm text-gray-500 mt-0.5">{formatDate(today)}</p>
         </div>
-        <Link
-          href="/settings"
-          className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          <Settings size={20} />
-        </Link>
+        <div className="flex items-center gap-2">
+          {streak > 0 && (
+            <div className="flex items-center gap-1 bg-orange-50 px-2.5 py-1.5 rounded-xl">
+              <Flame size={14} className="text-orange-500" />
+              <span className="text-xs font-bold text-orange-600">{streak}{t.streakDays}</span>
+            </div>
+          )}
+          <Link
+            href="/settings"
+            className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            <Settings size={20} />
+          </Link>
+        </div>
+      </div>
+
+      {/* Remaining calories — hero number */}
+      <div className={`rounded-2xl p-4 mb-3 ${over ? 'bg-red-50' : 'bg-green-50'}`}>
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-0.5">
+          {over ? '⚠️ オーバー' : t.remaining}
+        </p>
+        <div className="flex items-end gap-2">
+          <span className={`text-4xl font-bold ${over ? 'text-red-600' : 'text-green-600'}`}>
+            {over ? `+${totals.calories - goals.calories}` : remaining}
+          </span>
+          <span className="text-sm text-gray-500 mb-1">kcal</span>
+        </div>
+        <p className="text-xs text-gray-400 mt-0.5">
+          {totals.calories} / {goals.calories} kcal {t.consumed}
+        </p>
       </div>
 
       {/* Calorie Bar */}
@@ -106,7 +140,7 @@ export default function HomePage() {
       </div>
 
       {/* Macro Bars */}
-      <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
+      <div className="bg-white rounded-2xl shadow-sm p-4 mb-3">
         <h2 className="text-sm font-semibold text-gray-700 mb-3">{t.macros}</h2>
         <MacroBar
           protein={totals.protein}
@@ -115,6 +149,15 @@ export default function HomePage() {
           goalProtein={goals.protein}
           goalFat={goals.fat}
           goalCarbs={goals.carbs}
+        />
+      </div>
+
+      {/* Water Tracker */}
+      <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
+        <WaterTracker
+          current={water}
+          goal={goals.water ?? 2000}
+          onAdd={handleAddWater}
         />
       </div>
 

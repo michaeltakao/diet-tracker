@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, BookOpen, PlusCircle, Dumbbell } from 'lucide-react';
+import { Home, BookOpen, PlusCircle, Dumbbell, Scale } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function BottomNav() {
@@ -14,6 +14,7 @@ export default function BottomNav() {
     { href: '/log', label: t.navLog, icon: BookOpen },
     { href: '/add', label: t.navAdd, icon: PlusCircle },
     { href: '/workout', label: t.navWorkout, icon: Dumbbell },
+    { href: '/weight', label: t.navWeight, icon: Scale },
   ];
 
   return (

@@ -2,32 +2,31 @@ export type Lang = 'ja' | 'en';
 
 export const translations = {
   ja: {
-    // App
     appName: 'Diet Tracker 🥗',
-    // Nav
     navHome: 'ホーム',
     navLog: '記録',
     navAdd: '追加',
     navWorkout: 'トレーニング',
-    // Home page
+    navWeight: '体重',
     todayMeals: '今日の食事',
     noMeals: 'まだ食事が記録されていません',
     noMealsSub: '＋ボタンから最初の食事を追加しよう',
     caloriesLabel: 'カロリー',
+    remaining: '残り',
+    consumed: '摂取',
     macroBreakdown: 'PFCバランス',
     macros: 'マクロ',
     protein: 'タンパク質',
     fat: '脂質',
     carbs: '炭水化物',
-    // Meal types
     breakfast: '朝食',
     lunch: '昼食',
     dinner: '夕食',
     snack: '間食',
-    // Add page
     addMeal: '食事を追加',
     tabPhoto: '📷 写真',
     tabManual: '✏️ 手動入力',
+    tabRecent: '🕐 最近',
     mealType: '食事タイプ',
     foodName: '食品名',
     calories: 'カロリー (kcal)',
@@ -40,10 +39,10 @@ export const translations = {
     confirmAdd: 'この内容で追加',
     dropzoneText: '写真をドラッグ＆ドロップ\nまたはクリックして選択',
     aiResult: 'AI解析結果',
-    // Log page
+    recentFoods: '最近追加した食事',
+    noRecentFoods: '最近の記録がありません',
     weeklyLog: '週間記録',
     noData: 'この日の記録はありません',
-    // Workout page
     workoutLog: 'トレーニング記録',
     addWorkout: 'トレーニングを追加',
     workoutName: 'トレーニング名',
@@ -55,12 +54,28 @@ export const translations = {
     notes: 'メモ',
     saveWorkout: '記録する',
     noWorkouts: 'トレーニングの記録はありません',
-    // Workout categories
     catStrength: '筋トレ',
     catCardio: '有酸素',
     catFlexibility: 'ストレッチ',
     catOther: 'その他',
-    // Settings page
+    // Weight
+    weightLog: '体重記録',
+    addWeight: '体重を記録',
+    bodyWeight: '体重 (kg)',
+    weightGoal: '目標体重 (kg)',
+    noWeight: '体重の記録はありません',
+    weightTrend: '体重の推移',
+    latestWeight: '最新体重',
+    // Water
+    water: '水分',
+    waterIntake: '水分摂取量',
+    waterGoal: '目標水分量 (ml)',
+    addWater: '追加',
+    waterGlass: '追加',
+    // Streak
+    streak: '連続記録',
+    streakDays: '日',
+    // Settings
     settings: '設定',
     dailyGoals: '1日の目標',
     calorieGoal: 'カロリー目標 (kcal)',
@@ -70,7 +85,6 @@ export const translations = {
     saveSettings: '保存する',
     saved: '保存しました！',
     language: '言語',
-    // Common
     delete: '削除',
     cancel: 'キャンセル',
     confidence: '信頼度',
@@ -79,32 +93,31 @@ export const translations = {
     low: '低',
   },
   en: {
-    // App
     appName: 'Diet Tracker 🥗',
-    // Nav
     navHome: 'Home',
     navLog: 'Log',
     navAdd: 'Add',
     navWorkout: 'Workout',
-    // Home page
+    navWeight: 'Weight',
     todayMeals: "Today's Meals",
     noMeals: 'No meals logged yet',
     noMealsSub: 'Tap + to add your first meal',
     caloriesLabel: 'Calories',
+    remaining: 'Remaining',
+    consumed: 'Consumed',
     macroBreakdown: 'Macro Breakdown',
     macros: 'Macros',
     protein: 'Protein',
     fat: 'Fat',
     carbs: 'Carbs',
-    // Meal types
     breakfast: 'Breakfast',
     lunch: 'Lunch',
     dinner: 'Dinner',
     snack: 'Snack',
-    // Add page
     addMeal: 'Add Meal',
     tabPhoto: '📷 Photo',
     tabManual: '✏️ Manual',
+    tabRecent: '🕐 Recent',
     mealType: 'Meal Type',
     foodName: 'Food Name',
     calories: 'Calories (kcal)',
@@ -117,10 +130,10 @@ export const translations = {
     confirmAdd: 'Confirm & Add',
     dropzoneText: 'Drag & drop a photo here\nor click to select',
     aiResult: 'AI Analysis Result',
-    // Log page
+    recentFoods: 'Recent Foods',
+    noRecentFoods: 'No recent entries',
     weeklyLog: 'Weekly Log',
     noData: 'No entries for this day',
-    // Workout page
     workoutLog: 'Workout Log',
     addWorkout: 'Add Workout',
     workoutName: 'Exercise Name',
@@ -132,12 +145,28 @@ export const translations = {
     notes: 'Notes',
     saveWorkout: 'Save',
     noWorkouts: 'No workouts logged',
-    // Workout categories
     catStrength: 'Strength',
     catCardio: 'Cardio',
     catFlexibility: 'Flexibility',
     catOther: 'Other',
-    // Settings page
+    // Weight
+    weightLog: 'Weight Log',
+    addWeight: 'Log Weight',
+    bodyWeight: 'Weight (kg)',
+    weightGoal: 'Goal Weight (kg)',
+    noWeight: 'No weight entries yet',
+    weightTrend: 'Weight Trend',
+    latestWeight: 'Latest',
+    // Water
+    water: 'Water',
+    waterIntake: 'Water Intake',
+    waterGoal: 'Water Goal (ml)',
+    addWater: 'Add',
+    waterGlass: 'Add',
+    // Streak
+    streak: 'Streak',
+    streakDays: 'days',
+    // Settings
     settings: 'Settings',
     dailyGoals: 'Daily Goals',
     calorieGoal: 'Calorie Goal (kcal)',
@@ -147,7 +176,6 @@ export const translations = {
     saveSettings: 'Save',
     saved: 'Saved!',
     language: 'Language',
-    // Common
     delete: 'Delete',
     cancel: 'Cancel',
     confidence: 'Confidence',
@@ -158,5 +186,4 @@ export const translations = {
 } as const;
 
 export type TranslationKey = keyof typeof translations.en;
-// Structural type with string values so both 'ja' and 'en' satisfy it
 export type Translations = { [K in TranslationKey]: string };

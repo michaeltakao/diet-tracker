@@ -2,20 +2,29 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Camera, PenLine } from 'lucide-react';
-import { addFoodEntry } from '@/lib/storage';
+import { Camera, PenLine, Clock } from 'lucide-react';
+import { addFoodEntry, getRecentFoods } from '@/lib/storage';
 import { FoodEntry } from '@/lib/types';
 import PhotoUpload from '@/components/PhotoUpload';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 type MealType = FoodEntry['mealType'];
-type Tab = 'photo' | 'manual';
+type Tab = 'photo' | 'manual' | 'recent';
 
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
 function getTodayDate(): string {
   return new Date().toISOString().split('T')[0];
+}
+
+/** Guess meal type based on current hour */
+function guessMealType(): MealType {
+  const h = new Date().getHours();
+  if (h < 10) return 'breakfast';
+  if (h < 14) return 'lunch';
+  if (h < 20) return 'dinner';
+  return 'snack';
 }
 
 interface FormData {
@@ -29,7 +38,7 @@ interface FormData {
 
 const EMPTY_FORM: FormData = {
   name: '',
-  mealType: 'breakfast',
+  mealType: guessMealType(),
   calories: '',
   protein: '',
   fat: '',
@@ -43,6 +52,7 @@ export default function AddPage() {
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>(undefined);
   const [errors, setErrors] = useState<Partial<FormData>>({});
+  const recentFoods = getRecentFoods(6);
 
   const handleAnalysisComplete = (
     result: { name: string; calories: number; protein: number; fat: number; carbs: number },
@@ -61,18 +71,17 @@ export default function AddPage() {
 
   const validate = (): boolean => {
     const newErrors: Partial<FormData> = {};
-    if (!form.name.trim()) newErrors.name = 'Name is required';
-    if (!form.calories || isNaN(Number(form.calories))) newErrors.calories = 'Enter a valid number';
-    if (!form.protein || isNaN(Number(form.protein))) newErrors.protein = 'Enter a valid number';
-    if (!form.fat || isNaN(Number(form.fat))) newErrors.fat = 'Enter a valid number';
-    if (!form.carbs || isNaN(Number(form.carbs))) newErrors.carbs = 'Enter a valid number';
+    if (!form.name.trim()) newErrors.name = '名前を入力してください';
+    if (!form.calories || isNaN(Number(form.calories))) newErrors.calories = '数値を入力してください';
+    if (!form.protein || isNaN(Number(form.protein))) newErrors.protein = '数値を入力してください';
+    if (!form.fat || isNaN(Number(form.fat))) newErrors.fat = '数値を入力してください';
+    if (!form.carbs || isNaN(Number(form.carbs))) newErrors.carbs = '数値を入力してください';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = () => {
     if (!validate()) return;
-
     const entry: FoodEntry = {
       id: crypto.randomUUID(),
       date: getTodayDate(),
@@ -85,8 +94,19 @@ export default function AddPage() {
       photoDataUrl,
       addedAt: new Date().toISOString(),
     };
-
     addFoodEntry(entry);
+    router.push('/');
+  };
+
+  const handleQuickAdd = (recent: FoodEntry) => {
+    addFoodEntry({
+      ...recent,
+      id: crypto.randomUUID(),
+      date: getTodayDate(),
+      mealType: guessMealType(),
+      photoDataUrl: undefined,
+      addedAt: new Date().toISOString(),
+    });
     router.push('/');
   };
 
@@ -106,8 +126,12 @@ export default function AddPage() {
 
   return (
     <div className="max-w-md mx-auto pb-24 px-4">
-      <div className="pt-6 pb-4">
+      <div className="pt-6 pb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">{t.addMeal}</h1>
+        <div className="flex items-center gap-1 text-xs text-gray-400">
+          <Clock size={12} />
+          <span>{mealTypeLabels[guessMealType()]}</span>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -130,7 +154,46 @@ export default function AddPage() {
           <PenLine size={16} />
           {t.tabManual}
         </button>
+        {recentFoods.length > 0 && (
+          <button
+            onClick={() => setTab('recent')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+              tab === 'recent' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
+            }`}
+          >
+            <Clock size={16} />
+            {t.tabRecent}
+          </button>
+        )}
       </div>
+
+      {/* Recent tab */}
+      {tab === 'recent' && (
+        <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">{t.recentFoods}</h2>
+          {recentFoods.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">{t.noRecentFoods}</p>
+          ) : (
+            <div className="space-y-2">
+              {recentFoods.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleQuickAdd(item)}
+                  className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-green-50 rounded-xl transition-colors text-left"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">{item.name}</p>
+                    <p className="text-xs text-gray-500">
+                      {item.calories}kcal · P{item.protein}g · F{item.fat}g · C{item.carbs}g
+                    </p>
+                  </div>
+                  <span className="text-green-500 text-lg">＋</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Photo tab */}
       {tab === 'photo' && (
@@ -139,7 +202,7 @@ export default function AddPage() {
         </div>
       )}
 
-      {/* Form — shown for manual tab, or after photo analysis */}
+      {/* Form */}
       {showForm && (
         <div className="bg-white rounded-2xl shadow-sm p-4 mb-4 space-y-4">
           {tab === 'photo' && (
@@ -177,7 +240,7 @@ export default function AddPage() {
               type="text"
               value={form.name}
               onChange={(e) => updateField('name', e.target.value)}
-              placeholder="e.g. Grilled chicken salad"
+              placeholder="例：鶏むね肉サラダ"
               className={`w-full px-3 py-2.5 rounded-xl border text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 ${
                 errors.name ? 'border-red-400' : 'border-gray-200'
               }`}
