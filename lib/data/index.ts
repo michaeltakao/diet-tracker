@@ -1,0 +1,16 @@
+/**
+ * Barrel export for the data access layer.
+ *
+ * Import all data functions from here:
+ *   import { getFoodEntriesForDate, addFoodEntry } from '@/lib/data';
+ *
+ * This keeps import paths stable as the underlying implementation
+ * moves from localStorage → Supabase in STEP 6.
+ */
+
+export * from './food';
+export * from './workout';
+export * from './weight';
+export * from './water';
+export * from './badges';
+export * from './profile';
