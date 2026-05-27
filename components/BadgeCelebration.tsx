@@ -29,38 +29,46 @@ export default function BadgeCelebration({ badges, onClose }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [confetti] = useState<ConfettiPiece[]>(() =>
-    Array.from({ length: 50 }, (_, i) => ({
+    Array.from({ length: 55 }, (_, i) => ({
       id: i,
       color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
       left: Math.random() * 100,
-      delay: Math.random() * 1.5,
-      duration: 2.5 + Math.random() * 2,
+      delay: Math.random() * 1.8,
+      duration: 2.5 + Math.random() * 2.5,
       rotation: Math.random() * 360,
-      size: 7 + Math.random() * 9,
-      shape: Math.random() > 0.5 ? 'rect' : 'circle',
+      size: 6 + Math.random() * 10,
+      shape: Math.random() > 0.45 ? 'rect' : 'circle',
     }))
   );
 
+  const advance = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (currentIndex < badges.length - 1) {
+      setCurrentIndex((i) => i + 1);
+    } else {
+      onClose();
+    }
+  };
+
   useEffect(() => {
-    timerRef.current = setTimeout(() => {
-      if (currentIndex < badges.length - 1) {
-        setCurrentIndex((i) => i + 1);
-      } else {
-        onClose();
-      }
-    }, 3500);
+    timerRef.current = setTimeout(advance, 3800);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [currentIndex, badges.length, onClose]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex, badges.length]);
 
   if (badges.length === 0) return null;
   const badge = badges[currentIndex];
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in"
+      style={{ background: 'rgba(15,23,42,0.55)' }}
+      onClick={advance}
     >
-      {/* Confetti layer */}
+      {/* Glassmorphism backdrop layer */}
+      <div className="absolute inset-0 backdrop-blur-sm" />
+
+      {/* Confetti */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {confetti.map((c) => (
           <div
@@ -68,11 +76,11 @@ export default function BadgeCelebration({ badges, onClose }: Props) {
             className="absolute animate-confetti-fall"
             style={{
               left: `${c.left}%`,
-              top: '-24px',
-              width: c.shape === 'circle' ? c.size : c.size,
-              height: c.shape === 'circle' ? c.size : c.size * 0.55,
+              top: '-28px',
+              width: c.size,
+              height: c.shape === 'circle' ? c.size : c.size * 0.5,
               backgroundColor: c.color,
-              borderRadius: c.shape === 'circle' ? '50%' : '2px',
+              borderRadius: c.shape === 'circle' ? '50%' : '3px',
               transform: `rotate(${c.rotation}deg)`,
               animationDelay: `${c.delay}s`,
               animationDuration: `${c.duration}s`,
@@ -81,42 +89,63 @@ export default function BadgeCelebration({ badges, onClose }: Props) {
         ))}
       </div>
 
-      {/* Badge card */}
+      {/* Badge card — glassmorphism */}
       <div
-        className="relative bg-white rounded-3xl shadow-2xl p-8 mx-6 text-center animate-badge-pop max-w-xs w-full"
+        className="
+          relative z-10 mx-6 max-w-xs w-full
+          bg-white/85 dark:bg-slate-800/85
+          backdrop-blur-md
+          border border-white/60 dark:border-slate-600/60
+          rounded-3xl
+          shadow-[0_24px_64px_rgb(0,0,0,0.20)]
+          p-8 text-center
+          animate-badge-pop
+        "
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Badge count indicator */}
+        {/* Step dots */}
         {badges.length > 1 && (
-          <div className="flex justify-center gap-1.5 mb-4">
+          <div className="flex justify-center gap-1.5 mb-5">
             {badges.map((_, i) => (
               <div
                 key={i}
-                className={`w-2 h-2 rounded-full transition-colors ${i === currentIndex ? 'bg-green-500' : 'bg-gray-200'}`}
+                className={`rounded-full transition-all duration-300 ${
+                  i === currentIndex
+                    ? 'w-5 h-2 bg-green-500'
+                    : 'w-2 h-2 bg-gray-300 dark:bg-gray-600'
+                }`}
               />
             ))}
           </div>
         )}
 
-        <div className="text-7xl mb-4 animate-bounce">{badge.icon}</div>
+        {/* Icon */}
+        <div className="text-7xl mb-4 animate-bounce select-none">{badge.icon}</div>
 
-        <div className="inline-block bg-yellow-100 text-yellow-700 text-xs font-bold px-3 py-1 rounded-full mb-3 uppercase tracking-wide">
-          バッジ獲得！
+        {/* Label pill */}
+        <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-yellow-400 text-white text-xs font-black px-4 py-1.5 rounded-full mb-3 uppercase tracking-widest shadow-sm">
+          🏅 バッジ獲得！
         </div>
 
-        <h2 className="text-xl font-bold text-gray-900 mb-2">{badge.name}</h2>
-        <p className="text-sm text-gray-500 mb-6 leading-relaxed">{badge.description}</p>
+        <h2 className="text-xl font-black text-gray-900 dark:text-white mb-2 leading-tight">
+          {badge.name}
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
+          {badge.description}
+        </p>
 
         <button
-          onClick={() => {
-            if (timerRef.current) clearTimeout(timerRef.current);
-            if (currentIndex < badges.length - 1) {
-              setCurrentIndex((i) => i + 1);
-            } else {
-              onClose();
-            }
-          }}
-          className="w-full py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-2xl transition-colors text-sm"
+          onClick={(e) => { e.stopPropagation(); advance(); }}
+          className="
+            w-full py-3.5
+            bg-gradient-to-r from-green-500 to-emerald-500
+            hover:from-green-600 hover:to-emerald-600
+            active:scale-[0.97]
+            text-white font-bold rounded-2xl
+            transition-all duration-200
+            shadow-[0_4px_14px_rgba(34,197,94,0.4)]
+            text-sm
+          "
         >
           {currentIndex < badges.length - 1 ? `次のバッジを見る →` : `やった！🎉`}
         </button>

@@ -85,6 +85,20 @@ export const translations = {
     aiAdvice: 'AIアドバイスを取得',
     aiAnalyzing: '分析中...',
     aiCoachTitle: '今日のAIアドバイス',
+    // Quick add & time picker
+    frequentlyLogged: 'よく食べるもの',
+    selectLogTime: '記録時刻',
+    quickAddSuccess: '追加しました！',
+    // Habit report
+    weeklyHabitReport: '週間習慣レポートを生成',
+    generatingReport: 'Geminiが7日分を分析中...',
+    habitReportTitle: '習慣分析レポート',
+    habitStrengths: '✅ 今週よくできたこと',
+    habitFrictions: '⚠️ 改善ポイント',
+    habitNextWeek: '💡 来週の目標',
+    notEnoughData: 'データが3日分未満です。もう少し記録を続けてください。',
+    habitReportSubtitle: '直近7日間の食事・運動パターンを AI が解析します',
+    regenerate: '再生成する',
     // Settings
     settings: '設定',
     dailyGoals: '1日の目標',
@@ -186,6 +200,20 @@ export const translations = {
     aiAdvice: 'Get AI Advice',
     aiAnalyzing: 'Analyzing...',
     aiCoachTitle: "Today's AI Advice",
+    // Quick add & time picker
+    frequentlyLogged: 'Frequently Logged',
+    selectLogTime: 'Log Time',
+    quickAddSuccess: 'Added!',
+    // Habit report
+    weeklyHabitReport: 'Generate Weekly Habit Report',
+    generatingReport: 'Gemini is analyzing 7 days...',
+    habitReportTitle: 'Habit Analysis Report',
+    habitStrengths: '✅ What you did well',
+    habitFrictions: '⚠️ Areas to improve',
+    habitNextWeek: '💡 Goal for next week',
+    notEnoughData: 'Need at least 3 days of data. Keep logging!',
+    habitReportSubtitle: 'AI analyzes your meal & workout patterns over 7 days',
+    regenerate: 'Regenerate',
     // Settings
     settings: 'Settings',
     dailyGoals: 'Daily Goals',

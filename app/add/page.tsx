@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Camera, PenLine, Clock } from 'lucide-react';
+import { Camera, PenLine, Clock, Zap } from 'lucide-react';
 import { addFoodEntry, getRecentFoods } from '@/lib/storage';
 import { FoodEntry } from '@/lib/types';
 import PhotoUpload from '@/components/PhotoUpload';
@@ -16,6 +16,19 @@ const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
 function getTodayDate(): string {
   return new Date().toISOString().split('T')[0];
+}
+
+function getCurrentTime(): string {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+}
+
+function buildTimestamp(date: string, time: string): string {
+  // Combine YYYY-MM-DD + HH:MM -> ISO string
+  const [h, m] = time.split(':').map(Number);
+  const dt = new Date(`${date}T00:00:00`);
+  dt.setHours(h, m, 0, 0);
+  return dt.toISOString();
 }
 
 /** Guess meal type based on current hour */
@@ -48,17 +61,25 @@ const EMPTY_FORM: FormData = {
 export default function AddPage() {
   const router = useRouter();
   const { t } = useLanguage();
-  const [tab, setTab] = useState<Tab>('photo');
-  const [form, setForm] = useState<FormData>(EMPTY_FORM);
-  const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>(undefined);
-  const [errors, setErrors] = useState<Partial<FormData>>({});
+  const [tab, setTab]                       = useState<Tab>('photo');
+  const [form, setForm]                     = useState<FormData>(EMPTY_FORM);
+  const [photoDataUrl, setPhotoDataUrl]     = useState<string | undefined>(undefined);
+  const [errors, setErrors]                 = useState<Partial<FormData>>({});
+  const [logTime, setLogTime]               = useState(getCurrentTime());
+  const [quickAddToast, setQuickAddToast]   = useState(false);
   const recentFoods = getRecentFoods(6);
+
+  // Auto-refresh time when tab changes to manual so it's fresh
+  useEffect(() => {
+    if (tab === 'manual') setLogTime(getCurrentTime());
+  }, [tab]);
 
   const handleAnalysisComplete = (
     result: { name: string; calories: number; protein: number; fat: number; carbs: number },
     photo: string
   ) => {
     setPhotoDataUrl(photo);
+    setLogTime(getCurrentTime());
     setForm((prev) => ({
       ...prev,
       name: result.name,
@@ -71,11 +92,11 @@ export default function AddPage() {
 
   const validate = (): boolean => {
     const newErrors: Partial<FormData> = {};
-    if (!form.name.trim()) newErrors.name = '名前を入力してください';
+    if (!form.name.trim())                          newErrors.name     = '名前を入力してください';
     if (!form.calories || isNaN(Number(form.calories))) newErrors.calories = '数値を入力してください';
-    if (!form.protein || isNaN(Number(form.protein))) newErrors.protein = '数値を入力してください';
-    if (!form.fat || isNaN(Number(form.fat))) newErrors.fat = '数値を入力してください';
-    if (!form.carbs || isNaN(Number(form.carbs))) newErrors.carbs = '数値を入力してください';
+    if (!form.protein  || isNaN(Number(form.protein)))  newErrors.protein  = '数値を入力してください';
+    if (!form.fat      || isNaN(Number(form.fat)))      newErrors.fat      = '数値を入力してください';
+    if (!form.carbs    || isNaN(Number(form.carbs)))    newErrors.carbs    = '数値を入力してください';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -88,11 +109,11 @@ export default function AddPage() {
       mealType: form.mealType,
       name: form.name.trim(),
       calories: Math.round(Number(form.calories)),
-      protein: Math.round(Number(form.protein) * 10) / 10,
-      fat: Math.round(Number(form.fat) * 10) / 10,
-      carbs: Math.round(Number(form.carbs) * 10) / 10,
+      protein:  Math.round(Number(form.protein) * 10) / 10,
+      fat:      Math.round(Number(form.fat)     * 10) / 10,
+      carbs:    Math.round(Number(form.carbs)   * 10) / 10,
       photoDataUrl,
-      addedAt: new Date().toISOString(),
+      addedAt: buildTimestamp(getTodayDate(), logTime),
     };
     addFoodEntry(entry);
     router.push('/');
@@ -105,9 +126,11 @@ export default function AddPage() {
       date: getTodayDate(),
       mealType: guessMealType(),
       photoDataUrl: undefined,
-      addedAt: new Date().toISOString(),
+      addedAt: buildTimestamp(getTodayDate(), getCurrentTime()),
     });
-    router.push('/');
+    // Show brief toast then go home
+    setQuickAddToast(true);
+    setTimeout(() => router.push('/'), 900);
   };
 
   const updateField = (field: keyof FormData, value: string) => {
@@ -119,58 +142,108 @@ export default function AddPage() {
 
   const mealTypeLabels: Record<MealType, string> = {
     breakfast: t.breakfast,
-    lunch: t.lunch,
-    dinner: t.dinner,
-    snack: t.snack,
+    lunch:     t.lunch,
+    dinner:    t.dinner,
+    snack:     t.snack,
   };
 
   return (
-    <div className="max-w-md mx-auto pb-24 px-4">
-      <div className="pt-6 pb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">{t.addMeal}</h1>
-        <div className="flex items-center gap-1 text-xs text-gray-400">
+    <div className="max-w-md mx-auto pb-28 px-4 bg-[var(--background)] min-h-screen">
+      {/* Quick-add success toast */}
+      {quickAddToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-500 text-white font-bold text-sm px-5 py-3 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap">
+          ✓ {t.quickAddSuccess}
+        </div>
+      )}
+
+      {/* ── Header ──────────────────────────────── */}
+      <div className="pt-6 pb-3 flex items-center justify-between">
+        <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{t.addMeal}</h1>
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 font-medium">
           <Clock size={12} />
           <span>{mealTypeLabels[guessMealType()]}</span>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex bg-gray-200 rounded-xl p-1 mb-4">
-        <button
-          onClick={() => setTab('photo')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-            tab === 'photo' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
-          }`}
-        >
-          <Camera size={16} />
-          {t.tabPhoto}
-        </button>
-        <button
-          onClick={() => setTab('manual')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-            tab === 'manual' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
-          }`}
-        >
-          <PenLine size={16} />
-          {t.tabManual}
-        </button>
+      {/* ── Frequently Logged pills (always visible) ── */}
+      {recentFoods.length > 0 && (
+        <div className="mb-4">
+          <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+            <Zap size={11} className="text-yellow-500" />
+            {t.frequentlyLogged}
+          </p>
+          <div className="flex gap-2 overflow-x-auto scrollbar-none -mx-1 px-1 pb-1">
+            {recentFoods.map((food) => (
+              <button
+                key={food.id}
+                onClick={() => handleQuickAdd(food)}
+                className="
+                  flex-shrink-0 flex items-center gap-2
+                  bg-white dark:bg-gray-800
+                  border border-gray-100 dark:border-gray-700
+                  hover:border-green-400 dark:hover:border-green-600
+                  hover:bg-green-50 dark:hover:bg-green-900/20
+                  rounded-full px-3 py-2
+                  shadow-[0_2px_8px_rgb(0,0,0,0.05)]
+                  hover:scale-[1.03] active:scale-[0.97]
+                  transition-all duration-200
+                "
+              >
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 max-w-[80px] truncate">
+                  {food.name}
+                </span>
+                <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                  {food.calories}kcal
+                </span>
+                <span className="text-xs font-black text-green-500 leading-none">＋</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Tabs ────────────────────────────────── */}
+      <div className="flex bg-gray-100 dark:bg-gray-800 rounded-2xl p-1 mb-4">
+        {([
+          { id: 'photo'  as Tab, label: t.tabPhoto,  icon: Camera },
+          { id: 'manual' as Tab, label: t.tabManual, icon: PenLine },
+        ] as const).map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`
+              flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold
+              transition-all duration-200
+              ${tab === id
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}
+            `}
+          >
+            <Icon size={15} />
+            {label}
+          </button>
+        ))}
         {recentFoods.length > 0 && (
           <button
             onClick={() => setTab('recent')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === 'recent' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
-            }`}
+            className={`
+              flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold
+              transition-all duration-200
+              ${tab === 'recent'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}
+            `}
           >
-            <Clock size={16} />
+            <Clock size={15} />
             {t.tabRecent}
           </button>
         )}
       </div>
 
-      {/* Recent tab */}
+      {/* ── Recent tab ──────────────────────────── */}
       {tab === 'recent' && (
-        <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">{t.recentFoods}</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 mb-4">
+          <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">{t.recentFoods}</h2>
           {recentFoods.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-4">{t.noRecentFoods}</p>
           ) : (
@@ -179,15 +252,23 @@ export default function AddPage() {
                 <button
                   key={item.id}
                   onClick={() => handleQuickAdd(item)}
-                  className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-green-50 rounded-xl transition-colors text-left"
+                  className="
+                    w-full flex items-center justify-between p-3.5
+                    bg-gray-50 dark:bg-gray-700
+                    hover:bg-green-50 dark:hover:bg-green-900/20
+                    rounded-2xl transition-all duration-200
+                    text-left
+                    hover:scale-[1.01] active:scale-[0.99]
+                    border border-transparent hover:border-green-200 dark:hover:border-green-800
+                  "
                 >
                   <div>
-                    <p className="text-sm font-semibold text-gray-800">{item.name}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{item.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                       {item.calories}kcal · P{item.protein}g · F{item.fat}g · C{item.carbs}g
                     </p>
                   </div>
-                  <span className="text-green-500 text-lg">＋</span>
+                  <span className="text-xl font-black text-green-500">＋</span>
                 </button>
               ))}
             </div>
@@ -195,35 +276,38 @@ export default function AddPage() {
         </div>
       )}
 
-      {/* Photo tab */}
+      {/* ── Photo tab ───────────────────────────── */}
       {tab === 'photo' && (
-        <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 mb-4">
           <PhotoUpload onAnalysisComplete={handleAnalysisComplete} />
         </div>
       )}
 
-      {/* Form */}
+      {/* ── Entry form ──────────────────────────── */}
       {showForm && (
-        <div className="bg-white rounded-2xl shadow-sm p-4 mb-4 space-y-4">
+        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 mb-4 space-y-4">
           {tab === 'photo' && (
-            <h2 className="text-sm font-semibold text-gray-700">{t.confirmAdd}</h2>
+            <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300">{t.confirmAdd}</h2>
           )}
 
-          {/* Meal Type */}
+          {/* Meal type */}
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+            <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-2">
               {t.mealType}
             </label>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               {MEAL_TYPES.map((type) => (
                 <button
                   key={type}
                   onClick={() => updateField('mealType', type)}
-                  className={`flex-1 py-2 rounded-xl text-xs font-medium transition-colors ${
-                    form.mealType === type
-                      ? 'bg-green-500 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                  className={`
+                    flex-1 py-2 rounded-xl text-xs font-semibold
+                    transition-all duration-200
+                    hover:scale-[1.02] active:scale-[0.97]
+                    ${form.mealType === type
+                      ? 'bg-green-500 text-white shadow-[0_4px_12px_rgba(34,197,94,0.35)]'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}
+                  `}
                 >
                   {mealTypeLabels[type]}
                 </button>
@@ -231,9 +315,28 @@ export default function AddPage() {
             </div>
           </div>
 
+          {/* Log time */}
+          <div>
+            <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-2">
+              {t.selectLogTime}
+            </label>
+            <input
+              type="time"
+              value={logTime}
+              onChange={(e) => setLogTime(e.target.value)}
+              className="
+                w-full px-3 py-2.5 rounded-xl
+                border border-gray-200 dark:border-gray-600
+                bg-white dark:bg-gray-700
+                text-sm text-gray-800 dark:text-gray-200
+                focus:outline-none focus:ring-2 focus:ring-green-400
+              "
+            />
+          </div>
+
           {/* Name */}
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+            <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-2">
               {t.foodName}
             </label>
             <input
@@ -241,16 +344,22 @@ export default function AddPage() {
               value={form.name}
               onChange={(e) => updateField('name', e.target.value)}
               placeholder="例：鶏むね肉サラダ"
-              className={`w-full px-3 py-2.5 rounded-xl border text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 ${
-                errors.name ? 'border-red-400' : 'border-gray-200'
-              }`}
+              className={`
+                w-full px-3 py-2.5 rounded-xl
+                border text-sm
+                text-gray-800 dark:text-gray-200
+                placeholder-gray-300 dark:placeholder-gray-600
+                bg-white dark:bg-gray-700
+                focus:outline-none focus:ring-2 focus:ring-green-400
+                ${errors.name ? 'border-red-400' : 'border-gray-200 dark:border-gray-600'}
+              `}
             />
             {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
           </div>
 
           {/* Calories */}
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+            <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-2">
               {t.calories}
             </label>
             <input
@@ -259,24 +368,29 @@ export default function AddPage() {
               onChange={(e) => updateField('calories', e.target.value)}
               placeholder="0"
               min="0"
-              className={`w-full px-3 py-2.5 rounded-xl border text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 ${
-                errors.calories ? 'border-red-400' : 'border-gray-200'
-              }`}
+              className={`
+                w-full px-3 py-2.5 rounded-xl border text-sm
+                text-gray-800 dark:text-gray-200
+                bg-white dark:bg-gray-700
+                placeholder-gray-300 dark:placeholder-gray-600
+                focus:outline-none focus:ring-2 focus:ring-green-400
+                ${errors.calories ? 'border-red-400' : 'border-gray-200 dark:border-gray-600'}
+              `}
             />
             {errors.calories && <p className="text-xs text-red-500 mt-1">{errors.calories}</p>}
           </div>
 
           {/* Macros row */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2.5">
             {(
               [
-                { field: 'protein' as const, label: t.proteinG, color: 'focus:ring-green-400' },
-                { field: 'fat' as const, label: t.fatG, color: 'focus:ring-amber-400' },
-                { field: 'carbs' as const, label: t.carbsG, color: 'focus:ring-blue-400' },
+                { field: 'protein' as const, label: t.proteinG, ring: 'focus:ring-green-400' },
+                { field: 'fat'     as const, label: t.fatG,     ring: 'focus:ring-amber-400' },
+                { field: 'carbs'   as const, label: t.carbsG,   ring: 'focus:ring-blue-400' },
               ]
-            ).map(({ field, label, color }) => (
+            ).map(({ field, label, ring }) => (
               <div key={field}>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+                <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide block mb-1.5">
                   {label}
                 </label>
                 <input
@@ -286,18 +400,30 @@ export default function AddPage() {
                   placeholder="0"
                   min="0"
                   step="0.1"
-                  className={`w-full px-3 py-2.5 rounded-xl border text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 ${color} ${
-                    errors[field] ? 'border-red-400' : 'border-gray-200'
-                  }`}
+                  className={`
+                    w-full px-2.5 py-2.5 rounded-xl border text-sm text-center
+                    text-gray-800 dark:text-gray-200
+                    bg-white dark:bg-gray-700
+                    placeholder-gray-300 dark:placeholder-gray-600
+                    focus:outline-none focus:ring-2 ${ring}
+                    ${errors[field] ? 'border-red-400' : 'border-gray-200 dark:border-gray-600'}
+                  `}
                 />
-                {errors[field] && <p className="text-xs text-red-500 mt-1">{errors[field]}</p>}
+                {errors[field] && <p className="text-[10px] text-red-500 mt-0.5">{errors[field]}</p>}
               </div>
             ))}
           </div>
 
           <button
             onClick={handleSubmit}
-            className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-xl transition-colors"
+            className="
+              w-full py-3.5 rounded-2xl font-bold text-sm text-white
+              bg-gradient-to-r from-green-500 to-emerald-600
+              shadow-[0_4px_14px_rgba(34,197,94,0.4)]
+              hover:from-green-600 hover:to-emerald-700
+              hover:scale-[1.01] active:scale-[0.98]
+              transition-all duration-200
+            "
           >
             {t.addButton}
           </button>
