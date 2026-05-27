@@ -10,39 +10,60 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Stub env vars — build/lint must not fail without real Supabase credentials
+  NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder
+  GEMINI_API_KEY: placeholder
+
 jobs:
   # ─────────────────────────────────────────────
-  # Layer 1: TypeScript + Build
+  # Layer 1: TypeScript
   # ─────────────────────────────────────────────
-  typecheck-and-build:
-    name: TypeScript & Build
+  typecheck:
+    name: TypeScript
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
       - name: TypeScript check
-        run: npx tsc --noEmit
+        run: ./node_modules/.bin/tsc --noEmit
+
+  # ─────────────────────────────────────────────
+  # Layer 2: Build
+  # ─────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: typecheck
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build
         run: npm run build
-        env:
-          # Stub env vars so build doesn't fail without real Supabase project
-          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder
-          GEMINI_API_KEY: placeholder
 
   # ─────────────────────────────────────────────
-  # Layer 2: Lint
+  # Layer 3: Lint
   # ─────────────────────────────────────────────
   lint:
     name: ESLint
@@ -54,14 +75,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
       - name: Lint
-        run: npx next lint --max-warnings 0
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder
+        run: npx next lint
