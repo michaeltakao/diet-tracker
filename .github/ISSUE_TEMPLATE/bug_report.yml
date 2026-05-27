@@ -1,0 +1,55 @@
+name: 🐛 Bug Report
+description: Report a bug in Diet Tracker
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug!
+
+  - type: input
+    id: page
+    attributes:
+      label: Page / Route
+      description: Which page did the bug occur on?
+      placeholder: e.g. /workout, /add, /settings
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: What happened? What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction Steps
+      description: Step-by-step instructions to reproduce the bug
+      placeholder: |
+        1. Go to /workout
+        2. Add an exercise
+        3. See error
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Low (cosmetic)
+        - Medium (feature broken)
+        - High (data loss risk)
+        - Critical (app unusable)
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser / Platform
+      placeholder: e.g. Chrome 125 / macOS, Safari / iPhone 15

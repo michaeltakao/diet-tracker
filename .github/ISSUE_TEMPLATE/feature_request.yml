@@ -1,0 +1,37 @@
+name: ✨ Feature Request
+description: Suggest a new feature
+labels: ["feature-request"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      description: What problem does this feature solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How should it work?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature Area
+      options:
+        - Food Tracking
+        - Workout Tracking
+        - Weight Tracking
+        - Hydration
+        - AI Coaching
+        - Analytics
+        - Auth / Account
+        - UI / UX
+        - PWA
+        - Other
+    validations:
+      required: true
