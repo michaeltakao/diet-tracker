@@ -15,6 +15,7 @@ import MealCard from '@/components/MealCard';
 import WaterTracker from '@/components/WaterTracker';
 import BadgeShelf from '@/components/BadgeShelf';
 import BadgeCelebration from '@/components/BadgeCelebration';
+import RecommendationCard from '@/components/RecommendationCard';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -170,6 +171,9 @@ export default function HomePage() {
           goalProtein={goals.protein} goalFat={goals.fat} goalCarbs={goals.carbs}
         />
       </div>
+
+      {/* ── Personalized Recommendation ─────────────── */}
+      <RecommendationCard />
 
       {/* ── Water Tracker ───────────────────────────── */}
       <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-gray-50 dark:border-gray-700 p-4 mb-3">
