@@ -58,6 +58,14 @@ export function removeFoodEntry(id: string): void {
   saveAppData(data);
 }
 
+export function updateFoodEntry(updated: FoodEntry): void {
+  const data = getAppData();
+  const idx = data.foodEntries.findIndex((e) => e.id === updated.id);
+  if (idx === -1) return;
+  data.foodEntries[idx] = updated;
+  saveAppData(data);
+}
+
 export function getEntriesForDate(date: string): FoodEntry[] {
   const data = getAppData();
   return data.foodEntries.filter((e) => e.date === date);

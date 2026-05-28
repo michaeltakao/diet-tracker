@@ -13,6 +13,7 @@ import {
 import BottomNav from '@/components/BottomNav';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import BadgeShelf from '@/components/BadgeShelf';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 const RECOMMENDED_MENUS: CoachMenu[] = [
   { id: 'c1', name: 'ベンチプレス',            musclePart: 'chest',     defaultWeight: 40, defaultReps: 10, defaultSets: 3, coachTip: '大胸筋をしっかりストレッチさせる意識で、バーを胸まで下ろしましょう！' },
@@ -344,7 +345,15 @@ export default function WorkoutPage() {
           </h2>
           <p className="text-xs text-gray-400 dark:text-gray-500">今日の食事・トレーニングを分析してアドバイスを生成します</p>
 
-          {!aiAdvice && !aiLoading && (
+          {!isSupabaseConfigured() && (
+            <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl p-4 text-center">
+              <p className="text-xs font-semibold text-purple-500 dark:text-purple-400">
+                🔐 ログインしてAIアドバイスを利用できます
+              </p>
+            </div>
+          )}
+
+          {isSupabaseConfigured() && !aiAdvice && !aiLoading && (
             <button onClick={handleGetAIAdvice}
               className="
                 w-full py-3.5

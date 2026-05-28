@@ -19,6 +19,10 @@ export type BadgeTypeEnum    =
   | 'streak3' | 'streak7' | 'streak30'
   | 'water_goal' | 'calorie_goal'
   | 'workout_master' | 'pr_achieved';
+export type FitnessGoalEnum  =
+  | 'weight_loss' | 'muscle_gain' | 'maintenance' | 'endurance' | 'flexibility';
+export type ActivityLevelEnum =
+  | 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extra_active';
 
 // ── Row types (what Supabase SELECT returns) ───────────────────
 
@@ -32,10 +36,15 @@ export type ProfileRow = {
   goal_fat_g:      number;
   goal_carbs_g:    number;
   goal_water_ml:   number;
-  goal_weight_kg:  number | null;
-  migrated_at:     string | null;   // ISO — set after localStorage→Supabase migration
-  created_at:      string;
-  updated_at:      string;
+  goal_weight_kg:       number | null;
+  migrated_at:          string | null;
+  age:                  number | null;
+  health_conditions:    string[];
+  dietary_restrictions: string[];
+  fitness_goal:         FitnessGoalEnum;
+  activity_level:       ActivityLevelEnum;
+  created_at:           string;
+  updated_at:           string;
 }
 
 export type FoodLogRow = {
@@ -173,6 +182,11 @@ export type ProfileUpdate = Partial<
     | 'goal_water_ml'
     | 'goal_weight_kg'
     | 'migrated_at'
+    | 'age'
+    | 'health_conditions'
+    | 'dietary_restrictions'
+    | 'fitness_goal'
+    | 'activity_level'
   >
 >;
 

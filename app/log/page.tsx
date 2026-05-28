@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Sparkles, BarChart3 } from 'lucide-react';
-import { getAppData, removeFoodEntry } from '@/lib/data';
+import { getAppData, removeFoodEntry, updateFoodEntry } from '@/lib/data';
 import { FoodEntry, DailyGoals } from '@/lib/types';
 import MealCard from '@/components/MealCard';
 import CalorieBar from '@/components/CalorieBar';
+import WeeklyReportCard from '@/components/WeeklyReportCard';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -22,17 +23,17 @@ function getWeekDates(anchor: Date): string[] {
   });
 }
 
-function formatShort(dateStr: string): { day: string; num: string } {
+function formatShort(dateStr: string, locale: string): { day: string; num: string } {
   const d = new Date(dateStr + 'T00:00:00');
   return {
-    day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+    day: d.toLocaleDateString(locale, { weekday: 'short' }),
     num: String(d.getDate()),
   };
 }
 
-function formatFull(dateStr: string): string {
+function formatFull(dateStr: string, locale: string): string {
   const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  return d.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
@@ -139,7 +140,8 @@ interface HabitReport {
 }
 
 export default function LogPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = lang === 'ja' ? 'ja-JP' : 'en-US';
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
   const [weekOffset, setWeekOffset]     = useState(0);
   const [allEntries, setAllEntries]     = useState<FoodEntry[]>([]);
@@ -168,7 +170,8 @@ export default function LogPage() {
   const getCaloriesForDate = (date: string) =>
     allEntries.filter((e) => e.date === date).reduce((sum, e) => sum + e.calories, 0);
 
-  const handleDelete = (id: string) => { removeFoodEntry(id); loadData(); };
+  const handleDelete = (id: string) => { void removeFoodEntry(id); loadData(); };
+  const handleEdit   = (updated: FoodEntry) => { void updateFoodEntry(updated); loadData(); };
 
   const totals = selectedEntries.reduce(
     (acc, e) => ({ calories: acc.calories + e.calories, protein: acc.protein + e.protein, fat: acc.fat + e.fat, carbs: acc.carbs + e.carbs }),
@@ -268,7 +271,7 @@ export default function LogPage() {
 
         <div className="flex gap-1">
           {weekDates.map((date) => {
-            const { day, num } = formatShort(date);
+            const { day, num } = formatShort(date, locale);
             const isSelected = date === selectedDate;
             const isToday    = date === today;
             const cals = getCaloriesForDate(date);
@@ -302,7 +305,7 @@ export default function LogPage() {
 
       {/* ── Selected day summary ─────────────────── */}
       <div className={`${cardCls} p-4 mb-3`}>
-        <p className="text-xs font-medium text-gray-400 dark:text-gray-500 mb-3">{formatFull(selectedDate)}</p>
+        <p className="text-xs font-medium text-gray-400 dark:text-gray-500 mb-3">{formatFull(selectedDate, locale)}</p>
         <CalorieBar current={totals.calories} goal={goals.calories} />
         <div className="flex gap-3 mt-3 text-xs font-semibold">
           <span className="text-emerald-600 dark:text-emerald-400">P {totals.protein}g</span>
@@ -329,7 +332,7 @@ export default function LogPage() {
                 </h3>
                 <div className="space-y-2">
                   {typeEntries.map((entry) => (
-                    <MealCard key={entry.id} entry={entry} onDelete={handleDelete} />
+                    <MealCard key={entry.id} entry={entry} onDelete={handleDelete} onEdit={handleEdit} />
                   ))}
                 </div>
               </div>
@@ -337,6 +340,9 @@ export default function LogPage() {
           })}
         </div>
       )}
+
+      {/* ── Weekly Report ────────────────────────── */}
+      <WeeklyReportCard />
 
       {/* ── AI Habit Analytics Widget ─────────────── */}
       <section className={`${cardCls} p-4`}>

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { getServerUser } from '@/lib/supabase-server';
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -18,6 +19,11 @@ Assume a typical single serving. Be realistic and conservative with estimates.
 Do not include markdown code block formatting in your response, just the raw JSON.`;
 
 export async function POST(request: Request): Promise<NextResponse> {
+  const user = await getServerUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   if (!apiKey) {
     return NextResponse.json(
       { error: 'GEMINI_API_KEY is not configured in environment variables.' },

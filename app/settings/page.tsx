@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Save, Check, Upload, Trash2, Database, FileJson, FileSpreadsheet } from 'lucide-react';
-import { getAppData, updateGoals } from '@/lib/data';
-import { DailyGoals } from '@/lib/types';
+import { ChevronLeft, Save, Check, Upload, Trash2, Database, FileJson, FileSpreadsheet, User } from 'lucide-react';
+import { getAppData, updateGoals, getHealthProfile, updateHealthProfile } from '@/lib/data';
+import { DailyGoals, UserHealthProfile, FitnessGoal, ActivityLevel } from '@/lib/types';
 import {
   getStorageStats, exportDataAsJSON, exportDataAsCSV,
   importFromFile, clearAllData, StorageStats,
@@ -20,6 +20,32 @@ interface GoalForm {
   water:      string;
   goalWeight: string;
 }
+
+const HEALTH_CONDITIONS = [
+  '糖尿病', '高血圧', '高脂血症', '腎臓病', '心臓病',
+  '骨粗鬆症', '貧血', 'セリアック病', '痛風',
+] as const;
+
+const DIETARY_RESTRICTIONS = [
+  'ベジタリアン', 'ヴィーガン', 'グルテンフリー',
+  '乳製品除去', 'ナッツアレルギー', '低FODMAP', 'ハラール',
+] as const;
+
+const FITNESS_GOALS: Array<{ value: FitnessGoal; label: string; icon: string }> = [
+  { value: 'weight_loss',  label: '減量',         icon: '📉' },
+  { value: 'muscle_gain',  label: '筋肉増量',     icon: '💪' },
+  { value: 'maintenance',  label: '維持',         icon: '⚖️' },
+  { value: 'endurance',    label: '持久力向上',   icon: '🏃' },
+  { value: 'flexibility',  label: '柔軟性向上',   icon: '🧘' },
+];
+
+const ACTIVITY_LEVELS: Array<{ value: ActivityLevel; label: string }> = [
+  { value: 'sedentary',          label: '座り仕事中心' },
+  { value: 'lightly_active',     label: '軽い運動（週1-2回）' },
+  { value: 'moderately_active',  label: '適度な運動（週3-5回）' },
+  { value: 'very_active',        label: '活発な運動（週6-7回）' },
+  { value: 'extra_active',       label: '超激しい運動' },
+];
 
 const inputCls = `
   w-full px-3.5 py-3 rounded-2xl text-sm font-semibold
@@ -43,10 +69,14 @@ export default function SettingsPage() {
     water:      '2000',
     goalWeight: '',
   });
-  const [saved, setSaved] = useState(false);
-  const [stats, setStats] = useState<StorageStats | null>(null);
+  const [saved,        setSaved]        = useState(false);
+  const [stats,        setStats]        = useState<StorageStats | null>(null);
   const [clearConfirm, setClearConfirm] = useState(false);
-  const [importMsg, setImportMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [importMsg,    setImportMsg]    = useState<{ ok: boolean; text: string } | null>(null);
+  const [healthProfile, setHealthProfile] = useState<UserHealthProfile>({
+    age: null, healthConditions: [], dietaryRestrictions: [],
+    fitnessGoal: 'maintenance', activityLevel: 'moderately_active',
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -60,6 +90,7 @@ export default function SettingsPage() {
       goalWeight: data.goals.goalWeight ? String(data.goals.goalWeight) : '',
     });
     setStats(getStorageStats());
+    setHealthProfile(getHealthProfile());
   }, []);
 
   const refreshStats = () => setStats(getStorageStats());
@@ -97,8 +128,29 @@ export default function SettingsPage() {
       goalWeight: form.goalWeight ? Number(form.goalWeight) : undefined,
     };
     updateGoals(goals);
+    updateHealthProfile(healthProfile);
     setSaved(true);
     setTimeout(() => setSaved(false), 2400);
+  };
+
+  const toggleCondition = (item: string) => {
+    setHealthProfile(prev => ({
+      ...prev,
+      healthConditions: prev.healthConditions.includes(item)
+        ? prev.healthConditions.filter(c => c !== item)
+        : [...prev.healthConditions, item],
+    }));
+    setSaved(false);
+  };
+
+  const toggleRestriction = (item: string) => {
+    setHealthProfile(prev => ({
+      ...prev,
+      dietaryRestrictions: prev.dietaryRestrictions.includes(item)
+        ? prev.dietaryRestrictions.filter(r => r !== item)
+        : [...prev.dietaryRestrictions, item],
+    }));
+    setSaved(false);
   };
 
   const updateField = (field: keyof GoalForm, value: string) => {
@@ -237,6 +289,143 @@ export default function SettingsPage() {
             目標: {form.goalWeight} kg
           </p>
         )}
+      </div>
+
+      {/* ── Health Profile ───────────────────── */}
+      <div className={`${cardCls} mt-3 mb-3 space-y-5`}>
+        <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-1.5">
+          <User size={13} />
+          健康プロフィール（パーソナライズ推薦に使用）
+        </p>
+
+        {/* Age */}
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+            <span>🎂</span>
+            <span>年齢</span>
+          </label>
+          <input
+            type="number"
+            value={healthProfile.age ?? ''}
+            onChange={e => {
+              const v = e.target.value;
+              setHealthProfile(prev => ({ ...prev, age: v ? Number(v) : null }));
+              setSaved(false);
+            }}
+            placeholder="例: 25"
+            min="1"
+            max="120"
+            className={`${inputCls} focus:ring-rose-400`}
+          />
+        </div>
+
+        {/* Fitness goal */}
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+            <span>🎯</span>
+            <span>フィットネス目標</span>
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {FITNESS_GOALS.map(({ value, label, icon }) => (
+              <button
+                key={value}
+                onClick={() => { setHealthProfile(prev => ({ ...prev, fitnessGoal: value })); setSaved(false); }}
+                className={`
+                  py-2.5 rounded-2xl text-xs font-bold
+                  flex flex-col items-center gap-1
+                  transition-all duration-200 hover:scale-[1.02] active:scale-95
+                  ${healthProfile.fitnessGoal === value
+                    ? 'bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-[0_4px_12px_rgba(139,92,246,0.35)]'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}
+                `}
+              >
+                <span>{icon}</span>
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Activity level */}
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+            <span>⚡</span>
+            <span>活動レベル</span>
+          </label>
+          <div className="space-y-1.5">
+            {ACTIVITY_LEVELS.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => { setHealthProfile(prev => ({ ...prev, activityLevel: value })); setSaved(false); }}
+                className={`
+                  w-full py-2.5 px-3.5 rounded-2xl text-xs font-bold text-left
+                  transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]
+                  ${healthProfile.activityLevel === value
+                    ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-[0_4px_12px_rgba(139,92,246,0.3)]'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}
+                `}
+              >
+                {value === healthProfile.activityLevel ? '● ' : '○ '}{label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Health conditions */}
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+            <span>🏥</span>
+            <span>健康状態・疾患（複数選択可）</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {HEALTH_CONDITIONS.map(item => {
+              const active = healthProfile.healthConditions.includes(item);
+              return (
+                <button
+                  key={item}
+                  onClick={() => toggleCondition(item)}
+                  className={`
+                    px-3 py-1.5 rounded-full text-xs font-bold
+                    transition-all duration-200 hover:scale-[1.04] active:scale-95
+                    ${active
+                      ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-700'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'}
+                  `}
+                >
+                  {active ? '✓ ' : ''}{item}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Dietary restrictions */}
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+            <span>🥗</span>
+            <span>食事制限（複数選択可）</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {DIETARY_RESTRICTIONS.map(item => {
+              const active = healthProfile.dietaryRestrictions.includes(item);
+              return (
+                <button
+                  key={item}
+                  onClick={() => toggleRestriction(item)}
+                  className={`
+                    px-3 py-1.5 rounded-full text-xs font-bold
+                    transition-all duration-200 hover:scale-[1.04] active:scale-95
+                    ${active
+                      ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'}
+                  `}
+                >
+                  {active ? '✓ ' : ''}{item}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* ── Save button ───────────────────────── */}

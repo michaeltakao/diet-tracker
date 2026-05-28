@@ -85,6 +85,54 @@ export interface AppData {
   personalRecords: Record<string, PersonalRecord>; // exercise name -> best PR
 }
 
+// ── Health Profile (stored in localStorage + profiles table) ──
+
+export type FitnessGoal =
+  | 'weight_loss'
+  | 'muscle_gain'
+  | 'maintenance'
+  | 'endurance'
+  | 'flexibility';
+
+export type ActivityLevel =
+  | 'sedentary'
+  | 'lightly_active'
+  | 'moderately_active'
+  | 'very_active'
+  | 'extra_active';
+
+export interface UserHealthProfile {
+  age:                 number | null;
+  healthConditions:    string[];   // e.g. ['糖尿病', '高血圧']
+  dietaryRestrictions: string[];   // e.g. ['ベジタリアン', 'グルテンフリー']
+  fitnessGoal:         FitnessGoal;
+  activityLevel:       ActivityLevel;
+}
+
+// ── Personalized Recommendations (LLM output) ─────────────────
+
+export interface RecommendedFood {
+  name:           string;
+  reason:         string;
+  calories:       number;
+  macroHighlight: string;   // e.g. "高タンパク・低脂質"
+}
+
+export interface RecommendedExercise {
+  name:     string;
+  category: string;          // strength | cardio | flexibility | other
+  duration: string;          // e.g. "30分"
+  reason:   string;
+}
+
+export interface Recommendation {
+  foods:          RecommendedFood[];
+  exercises:      RecommendedExercise[];
+  warnings:       string[];
+  adjustedMacros: DailyGoals | null;
+  generatedAt:    string;              // ISO
+}
+
 // ── Weekly Report (AI-generated, cached in DB) ────────────────
 
 export type ReportAssessment = 'excellent' | 'good' | 'neutral' | 'warning';

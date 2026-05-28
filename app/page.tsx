@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Settings, Flame } from 'lucide-react';
 import {
-  getAppData, removeFoodEntry, addWater, getWaterForDate, getStreak,
+  getAppData, removeFoodEntry, updateFoodEntry, addWater, getWaterForDate, getStreak,
   checkAndAwardBadges, getBadges,
 } from '@/lib/data';
 import { FoodEntry, DailyGoals, Badge } from '@/lib/types';
@@ -15,6 +15,7 @@ import MealCard from '@/components/MealCard';
 import WaterTracker from '@/components/WaterTracker';
 import BadgeShelf from '@/components/BadgeShelf';
 import BadgeCelebration from '@/components/BadgeCelebration';
+import RecommendationCard from '@/components/RecommendationCard';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -56,7 +57,8 @@ export default function HomePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleDelete = (id: string) => { removeFoodEntry(id); loadData(); };
+  const handleDelete = (id: string) => { void removeFoodEntry(id); loadData(); };
+  const handleEdit   = (updated: FoodEntry) => { void updateFoodEntry(updated); loadData(); };
 
   const handleAddWater = async (ml: number) => {
     await addWater(today, ml);
@@ -171,6 +173,9 @@ export default function HomePage() {
         />
       </div>
 
+      {/* ── Personalized Recommendation ─────────────── */}
+      <RecommendationCard />
+
       {/* ── Water Tracker ───────────────────────────── */}
       <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-gray-50 dark:border-gray-700 p-4 mb-3">
         <WaterTracker current={water} goal={goals.water ?? 2000} onAdd={handleAddWater} />
@@ -204,7 +209,7 @@ export default function HomePage() {
                 </h3>
                 <div className="space-y-2">
                   {typeEntries.map((entry) => (
-                    <MealCard key={entry.id} entry={entry} onDelete={handleDelete} />
+                    <MealCard key={entry.id} entry={entry} onDelete={handleDelete} onEdit={handleEdit} />
                   ))}
                 </div>
               </div>

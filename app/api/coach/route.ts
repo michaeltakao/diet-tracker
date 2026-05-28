@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { getServerUser } from '@/lib/supabase-server';
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -36,6 +37,11 @@ Be specific and personalized. Reference actual numbers from the data. Keep it wa
 Do not include markdown code block formatting. Return only raw JSON.`;
 
 export async function POST(request: Request): Promise<NextResponse> {
+  const user = await getServerUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   if (!apiKey) {
     return NextResponse.json(
       { error: 'GEMINI_API_KEY is not configured.' },
