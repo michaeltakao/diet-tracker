@@ -67,7 +67,9 @@ export default function AddPage() {
   const [errors, setErrors]                 = useState<Partial<FormData>>({});
   const [logTime, setLogTime]               = useState(getCurrentTime());
   const [quickAddToast, setQuickAddToast]   = useState(false);
-  const recentFoods = getRecentFoods(6);
+  const [recentFoods, setRecentFoods]       = useState<FoodEntry[]>([]);
+
+  useEffect(() => { setRecentFoods(getRecentFoods(6)); }, []);
 
   // Auto-refresh time when tab changes to manual so it's fresh
   useEffect(() => {
@@ -115,12 +117,12 @@ export default function AddPage() {
       photoDataUrl,
       addedAt: buildTimestamp(getTodayDate(), logTime),
     };
-    addFoodEntry(entry);
+    void addFoodEntry(entry);
     router.push('/');
   };
 
   const handleQuickAdd = (recent: FoodEntry) => {
-    addFoodEntry({
+    void addFoodEntry({
       ...recent,
       id: crypto.randomUUID(),
       date: getTodayDate(),
@@ -128,7 +130,7 @@ export default function AddPage() {
       photoDataUrl: undefined,
       addedAt: buildTimestamp(getTodayDate(), getCurrentTime()),
     });
-    // Show brief toast then go home
+    setRecentFoods(getRecentFoods(6));
     setQuickAddToast(true);
     setTimeout(() => router.push('/'), 900);
   };

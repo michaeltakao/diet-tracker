@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Scale, Plus, Trash2, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import {
   addWeightEntry, getWeightEntries, removeWeightEntry, getAppData,
@@ -190,6 +191,28 @@ export default function WeightPage() {
           <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">{t.weightTrend}</h2>
           <WeightChart entries={entries} goalWeight={goalWeight} />
         </div>
+      )}
+
+      {/* ── Goal weight CTA ──────────────────── */}
+      {!goalWeight && (
+        <Link
+          href="/settings"
+          className="
+            flex items-center justify-between
+            rounded-3xl p-4 mb-3
+            bg-gradient-to-r from-indigo-50 to-purple-50
+            dark:from-indigo-900/20 dark:to-purple-900/20
+            border border-indigo-100 dark:border-indigo-800
+            hover:scale-[1.01] active:scale-[0.99]
+            transition-all duration-200
+          "
+        >
+          <div>
+            <p className="text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-0.5">目標体重</p>
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">目標体重を設定して進捗を確認</p>
+          </div>
+          <span className="text-indigo-400 font-black text-lg">→</span>
+        </Link>
       )}
 
       {/* ── Goal banner ───────────────────────── */}

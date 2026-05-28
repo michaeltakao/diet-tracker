@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Sparkles, RefreshCw, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { getAppData, getHealthProfile, getWaterForDate, getStreak } from '@/lib/data';
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { useProfile } from '@/contexts/ProfileContext';
 import type { Recommendation } from '@/lib/types';
 
 function getTodayDate(): string {
@@ -45,7 +45,7 @@ export default function RecommendationCard() {
   const [error,    setError]    = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
 
-  const supabaseEnabled = isSupabaseConfigured();
+  const { isAuthenticated } = useProfile();
 
   const generate = async () => {
     setLoading(true);
@@ -107,7 +107,7 @@ export default function RecommendationCard() {
     }
   };
 
-  if (!supabaseEnabled) {
+  if (!isAuthenticated) {
     return (
       <div className={`${CARD} p-4 mb-3`}>
         <div className="flex items-center gap-2 mb-2">

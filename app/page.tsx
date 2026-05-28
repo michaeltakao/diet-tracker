@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Settings, Flame } from 'lucide-react';
 import {
-  getAppData, removeFoodEntry, addWater, getWaterForDate, getStreak,
+  getAppData, removeFoodEntry, updateFoodEntry, addWater, getWaterForDate, getStreak,
   checkAndAwardBadges, getBadges,
 } from '@/lib/data';
 import { FoodEntry, DailyGoals, Badge } from '@/lib/types';
@@ -57,7 +57,8 @@ export default function HomePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleDelete = (id: string) => { removeFoodEntry(id); loadData(); };
+  const handleDelete = (id: string) => { void removeFoodEntry(id); loadData(); };
+  const handleEdit   = (updated: FoodEntry) => { void updateFoodEntry(updated); loadData(); };
 
   const handleAddWater = async (ml: number) => {
     await addWater(today, ml);
@@ -208,7 +209,7 @@ export default function HomePage() {
                 </h3>
                 <div className="space-y-2">
                   {typeEntries.map((entry) => (
-                    <MealCard key={entry.id} entry={entry} onDelete={handleDelete} />
+                    <MealCard key={entry.id} entry={entry} onDelete={handleDelete} onEdit={handleEdit} />
                   ))}
                 </div>
               </div>
