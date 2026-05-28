@@ -6,6 +6,7 @@ import { getAppData, removeFoodEntry, updateFoodEntry } from '@/lib/data';
 import { FoodEntry, DailyGoals } from '@/lib/types';
 import MealCard from '@/components/MealCard';
 import CalorieBar from '@/components/CalorieBar';
+import WeeklyReportCard from '@/components/WeeklyReportCard';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -339,6 +340,9 @@ export default function LogPage() {
           })}
         </div>
       )}
+
+      {/* ── Weekly Report ────────────────────────── */}
+      <WeeklyReportCard />
 
       {/* ── AI Habit Analytics Widget ─────────────── */}
       <section className={`${cardCls} p-4`}>
