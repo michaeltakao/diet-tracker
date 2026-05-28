@@ -5,7 +5,7 @@ import {
   getAppData, addWorkoutEntry, removeWorkoutEntry,
   checkAndUpdatePR, addBadge, checkAndAwardBadges, getStreak, getBadges,
 } from '@/lib/data';
-import { WorkoutEntry, MusclePart, CoachMenu, FoodEntry, Badge } from '@/lib/types';
+import { WorkoutEntry, MusclePart, CoachMenu, FoodEntry, Badge, PersonalRecord } from '@/lib/types';
 import {
   Dumbbell, Clock, Flame, ShieldAlert, CheckCircle,
   Trash2, ChevronRight, Sparkles,
@@ -65,6 +65,36 @@ function formatTime(iso: string) {
   catch { return '--:--'; }
 }
 
+/** Days since the given muscle group was last trained (null = no history). */
+function getDaysSinceGroup(musclePart: MusclePart, workouts: WorkoutEntry[]): number | null {
+  const relevant = workouts.filter(w => w.musclePart === musclePart);
+  if (relevant.length === 0) return null;
+  const latest = relevant.reduce((a, b) => a.date > b.date ? a : b);
+  return Math.floor((Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86_400_000);
+}
+
+/** Last completed session for a specific exercise (excludes today). */
+function getLastSession(name: string, workouts: WorkoutEntry[], today: string): {
+  weight: number; reps: number; sets: number; daysAgo: number;
+} | null {
+  const prev = workouts
+    .filter(w => w.name === name && w.date < today && (w.weight ?? 0) > 0)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  if (prev.length === 0) return null;
+  const last = prev[0];
+  const daysAgo = Math.floor((Date.now() - new Date(last.date + 'T00:00:00').getTime()) / 86_400_000);
+  return { weight: last.weight ?? 0, reps: last.reps ?? 0, sets: last.sets ?? 0, daysAgo };
+}
+
+/**
+ * Progressive overload suggestion: if last session hit ≥ 12 reps, add 2.5 kg.
+ * Falls back to defaultWeight when no history.
+ */
+function suggestWeight(last: { weight: number; reps: number } | null, defaultWeight: number): number {
+  if (!last || last.weight === 0) return defaultWeight;
+  return last.reps >= 12 ? last.weight + 2.5 : last.weight;
+}
+
 // ── Skeleton for AI coach loading ────────────────────
 function CoachSkeleton() {
   return (
@@ -103,11 +133,17 @@ export default function WorkoutPage() {
   const [celebrationBadges, setCelebrationBadges] = useState<Badge[]>([]);
   const [prToast, setPrToast]                     = useState<string | null>(null);
 
+  // History for smart recommendations
+  const [allWorkouts,    setAllWorkouts]    = useState<WorkoutEntry[]>([]);
+  const [personalRecords, setPersonalRecords] = useState<Record<string, PersonalRecord>>({});
+
   const loadData = useCallback(() => {
     const data = getAppData();
     setWorkouts(data.workoutEntries.filter((w) => w.date === today));
     setFoodEntries(data.foodEntries.filter((f) => f.date === today));
     setAllBadges(getBadges());
+    setAllWorkouts(data.workoutEntries);
+    setPersonalRecords(data.personalRecords ?? {});
   }, [today]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -119,9 +155,11 @@ export default function WorkoutPage() {
   }, [prToast]);
 
   const handleSelectMenu = (menu: CoachMenu) => {
+    const last      = getLastSession(menu.name, allWorkouts, today);
+    const suggested = suggestWeight(last, menu.defaultWeight);
     setName(menu.name);
     setMusclePart(menu.musclePart);
-    setWeight(String(menu.defaultWeight));
+    setWeight(String(suggested));
     setReps(String(menu.defaultReps));
     setSets(String(menu.defaultSets));
     setCoachAdvice(menu.coachTip);
@@ -248,44 +286,86 @@ export default function WorkoutPage() {
             <Flame className="w-5 h-5 text-orange-500" /> 部位別おすすめメニュー
           </h2>
           <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
-            {PARTS.map((p) => (
-              <button key={p.id} type="button" onClick={() => setSelectedPart(p.id)}
-                className={`
-                  px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap
-                  transition-all duration-200
-                  hover:scale-[1.04] active:scale-95
-                  ${selectedPart === p.id
-                    ? 'bg-green-500 text-white shadow-[0_4px_12px_rgba(34,197,94,0.35)]'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}
-                `}
-              >{p.label}</button>
-            ))}
+            {PARTS.map((p) => {
+              const days = getDaysSinceGroup(p.id, allWorkouts);
+              const recoveryDot =
+                days === null  ? null :
+                days === 0     ? <span className="block text-[9px] font-bold leading-none text-red-400/90">今日</span> :
+                days === 1     ? <span className="block text-[9px] font-bold leading-none text-amber-400">1日前</span> :
+                                 <span className="block text-[9px] font-bold leading-none text-emerald-400">{days}日前</span>;
+              return (
+                <button key={p.id} type="button" onClick={() => setSelectedPart(p.id)}
+                  className={`
+                    flex flex-col items-center px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap
+                    transition-all duration-200 hover:scale-[1.04] active:scale-95
+                    ${selectedPart === p.id
+                      ? 'bg-green-500 text-white shadow-[0_4px_12px_rgba(34,197,94,0.35)]'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}
+                  `}
+                >
+                  {p.label}
+                  {recoveryDot}
+                </button>
+              );
+            })}
           </div>
           <div className="space-y-1.5">
-            {RECOMMENDED_MENUS.filter((m) => m.musclePart === selectedPart).map((menu) => (
-              <button key={menu.id} type="button" onClick={() => handleSelectMenu(menu)}
-                className="
-                  w-full text-left
-                  bg-gray-50 dark:bg-gray-700/60
-                  hover:bg-green-50 dark:hover:bg-green-900/20
-                  border border-gray-100 dark:border-gray-700
-                  hover:border-green-200 dark:hover:border-green-800
-                  rounded-2xl p-3
-                  flex items-center justify-between
-                  transition-all duration-200
-                  hover:scale-[1.01] active:scale-[0.99]
-                  group
-                "
-              >
-                <div>
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-green-600 dark:group-hover:text-green-400">{menu.name}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    推奨: <b className="text-gray-700 dark:text-gray-300">{menu.defaultWeight}kg</b> × <b className="text-gray-700 dark:text-gray-300">{menu.defaultReps}回</b> × <b className="text-gray-700 dark:text-gray-300">{menu.defaultSets}set</b>
-                  </p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </button>
-            ))}
+            {RECOMMENDED_MENUS.filter((m) => m.musclePart === selectedPart).map((menu) => {
+              const last      = getLastSession(menu.name, allWorkouts, today);
+              const suggested = suggestWeight(last, menu.defaultWeight);
+              const pr        = personalRecords[menu.name];
+              const isOverload = last && suggested > last.weight;
+              return (
+                <button key={menu.id} type="button" onClick={() => handleSelectMenu(menu)}
+                  className="
+                    w-full text-left
+                    bg-gray-50 dark:bg-gray-700/60
+                    hover:bg-green-50 dark:hover:bg-green-900/20
+                    border border-gray-100 dark:border-gray-700
+                    hover:border-green-200 dark:hover:border-green-800
+                    rounded-2xl p-3
+                    flex items-center justify-between
+                    transition-all duration-200
+                    hover:scale-[1.01] active:scale-[0.99]
+                    group
+                  "
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-green-600 dark:group-hover:text-green-400">{menu.name}</p>
+                      {pr && (
+                        <span className="text-[9px] font-black bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 px-1.5 py-0.5 rounded-full">
+                          🏆 PR {pr.maxWeight}kg
+                        </span>
+                      )}
+                    </div>
+                    {last ? (
+                      <div className="mt-0.5 space-y-0.5">
+                        <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                          前回: <span className="text-gray-600 dark:text-gray-400 font-semibold">{last.weight}kg × {last.reps}回 × {last.sets}set</span>
+                          <span className="ml-1 text-gray-400 dark:text-gray-600">{last.daysAgo === 0 ? '今日' : `${last.daysAgo}日前`}</span>
+                        </p>
+                        <p className="text-[11px]">
+                          <span className={isOverload ? 'text-green-600 dark:text-green-400 font-black' : 'text-gray-500 dark:text-gray-400 font-semibold'}>
+                            → {suggested}kg × {menu.defaultReps}回 × {menu.defaultSets}set
+                          </span>
+                          {isOverload && (
+                            <span className="ml-1 text-[9px] font-bold bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded-full">
+                              +2.5kg UP
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-indigo-400 dark:text-indigo-400 mt-0.5 font-semibold">
+                        ✨ 初回チャレンジ — {menu.defaultWeight > 0 ? `${menu.defaultWeight}kg` : '自重'} × {menu.defaultReps}回
+                      </p>
+                    )}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0 ml-2" />
+                </button>
+              );
+            })}
           </div>
         </section>
 
