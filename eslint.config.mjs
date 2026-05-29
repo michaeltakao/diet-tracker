@@ -26,6 +26,22 @@ const eslintConfig = defineConfig([
     },
   },
 
+  // ── Enforce the HttpClient wrapper for internal API calls ─────
+  // Raw fetch() in UI code must go through postJson() (lib/httpClient.ts),
+  // which centralizes JSON handling + HttpError. Scoped to app/ and
+  // components/ so the wrapper itself (lib/httpClient.ts) and the service
+  // worker (public/sw.js, not linted) remain free to call fetch directly.
+  {
+    files: ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-globals": ["error", {
+        name: "fetch",
+        message:
+          "Use postJson() from '@/lib/httpClient' for internal API calls instead of raw fetch().",
+      }],
+    },
+  },
+
   // ── Ignored paths ─────────────────────────────────────────────
   globalIgnores([
     ".next/**",
