@@ -1,32 +1,147 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --card-border: rgba(0,0,0,0.06);
-  --shadow-card: 0 8px 30px rgb(0,0,0,0.04);
-  --shadow-elevated: 0 16px 48px rgb(0,0,0,0.08);
-}
+/* ===================================================================
+   Design tokens
+   -------------------------------------------------------------------
+   Semantic layer so components read from tokens instead of hardcoding
+   palette values. Dark mode overrides the same vars under the
+   prefers-color-scheme media query (matches Tailwind v4's default
+   `dark:` variant), so token-based utilities adapt automatically.
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+   Text tokens are tuned for WCAG AA: even --faint (the lightest) meets
+   4.5:1 on its surface.
+   =================================================================== */
+
+:root {
+  /* Brand ramp (emerald) */
+  --brand-50:  #ecfdf5;
+  --brand-100: #d1fae5;
+  --brand-200: #a7f3d0;
+  --brand-300: #6ee7b7;
+  --brand-400: #34d399;
+  --brand-500: #10b981;
+  --brand-600: #059669;
+  --brand-700: #047857;
+  --brand-800: #065f46;
+  --brand-900: #064e3b;
+  --brand:        var(--brand-500);
+  --brand-strong: var(--brand-600); /* AA white-on-brand for text/buttons */
+
+  /* Surfaces */
+  --surface:     #f7f9fc;
+  --surface-2:   #eef2f8;
+  --card:        #ffffff;
+  --line:        rgba(2, 6, 23, 0.08);
+  --line-strong: rgba(2, 6, 23, 0.14);
+
+  /* Text (AA on light surfaces) */
+  --fg:    #0f172a; /* primary  */
+  --muted: #475569; /* secondary ~7.5:1 */
+  --faint: #64748b; /* tertiary ~4.7:1 (still AA) */
+
+  /* Semantic — foreground colors meet AA on light surfaces */
+  --success:      #059669;
+  --success-soft: #ecfdf5;
+  --warning:      #b45309;
+  --warning-soft: #fffbeb;
+  --danger:       #dc2626;
+  --danger-soft:  #fef2f2;
+  --info:         #2563eb;
+  --info-soft:    #eff6ff;
+
+  /* Focus ring */
+  --ring: #10b981;
+
+  /* Radii */
+  --radius-field: 0.875rem;
+  --radius-card:  1.5rem;
+
+  /* Elevation */
+  --shadow-card:     0 6px 24px rgb(2 6 23 / 0.06);
+  --shadow-elevated: 0 16px 48px rgb(2 6 23 / 0.10);
+
+  /* Back-compat aliases (existing components reference these) */
+  --background: var(--surface);
+  --foreground: var(--fg);
+  --card-border: var(--line);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0f172a;
-    --foreground: #f1f5f9;
-    --card: #1e293b;
-    --card-border: rgba(255,255,255,0.06);
-    --shadow-card: 0 8px 30px rgb(0,0,0,0.3);
-    --shadow-elevated: 0 16px 48px rgb(0,0,0,0.4);
+    --surface:     #0b1220;
+    --surface-2:   #131c2e;
+    --card:        #1a2336;
+    --line:        rgba(255, 255, 255, 0.09);
+    --line-strong: rgba(255, 255, 255, 0.16);
+
+    --fg:    #f1f5f9;
+    --muted: #cbd5e1; /* slate-300 */
+    --faint: #94a3b8; /* slate-400 ~4.9:1 on card */
+
+    --success:      #34d399;
+    --success-soft: rgb(16 185 129 / 0.14);
+    --warning:      #fbbf24;
+    --warning-soft: rgb(251 191 36 / 0.14);
+    --danger:       #f87171;
+    --danger-soft:  rgb(248 113 113 / 0.14);
+    --info:         #60a5fa;
+    --info-soft:    rgb(96 165 250 / 0.14);
+
+    --ring: #34d399;
+
+    --shadow-card:     0 6px 24px rgb(0 0 0 / 0.35);
+    --shadow-elevated: 0 16px 48px rgb(0 0 0 / 0.5);
   }
 }
 
+/* Expose tokens to Tailwind v4 as utilities (text-muted, bg-card,
+   border-line, rounded-card, etc.). `inline` keeps them as var()
+   references so the dark-mode overrides above flow through. */
+@theme inline {
+  --color-brand-50:  var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+  --color-brand:        var(--brand);
+  --color-brand-strong: var(--brand-strong);
+
+  --color-surface:    var(--surface);
+  --color-surface-2:  var(--surface-2);
+  --color-card:       var(--card);
+  --color-line:       var(--line);
+  --color-line-strong:var(--line-strong);
+
+  --color-fg:    var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+
+  --color-success:      var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning:      var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger:       var(--danger);
+  --color-danger-soft:  var(--danger-soft);
+  --color-info:         var(--info);
+  --color-info-soft:    var(--info-soft);
+
+  /* Back-compat */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --radius-field: var(--radius-field);
+  --radius-card:  var(--radius-card);
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+}
+
+/* ── Base ────────────────────────────────────────────── */
 *,
 *::before,
 *::after {
@@ -34,10 +149,54 @@
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--surface);
+  color: var(--fg);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* ── Accessibility primitives ────────────────────────── */
+
+/* Visible keyboard focus everywhere (elements that opt out with
+   `outline-none` provide their own ring). */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Screen-reader-only content */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.not-sr-only {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* Respect reduced-motion: neutralize confetti/pop/slide/shimmer */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ── Scrollbar utilities ─────────────────────────────── */
@@ -49,7 +208,7 @@ body {
   display: none;
 }
 
-/* ── Card shadow utility ─────────────────────────────── */
+/* ── Elevation utilities ─────────────────────────────── */
 .shadow-card {
   box-shadow: var(--shadow-card);
 }
@@ -103,13 +262,7 @@ body {
   animation: fade-in 0.35s ease both;
 }
 .skeleton {
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--line-strong) 50%, var(--surface-2) 75%);
   background-size: 800px 100%;
   animation: shimmer 1.4s infinite linear;
-}
-@media (prefers-color-scheme: dark) {
-  .skeleton {
-    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
-    background-size: 800px 100%;
-  }
 }
