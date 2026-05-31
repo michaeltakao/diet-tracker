@@ -58,9 +58,10 @@ export function checkRateLimit(
 
 // Per-route limits
 export const RATE_LIMITS = {
-  'analyze-food':   { maxRequests: 10, windowMs:    60_000 },  // 10/min — image processing is expensive
-  'coach':          { maxRequests: 20, windowMs:    60_000 },  // 20/min
-  'habit-report':   { maxRequests: 5,  windowMs:    60_000 },  // 5/min — 7-day analysis is heavy
-  'recommend':      { maxRequests: 10, windowMs:    60_000 },  // 10/min — profile-aware recommendation
-  'weekly-report':  { maxRequests: 3,  windowMs: 3_600_000 },  // 3/hour — comprehensive weekly synthesis
+  'analyze-food':     { maxRequests: 10, windowMs:    60_000 },
+  'coach':            { maxRequests: 20, windowMs:    60_000 },
+  'habit-report':     { maxRequests: 5,  windowMs:    60_000 },
+  'recommend':        { maxRequests: 10, windowMs:    60_000 },
+  'weekly-report':    { maxRequests: 3,  windowMs: 3_600_000 },
+  'suggest-workout':  { maxRequests: 10, windowMs:    60_000 },
 } as const satisfies Record<string, RateLimitConfig>;

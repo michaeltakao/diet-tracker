@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Upload, Camera, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { postJson } from '@/lib/httpClient';
 
 interface AnalysisResult {
   name: string;
@@ -72,18 +73,10 @@ export default function PhotoUpload({ onAnalysisComplete }: PhotoUploadProps) {
       const [header, base64Data] = preview.split(',');
       const mimeType = header.match(/:(.*?);/)?.[1] ?? 'image/jpeg';
 
-      const response = await fetch('/api/analyze-food', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: base64Data, mimeType }),
+      const analysisResult = await postJson<AnalysisResult>('/api/analyze-food', {
+        imageBase64: base64Data,
+        mimeType,
       });
-
-      if (!response.ok) {
-        const err = await response.json() as { error: string };
-        throw new Error(err.error ?? 'Analysis failed');
-      }
-
-      const analysisResult = await response.json() as AnalysisResult;
       setResult(analysisResult);
       onAnalysisComplete(analysisResult, preview);
     } catch (err) {

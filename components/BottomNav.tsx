@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, BookOpen, PlusCircle, Dumbbell, Scale } from 'lucide-react';
+import { Home, BookOpen, PlusCircle, Dumbbell, Scale, CalendarDays } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function BottomNav() {
@@ -14,11 +14,13 @@ export default function BottomNav() {
     { href: '/log',     label: t.navLog,     icon: BookOpen },
     { href: '/add',     label: t.navAdd,     icon: PlusCircle },
     { href: '/workout', label: t.navWorkout, icon: Dumbbell },
+    { href: '/plan',    label: 'プラン',     icon: CalendarDays },
     { href: '/weight',  label: t.navWeight,  icon: Scale },
   ];
 
   return (
     <nav className="
+      lg:hidden
       fixed bottom-0 left-0 right-0 z-50
       bg-white/90 dark:bg-gray-900/90
       backdrop-blur-md

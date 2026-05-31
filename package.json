@@ -6,10 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint app components lib contexts --ext .ts,.tsx"
+    "lint": "eslint app components lib contexts --ext .ts,.tsx",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@google/genai": "^2.6.0",
+    "@mediapipe/tasks-vision": "^0.10.35",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.2",
     "lucide-react": "^1.16.0",
@@ -19,6 +22,8 @@
     "recharts": "^3.8.1"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^3",
+    "vitest": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

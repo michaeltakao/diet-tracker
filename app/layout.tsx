@@ -5,6 +5,8 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ProfileProvider } from '@/contexts/ProfileContext';
 import PwaRegister from '@/components/PwaRegister';
 import PwaInstallBanner from '@/components/PwaInstallBanner';
+import SideNav from '@/components/SideNav';
+import CalorieContextBar from '@/components/CalorieContextBar';
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
@@ -54,11 +56,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${inter.className} bg-[var(--background)] min-h-screen`}>
         <ProfileProvider>
           <LanguageProvider>
-            {children}
-            <PwaInstallBanner />
+            {/* Desktop sidebar — hidden on mobile */}
+            <aside className="
+              hidden lg:flex flex-col
+              fixed top-0 left-0 h-full w-56 z-40
+              bg-white/90 dark:bg-gray-900/90
+              backdrop-blur-md
+              border-r border-gray-100 dark:border-gray-800
+              shadow-[1px_0_20px_rgb(0,0,0,0.03)]
+            ">
+              <SideNav />
+            </aside>
+
+            {/* Main content — offset by sidebar width on desktop */}
+            <div className="lg:ml-56">
+              <CalorieContextBar />
+              {children}
+              <PwaInstallBanner />
+            </div>
           </LanguageProvider>
         </ProfileProvider>
-        {/* SW registration — runs outside LanguageProvider to avoid re-renders */}
         <PwaRegister />
       </body>
     </html>

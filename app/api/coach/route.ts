@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { getServerUser } from '@/lib/supabase-server';
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { buildHealthContextPrompt } from '@/lib/medication-rules';
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -20,16 +22,19 @@ interface CoachRequest {
   recentFoodLog: Array<{ date: string; time: string; name: string; calories: number; mealType: string }>;
   recentWorkoutLog: Array<{ date: string; name: string; weight: number }>;
   streak: number;
+  healthConditions?: string[];
+  medications?: string[];
 }
 
 const SYSTEM_PROMPT = `You are a friendly, encouraging Japanese personal health coach inside a diet tracking app.
 The user will provide today's nutrition data, workout records, and recent history.
+If the user has chronic conditions or takes medications, tailor your advice accordingly — reference specific constraints or interactions relevant to their situation.
 
 Respond in Japanese. Structure your response as JSON with these fields:
 {
   "todayAdvice": "string (2-3 sentences about today's nutrition & workouts, specific praise or correction)",
   "habitInsight": "string (1-2 sentences analyzing eating/workout time patterns — e.g. late-night snacking, skipping breakfast, workout timing vs meals)",
-  "tomorrowTip": "string (1 actionable tip for tomorrow)",
+  "tomorrowTip": "string (1 actionable tip for tomorrow, condition-aware if applicable)",
   "motivationMessage": "string (short energetic motivational line)"
 }
 
@@ -42,6 +47,17 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const rl = checkRateLimit(user.id, 'coach', RATE_LIMITS['coach']);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Please wait before retrying.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(Math.ceil(rl.resetAfterMs / 1000)) },
+      }
+    );
+  }
+
   if (!apiKey) {
     return NextResponse.json(
       { error: 'GEMINI_API_KEY is not configured.' },
@@ -52,8 +68,13 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     const body = await request.json() as CoachRequest;
 
+    const healthCtx = buildHealthContextPrompt(
+      body.healthConditions ?? [],
+      body.medications ?? [],
+    );
+
     const userMessage = `
-【今日の栄養データ (${body.today})】
+${healthCtx ? `【ユーザーの健康状態】\n${healthCtx}\n\n` : ''}【今日の栄養データ (${body.today})】
 - カロリー: ${body.todayCalories} / ${body.calorieGoal} kcal (${Math.round((body.todayCalories / body.calorieGoal) * 100)}%)
 - タンパク質: ${body.todayProtein}g / ${body.proteinGoal}g
 - 脂質: ${body.todayFat}g / ${body.fatGoal}g

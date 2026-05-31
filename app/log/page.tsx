@@ -23,17 +23,19 @@ function getWeekDates(anchor: Date): string[] {
   });
 }
 
+import { fmtCalendarCell, fmtMonthDayDowLongJa, fmtLongEn } from '@/lib/format-date';
+import { postJson, HttpError } from '@/lib/httpClient';
+
 function formatShort(dateStr: string, locale: string): { day: string; num: string } {
-  const d = new Date(dateStr + 'T00:00:00');
-  return {
-    day: d.toLocaleDateString(locale, { weekday: 'short' }),
-    num: String(d.getDate()),
-  };
+  if (locale !== 'ja-JP') {
+    const d = new Date(dateStr + 'T00:00:00');
+    return { day: ['Su','Mo','Tu','We','Th','Fr','Sa'][d.getDay()], num: String(d.getDate()) };
+  }
+  return fmtCalendarCell(dateStr);
 }
 
 function formatFull(dateStr: string, locale: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' });
+  return locale === 'ja-JP' ? fmtMonthDayDowLongJa(dateStr) : fmtLongEn(dateStr);
 }
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
@@ -207,31 +209,25 @@ export default function LogPage() {
         return;
       }
 
-      const res = await fetch('/api/habit-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          daysWithData,
-          totalDays: 7,
-          avgDailyCalories,
-          calorieGoal: data.goals.calories,
-          lateNightEatingDays,
-          noBreakfastDays,
-          avgBreakfastHour,
-          workoutDays,
-          missedPostWorkoutDays,
-          streak: 0, // could import getStreak() here if needed
-          dailySummary: matrix,
-        }),
+      const report = await postJson<HabitReport>('/api/habit-report', {
+        daysWithData,
+        totalDays: 7,
+        avgDailyCalories,
+        calorieGoal: data.goals.calories,
+        lateNightEatingDays,
+        noBreakfastDays,
+        avgBreakfastHour,
+        workoutDays,
+        missedPostWorkoutDays,
+        streak: 0, // could import getStreak() here if needed
+        dailySummary: matrix,
       });
-
-      if (res.status === 422) { setHabitInsuff(true); return; }
-      if (!res.ok) {
-        const err = await res.json() as { error: string };
-        throw new Error(err.error);
-      }
-      setHabitReport(await res.json() as HabitReport);
+      setHabitReport(report);
     } catch (err) {
+      if (err instanceof HttpError && err.status === 422) {
+        setHabitInsuff(true);
+        return;
+      }
       setHabitError(err instanceof Error ? err.message : 'エラーが発生しました');
     } finally {
       setHabitLoading(false);
@@ -241,7 +237,7 @@ export default function LogPage() {
   const cardCls = 'bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-gray-50 dark:border-gray-700';
 
   return (
-    <div className="max-w-md mx-auto pb-28 px-4 bg-[var(--background)] min-h-screen">
+    <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
       {/* ── Header ─────────────────────────────── */}
       <div className="pt-6 pb-4">
         <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">

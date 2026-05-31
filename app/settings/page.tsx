@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Save, Check, Upload, Trash2, Database, FileJson, FileSpreadsheet, User } from 'lucide-react';
+import { ChevronLeft, Save, Check, Upload, Trash2, Database, FileJson, FileSpreadsheet, User, Pill, Plus, X } from 'lucide-react';
 import { getAppData, updateGoals, getHealthProfile, updateHealthProfile } from '@/lib/data';
 import { DailyGoals, UserHealthProfile, FitnessGoal, ActivityLevel } from '@/lib/types';
 import {
@@ -10,6 +10,7 @@ import {
   importFromFile, clearAllData, StorageStats,
 } from '@/lib/export';
 import BottomNav from '@/components/BottomNav';
+import AccountSection from '@/components/AccountSection';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface GoalForm {
@@ -23,7 +24,7 @@ interface GoalForm {
 
 const HEALTH_CONDITIONS = [
   '糖尿病', '高血圧', '高脂血症', '腎臓病', '心臓病',
-  '骨粗鬆症', '貧血', 'セリアック病', '痛風',
+  '骨粗鬆症', '貧血', 'セリアック病', '痛風', '甲状腺疾患',
 ] as const;
 
 const DIETARY_RESTRICTIONS = [
@@ -75,8 +76,9 @@ export default function SettingsPage() {
   const [importMsg,    setImportMsg]    = useState<{ ok: boolean; text: string } | null>(null);
   const [healthProfile, setHealthProfile] = useState<UserHealthProfile>({
     age: null, healthConditions: [], dietaryRestrictions: [],
-    fitnessGoal: 'maintenance', activityLevel: 'moderately_active',
+    medications: [], fitnessGoal: 'maintenance', activityLevel: 'moderately_active',
   });
+  const [medInput, setMedInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -161,7 +163,7 @@ export default function SettingsPage() {
   const cardCls = 'bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-gray-50 dark:border-gray-700 p-4';
 
   return (
-    <div className="max-w-md mx-auto pb-28 px-4 bg-[var(--background)] min-h-screen">
+    <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
       {/* ── Header ────────────────────────────── */}
       <div className="flex items-center gap-3 pt-6 pb-5">
         <button
@@ -184,6 +186,9 @@ export default function SettingsPage() {
           {t.settings} ⚙️
         </h1>
       </div>
+
+      {/* ── Account ───────────────────────────── */}
+      <AccountSection cardCls={cardCls} />
 
       {/* ── Language ──────────────────────────── */}
       <div className={`${cardCls} mb-3`}>
@@ -397,6 +402,90 @@ export default function SettingsPage() {
               );
             })}
           </div>
+        </div>
+
+        {/* Medications */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+              <Pill size={12} />
+              <span>服薬中の薬（任意）</span>
+            </label>
+            <button
+              onClick={() => router.push('/meds')}
+              className="text-[10px] font-bold text-violet-500 dark:text-violet-400 hover:underline"
+            >
+              服薬管理を開く →
+            </button>
+          </div>
+          {/* Tag list */}
+          {(healthProfile.medications ?? []).length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {(healthProfile.medications ?? []).map(med => (
+                <span
+                  key={med}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-700"
+                >
+                  {med}
+                  <button
+                    onClick={() => {
+                      setHealthProfile(prev => ({
+                        ...prev,
+                        medications: (prev.medications ?? []).filter(m => m !== med),
+                      }));
+                      setSaved(false);
+                    }}
+                    className="hover:text-red-500 transition-colors"
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          {/* Input */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={medInput}
+              onChange={e => setMedInput(e.target.value)}
+              onKeyDown={e => {
+                if ((e.key === 'Enter' || e.key === ',') && medInput.trim()) {
+                  e.preventDefault();
+                  const name = medInput.trim().replace(/,$/, '');
+                  if (name && !(healthProfile.medications ?? []).includes(name)) {
+                    setHealthProfile(prev => ({
+                      ...prev,
+                      medications: [...(prev.medications ?? []), name],
+                    }));
+                    setSaved(false);
+                  }
+                  setMedInput('');
+                }
+              }}
+              placeholder="薬名を入力してEnter（例: メトホルミン）"
+              className={`${inputCls} flex-1 focus:ring-violet-400`}
+            />
+            <button
+              onClick={() => {
+                const name = medInput.trim();
+                if (name && !(healthProfile.medications ?? []).includes(name)) {
+                  setHealthProfile(prev => ({
+                    ...prev,
+                    medications: [...(prev.medications ?? []), name],
+                  }));
+                  setSaved(false);
+                }
+                setMedInput('');
+              }}
+              className="px-3 py-2 rounded-2xl bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400 hover:bg-violet-200 transition-colors"
+            >
+              <Plus size={16} />
+            </button>
+          </div>
+          <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1.5">
+            AIコーチが服薬状況を考慮したアドバイスを行います
+          </p>
         </div>
 
         {/* Dietary restrictions */}

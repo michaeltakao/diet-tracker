@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Sparkles, RefreshCw, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { getAppData, getHealthProfile, getWaterForDate, getStreak } from '@/lib/data';
+import { postJson } from '@/lib/httpClient';
 import { useProfile } from '@/contexts/ProfileContext';
 import type { Recommendation } from '@/lib/types';
 
@@ -75,30 +76,19 @@ export default function RecommendationCard() {
         .slice(0, 7)
         .map(e => ({ date: e.date, name: e.name, category: e.category }));
 
-      const res = await fetch('/api/recommend', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          profile,
-          goals: appData.goals,
-          today,
-          todayCalories,
-          todayProtein,
-          todayFat,
-          todayCarbs,
-          waterConsumed:    water,
-          recentFoodLog,
-          recentWorkoutLog,
-          streak,
-        }),
+      const data = await postJson<Recommendation>('/api/recommend', {
+        profile,
+        goals: appData.goals,
+        today,
+        todayCalories,
+        todayProtein,
+        todayFat,
+        todayCarbs,
+        waterConsumed:    water,
+        recentFoodLog,
+        recentWorkoutLog,
+        streak,
       });
-
-      if (!res.ok) {
-        const data = await res.json() as { error?: string };
-        throw new Error(data.error ?? `HTTP ${res.status}`);
-      }
-
-      const data = await res.json() as Recommendation;
       setRec(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : '推薦の生成に失敗しました');

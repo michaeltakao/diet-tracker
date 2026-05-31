@@ -41,6 +41,7 @@ export type ProfileRow = {
   age:                  number | null;
   health_conditions:    string[];
   dietary_restrictions: string[];
+  medications:          string[];
   fitness_goal:         FitnessGoalEnum;
   activity_level:       ActivityLevelEnum;
   created_at:           string;
@@ -116,6 +117,28 @@ export type PersonalRecordRow = {
   created_at:     string;
 }
 
+export type CheckinRow = {
+  id:             string;
+  user_id:        string;
+  logged_date:    string;    // YYYY-MM-DD
+  mood:           number;    // 1-5
+  energy:         number;    // 1-5
+  sleep_hours:    number;
+  soreness_areas: string[];
+  notes:          string | null;
+  created_at:     string;
+}
+
+export type TrainingProgramRow = {
+  id:         string;
+  user_id:    string;
+  client_id:  string;        // matches TrainingProgram.id in localStorage
+  data:       unknown;       // JSONB — full TrainingProgram object
+  is_active:  boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export type WeeklyReportRow = {
   id:               string;
   user_id:          string;
@@ -170,6 +193,17 @@ export type WeeklyReportInsert = Omit<WeeklyReportRow, 'id'> & {
   id?: string;
 };
 
+export type CheckinInsert = Omit<CheckinRow, 'id' | 'created_at'> & {
+  id?: string;
+  created_at?: string;
+};
+
+export type TrainingProgramInsert = Omit<TrainingProgramRow, 'id' | 'created_at' | 'updated_at'> & {
+  id?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type ProfileUpdate = Partial<
   Pick<ProfileRow,
     | 'display_name'
@@ -185,6 +219,7 @@ export type ProfileUpdate = Partial<
     | 'age'
     | 'health_conditions'
     | 'dietary_restrictions'
+    | 'medications'
     | 'fitness_goal'
     | 'activity_level'
   >
@@ -251,6 +286,18 @@ export type Database = {
         Row:           WeeklyReportRow;
         Insert:        WeeklyReportInsert;
         Update:        Partial<WeeklyReportInsert>;
+        Relationships: [];
+      };
+      checkins: {
+        Row:           CheckinRow;
+        Insert:        CheckinInsert;
+        Update:        Partial<CheckinInsert>;
+        Relationships: [];
+      };
+      training_programs: {
+        Row:           TrainingProgramRow;
+        Insert:        TrainingProgramInsert;
+        Update:        Partial<TrainingProgramInsert>;
         Relationships: [];
       };
     };

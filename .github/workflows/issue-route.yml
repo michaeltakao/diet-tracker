@@ -1,0 +1,160 @@
+name: Issue Auto-Route
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  route:
+    name: Classify + Label
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check API key
+        id: check
+        run: |
+          if [[ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]]; then
+            echo "::warning::ANTHROPIC_API_KEY not set — issue routing skipped"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build classification prompt
+        if: steps.check.outputs.skip == 'false'
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          cat > /tmp/issue-prompt.txt << 'PROMPT_EOF'
+          You are a GitHub issue classifier for a diet-tracking Next.js web app.
+          Classify the issue below and return ONLY valid JSON — no markdown, no explanation.
+
+          Available type labels: bug, enhancement, feature-request, question, documentation
+          Available area labels: area:food, area:workout, area:ai, area:weight, area:auth, area:pwa
+          Available severity labels (bugs only): severity:low, severity:medium, severity:high, severity:critical
+          Available agents: engineer, researcher, reviewer, business
+
+          Rules:
+          - severity_label is required for bugs; use empty string "" for non-bugs
+          - routing_reason must be one sentence
+          - summary must be one sentence describing the core issue
+
+          Output format (JSON only):
+          {"type_label":"<label>","area_label":"<label or ''>","severity_label":"<label or ''>","routing":"<agent>","routing_reason":"<one sentence>","summary":"<one sentence>"}
+          PROMPT_EOF
+
+          printf '\n\nIssue title: %s\n\nIssue body:\n%s\n' \
+            "$ISSUE_TITLE" "$ISSUE_BODY" >> /tmp/issue-prompt.txt
+
+      - name: Call Anthropic API
+        if: steps.check.outputs.skip == 'false'
+        id: classify
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          jq -n --rawfile prompt /tmp/issue-prompt.txt \
+            '{
+               model: "claude-haiku-4-5-20251001",
+               max_tokens: 256,
+               messages: [{ role: "user", content: $prompt }]
+             }' > /tmp/req.json
+
+          HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            https://api.anthropic.com/v1/messages \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d @/tmp/req.json)
+
+          if [[ "$HTTP_CODE" != "200" ]]; then
+            echo "::warning::Anthropic API returned HTTP $HTTP_CODE — routing skipped"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          RAW=$(jq -r '.content[0].text // ""' /tmp/response.json)
+          # Strip possible markdown code fences
+          echo "$RAW" | sed 's/^```json//;s/^```//;s/```$//' | tr -d '\n' > /tmp/classification.json
+
+          # Validate JSON
+          if ! jq empty /tmp/classification.json 2>/dev/null; then
+            echo "::warning::Classification JSON invalid — routing skipped"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "type_label=$(jq -r '.type_label // ""' /tmp/classification.json)"     >> "$GITHUB_OUTPUT"
+          echo "area_label=$(jq -r '.area_label // ""' /tmp/classification.json)"     >> "$GITHUB_OUTPUT"
+          echo "severity_label=$(jq -r '.severity_label // ""' /tmp/classification.json)" >> "$GITHUB_OUTPUT"
+          echo "routing=$(jq -r '.routing // ""' /tmp/classification.json)"           >> "$GITHUB_OUTPUT"
+          echo "routing_reason=$(jq -r '.routing_reason // ""' /tmp/classification.json)" >> "$GITHUB_OUTPUT"
+          echo "summary=$(jq -r '.summary // ""' /tmp/classification.json)"           >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Apply labels
+        if: steps.check.outputs.skip == 'false' && steps.classify.outputs.skip == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = [
+              '${{ steps.classify.outputs.type_label }}',
+              '${{ steps.classify.outputs.area_label }}',
+              '${{ steps.classify.outputs.severity_label }}',
+              'auto-generated',
+            ].filter(l => l.length > 0 && l !== "''");
+
+            // Remove needs-triage if present, replace with classified labels
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.issue.number,
+                name: 'needs-triage',
+              });
+            } catch (_) { /* label may not be present */ }
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              labels,
+            });
+
+      - name: Post routing comment
+        if: steps.check.outputs.skip == 'false' && steps.classify.outputs.skip == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const routing   = '${{ steps.classify.outputs.routing }}';
+            const reason    = '${{ steps.classify.outputs.routing_reason }}';
+            const summary   = '${{ steps.classify.outputs.summary }}';
+            const type      = '${{ steps.classify.outputs.type_label }}';
+            const area      = '${{ steps.classify.outputs.area_label }}';
+            const severity  = '${{ steps.classify.outputs.severity_label }}';
+
+            const severityPart = severity ? '  Severity: `' + severity + '`' : '';
+
+            const body = [
+              '## Issue Routed\n',
+              'Summary: ' + summary,
+              'Type: `' + type + '`  Area: `' + (area || 'unclassified') + '`' + severityPart,
+              '',
+              'Routed to: `' + routing + '` agent',
+              'Reason: ' + reason,
+              '',
+              '---',
+              '_Auto-classified by issue-route workflow. Labels may be adjusted manually._',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body,
+            });

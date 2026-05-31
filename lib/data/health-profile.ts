@@ -13,6 +13,7 @@ export const DEFAULT_HEALTH_PROFILE: UserHealthProfile = {
   age:                 null,
   healthConditions:    [],
   dietaryRestrictions: [],
+  medications:         [],
   fitnessGoal:         'maintenance',
   activityLevel:       'moderately_active',
 };
@@ -36,10 +37,12 @@ export function updateHealthProfile(profile: UserHealthProfile): void {
   void (async () => {
     const ctx = await getWriteContext();
     if (!ctx) return;
-    const { error } = await ctx.supabase.from('profiles').update({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (ctx.supabase.from('profiles') as any).update({
       age:                  profile.age,
       health_conditions:    profile.healthConditions,
       dietary_restrictions: profile.dietaryRestrictions,
+      medications:          profile.medications,
       fitness_goal:         profile.fitnessGoal,
       activity_level:       profile.activityLevel,
     }).eq('id', ctx.userId);

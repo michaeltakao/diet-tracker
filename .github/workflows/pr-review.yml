@@ -1,0 +1,148 @@
+name: Agent PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  agent-review:
+    name: Reviewer + Engineer
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Skip entirely if ANTHROPIC_API_KEY is not configured
+    if: ${{ vars.AGENT_REVIEW_ENABLED != 'false' }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check API key
+        id: check
+        run: |
+          if [[ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]]; then
+            echo "::warning::ANTHROPIC_API_KEY not set — agent review skipped"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Get PR diff
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          git diff "origin/${{ github.base_ref }}...HEAD" -- \
+            ':(exclude)package-lock.json' \
+            ':(exclude)*.lock' \
+            ':(exclude)node_modules/**' \
+            | head -c 12000 > /tmp/pr.diff
+          echo "Diff size: $(wc -c < /tmp/pr.diff) bytes"
+
+      - name: Build prompt
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          {
+            echo "Run both review agents below on this pull request diff."
+            echo "First output ## Adversarial Review, then ## Engineering Review."
+            echo "End with ## Summary containing either VERDICT: BLOCKED or VERDICT: APPROVE."
+            echo ""
+            echo "=== ADVERSARIAL REVIEWER ==="
+            cat .github/agents/reviewer.md
+            echo ""
+            echo "=== ENGINEERING AGENT ==="
+            cat .github/agents/engineer.md
+            echo ""
+            echo "=== PR DIFF ==="
+            cat /tmp/pr.diff
+          } > /tmp/prompt.txt
+
+      - name: Call Anthropic API
+        if: steps.check.outputs.skip == 'false'
+        id: review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          jq -n --rawfile prompt /tmp/prompt.txt \
+            '{
+               model: "claude-sonnet-4-6",
+               max_tokens: 2048,
+               messages: [{ role: "user", content: $prompt }]
+             }' > /tmp/req.json
+
+          HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            https://api.anthropic.com/v1/messages \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d @/tmp/req.json)
+
+          if [[ "$HTTP_CODE" != "200" ]]; then
+            echo "::warning::Anthropic API returned HTTP $HTTP_CODE — agent review skipped"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          jq -r '.content[0].text // "Agent review failed: empty response"' \
+            /tmp/response.json > /tmp/review.txt
+
+          # Hard-block: only FATAL:SECURITY and FATAL:CORRECTNESS block merge
+          # FATAL:DATA and FATAL:REPRODUCIBILITY produce WARN, not hard block
+          if grep -qE '\[FATAL:SECURITY\]|\[FATAL:CORRECTNESS\]|VERDICT: BLOCKED' /tmp/review.txt; then
+            echo "blocked=true"  >> "$GITHUB_OUTPUT"
+            echo "warn=false"    >> "$GITHUB_OUTPUT"
+          elif grep -qE '\[FATAL:DATA\]|\[FATAL:REPRODUCIBILITY\]|VERDICT: WARN' /tmp/review.txt; then
+            echo "blocked=false" >> "$GITHUB_OUTPUT"
+            echo "warn=true"     >> "$GITHUB_OUTPUT"
+          else
+            echo "blocked=false" >> "$GITHUB_OUTPUT"
+            echo "warn=false"    >> "$GITHUB_OUTPUT"
+          fi
+
+          # Extract fatal counts for decision.log
+          SEC=$(grep -c '\[FATAL:SECURITY\]'       /tmp/review.txt 2>/dev/null || echo 0)
+          COR=$(grep -c '\[FATAL:CORRECTNESS\]'    /tmp/review.txt 2>/dev/null || echo 0)
+          DAT=$(grep -c '\[FATAL:DATA\]'            /tmp/review.txt 2>/dev/null || echo 0)
+          echo "fatal_security=${SEC}"      >> "$GITHUB_OUTPUT"
+          echo "fatal_correctness=${COR}"   >> "$GITHUB_OUTPUT"
+          echo "fatal_data=${DAT}"          >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Post review comment
+        if: steps.check.outputs.skip == 'false' && steps.review.outputs.skip == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const review  = fs.readFileSync('/tmp/review.txt', 'utf8');
+            const blocked = '${{ steps.review.outputs.blocked }}' === 'true';
+            const warn    = '${{ steps.review.outputs.warn }}'    === 'true';
+
+            let header;
+            if (blocked) {
+              header = '## Agent Review — BLOCKED\n\n'
+                + '> [FATAL:SECURITY] or [FATAL:CORRECTNESS] detected. Hard-blocked. Fix before merging.\n\n';
+            } else if (warn) {
+              header = '## Agent Review — WARN\n\n'
+                + '> [FATAL:DATA] or [FATAL:REPRODUCIBILITY] detected. Soft-blocked — mergeable but review carefully.\n\n';
+            } else {
+              header = '## Agent Review — Approved\n\n';
+            }
+
+            const footer = '\n\n---\n_Reviewer Agent + Engineer Agent_';
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: header + review + footer,
+            });
+
+      - name: Fail on FATAL
+        if: steps.review.outputs.blocked == 'true'
+        run: |
+          echo "::error::[FATAL] found by reviewer agent — merge blocked. Fix all FATAL issues and push again."
+          exit 1

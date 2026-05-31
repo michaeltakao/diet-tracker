@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { getServerUser } from '@/lib/supabase-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { buildHealthContextPrompt } from '@/lib/medication-rules';
+import { runParallelAgents } from '@/lib/parallel-agents';
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -26,22 +28,12 @@ interface WeeklyReportRequest {
   dailyNutrition: DailyNutrition[];
   workoutDays:    number;
   totalWorkouts:  number;
-  weightStart:    number | null;
-  weightEnd:      number | null;
-  streak:         number;
+  weightStart:      number | null;
+  weightEnd:        number | null;
+  streak:           number;
+  healthConditions?: string[];
+  medications?:     string[];
 }
-
-const SYSTEM_PROMPT = `You are a supportive Japanese health coach. Based on 7-day nutrition and exercise data, write a concise weekly report.
-
-Return ONLY valid JSON (no markdown, no code block):
-{
-  "summary": "2-3 sentences summarizing this week's overall performance with specific numbers",
-  "highlight": "one specific achievement to celebrate this week",
-  "improvement": "one concrete area to focus on next week",
-  "nextWeekGoal": "one measurable, achievable goal with a specific metric"
-}
-
-Be warm, specific, and data-driven. Write entirely in Japanese.`;
 
 export async function POST(request: Request): Promise<NextResponse> {
   const user = await getServerUser();
@@ -64,7 +56,9 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     const body = await request.json() as WeeklyReportRequest;
 
-    const datadays = body.dailyNutrition.filter(d => d.mealCount > 0);
+    // Cap array length to prevent oversized prompts
+    const nutrition7 = (Array.isArray(body.dailyNutrition) ? body.dailyNutrition : []).slice(0, 7);
+    const datadays = nutrition7.filter(d => d.mealCount > 0);
     if (datadays.length < 2) {
       return NextResponse.json({ error: 'insufficient_data' }, { status: 422 });
     }
@@ -79,11 +73,12 @@ export async function POST(request: Request): Promise<NextResponse> {
       d.calories >= body.calorieGoal - 200 && d.calories <= body.calorieGoal + 200
     ).length;
     const calorieCompliance = Math.round((calorieCompliantDays / datadays.length) * 100);
-    const waterGoalDays     = body.dailyNutrition.filter(d => d.water >= body.waterGoal).length;
+    const waterGoalDays = datadays.filter(d => d.water >= body.waterGoal).length;
 
     // Week score (0–100)
+    const safeProteinGoal = Math.max(body.proteinGoal, 1);
     const calScore = Math.min(calorieCompliance, 100) * 0.30;
-    const prtScore = Math.min((avgProtein / body.proteinGoal) * 100, 100) * 0.25;
+    const prtScore = Math.min((avgProtein / safeProteinGoal) * 100, 100) * 0.25;
     const wktScore = Math.min((body.workoutDays / 4) * 100, 100) * 0.25;
     const h2oScore = Math.min((waterGoalDays / datadays.length) * 100, 100) * 0.10;
     const stkScore = Math.min((body.streak / 7) * 100, 100) * 0.10;
@@ -93,45 +88,96 @@ export async function POST(request: Request): Promise<NextResponse> {
       ? +(body.weightEnd - body.weightStart).toFixed(1)
       : null;
 
-    const userMessage = `
-【週次レポート対象期間】${body.startDate} ～ ${body.endDate}
+    const healthCtx = buildHealthContextPrompt(
+      body.healthConditions ?? [],
+      body.medications ?? [],
+    );
 
-■ 栄養摂取（データあり: ${datadays.length}/7日）
-- 平均カロリー: ${avgCalories} kcal（目標: ${body.calorieGoal} kcal、目標達成率: ${calorieCompliance}%）
+    const healthSection = healthCtx ? `【ユーザーの健康状態】\n${healthCtx}\n\n` : '';
+    const periodLine = `【対象期間】${body.startDate} ～ ${body.endDate}`;
+    const nutritionSection = `■ 栄養摂取（データあり: ${datadays.length}/7日）
+- 平均カロリー: ${avgCalories} kcal（目標: ${body.calorieGoal} kcal、達成率: ${calorieCompliance}%）
 - 平均タンパク質: ${avgProtein}g（目標: ${body.proteinGoal}g）
 - 平均脂質: ${avgFat}g（目標: ${body.fatGoal}g）
 - 平均炭水化物: ${avgCarbs}g（目標: ${body.carbsGoal}g）
-- 水分目標達成日: ${waterGoalDays}日
-
+- 水分目標達成日: ${waterGoalDays}/${datadays.length}日
 ■ 日別カロリー
-${body.dailyNutrition.map(d =>
+${nutrition7.map(d =>
   `${d.date}: ${d.mealCount > 0 ? `${d.calories}kcal (${d.mealCount}食)` : 'データなし'}`
-).join('\n')}
-
-■ トレーニング
+).join('\n')}`;
+    const workoutSection = `■ トレーニング
 - 実施日数: ${body.workoutDays}日 / 7日
-- 総セッション数: ${body.totalWorkouts}回
-
-■ 体重
+- 総セッション数: ${body.totalWorkouts}回`;
+    const weightSection = `■ 体重
 ${weightChange != null
   ? `${body.weightStart}kg → ${body.weightEnd}kg（${weightChange >= 0 ? '+' : ''}${weightChange}kg）`
-  : '体重データなし'}
+  : '体重データなし'}`;
+    const streakSection = `■ 継続記録: ${body.streak}日ストリーク、週スコア ${weekScore}/100`;
 
-■ 記録継続
-- 現在のストリーク: ${body.streak}日
-- 週スコア: ${weekScore}/100
-    `.trim();
+    const sharedContext = [healthSection, periodLine, nutritionSection, workoutSection, weightSection, streakSection]
+      .filter(Boolean).join('\n\n');
 
+    // Run 4 specialized agents in parallel
+    const agentResults = await runParallelAgents(apiKey, [
+      {
+        id: 'nutrition',
+        systemPrompt: '日本語でのみ回答してください。あなたは栄養専門家です。以下のデータに基づき、今週の栄養摂取について2〜3文で具体的な数値を使って分析してください。マクロバランス、カロリー達成率、水分摂取に着目してください。分析のみを返してください。',
+        userMessage: sharedContext,
+      },
+      {
+        id: 'workout',
+        systemPrompt: '日本語でのみ回答してください。あなたはトレーニング専門家です。以下のデータに基づき、今週の運動について2〜3文で具体的に分析してください。頻度、一貫性、体重変化との関係に着目してください。分析のみを返してください。',
+        userMessage: sharedContext,
+      },
+      {
+        id: 'behavior',
+        systemPrompt: '日本語でのみ回答してください。あなたは行動変容の専門家です。以下のデータに基づき、今週の習慣と継続性について2〜3文で分析してください。ストリーク、記録の一貫性、改善できる行動パターンに着目してください。分析のみを返してください。',
+        userMessage: sharedContext,
+      },
+      {
+        id: 'goal',
+        systemPrompt: '日本語でのみ回答してください。あなたは目標設定の専門家です。以下のデータに基づき、来週取り組むべき具体的で達成可能な目標を1つ、数値を含めて提案してください。目標のみを返してください。',
+        userMessage: sharedContext,
+      },
+    ]);
+
+    const resultMap = Object.fromEntries(agentResults.map(r => [r.id, r.text]));
+
+    // Orchestrator: combine specialist outputs into final JSON
     const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
+    const orchestratorPrompt = `あなたは日本語の健康コーチです。以下の4人の専門家分析を統合して、週次レポートをJSON形式で作成してください。
+
+【栄養専門家の分析】
+${resultMap['nutrition'] ?? '（分析なし）'}
+
+【トレーニング専門家の分析】
+${resultMap['workout'] ?? '（分析なし）'}
+
+【行動変容専門家の分析】
+${resultMap['behavior'] ?? '（分析なし）'}
+
+【目標設定専門家の提案】
+${resultMap['goal'] ?? '（提案なし）'}
+
+【週スコア】${weekScore}/100
+
+以下のJSONのみを返してください（マークダウン不可）:
+{
+  "summary": "今週全体のパフォーマンスを具体的な数値を使って2〜3文でまとめた総評",
+  "highlight": "今週の最も称えるべき1つの成果",
+  "improvement": "来週に向けて改善すべき具体的な1点",
+  "nextWeekGoal": "数値目標を含む、達成可能な来週の目標"
+}`;
+
+    const orchestratorResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: [{ role: 'user', parts: [{ text: SYSTEM_PROMPT + '\n\n' + userMessage }] }],
+      contents: [{ role: 'user', parts: [{ text: orchestratorPrompt }] }],
     });
 
-    const raw = (response.text ?? '').trim();
+    const raw = (orchestratorResponse.text ?? '').trim();
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      return NextResponse.json({ error: 'Could not parse JSON from Gemini', raw }, { status: 500 });
+      return NextResponse.json({ error: 'Could not parse JSON from orchestrator', raw }, { status: 500 });
     }
 
     const parsed = JSON.parse(jsonMatch[0]) as {

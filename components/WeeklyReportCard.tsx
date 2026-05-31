@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { CalendarDays, RefreshCw, Trophy, TrendingDown, TrendingUp } from 'lucide-react';
-import { getAppData, getStreak, getWeightEntries } from '@/lib/data';
+import { getAppData, getStreak, getWeightEntries, getHealthProfile } from '@/lib/data';
+import { postJson, HttpError } from '@/lib/httpClient';
 import { useProfile } from '@/contexts/ProfileContext';
 
 interface WeeklyReport {
@@ -75,32 +76,28 @@ export default function WeeklyReportCard() {
       const weightStart = weekWeights.at(0)?.weight ?? null;
       const weightEnd   = weekWeights.at(-1)?.weight ?? null;
 
-      const res = await fetch('/api/weekly-report', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          startDate, endDate,
-          calorieGoal: goals.calories,
-          proteinGoal: goals.protein,
-          fatGoal:     goals.fat,
-          carbsGoal:   goals.carbs,
-          waterGoal,
-          dailyNutrition,
-          workoutDays,
-          totalWorkouts: weekWorkouts.length,
-          weightStart,
-          weightEnd,
-          streak,
-        }),
+      const report = await postJson<WeeklyReport>('/api/weekly-report', {
+        startDate, endDate,
+        calorieGoal: goals.calories,
+        proteinGoal: goals.protein,
+        fatGoal:     goals.fat,
+        carbsGoal:   goals.carbs,
+        waterGoal,
+        dailyNutrition,
+        workoutDays,
+        totalWorkouts: weekWorkouts.length,
+        weightStart,
+        weightEnd,
+        streak,
+        healthConditions: getHealthProfile().healthConditions,
+        medications: getHealthProfile().medications ?? [],
       });
-
-      if (res.status === 422) { setError('週次レポートには最低2日分のデータが必要です'); return; }
-      if (!res.ok) {
-        const data = await res.json() as { error?: string };
-        throw new Error(data.error ?? `HTTP ${res.status}`);
-      }
-      setReport(await res.json() as WeeklyReport);
+      setReport(report);
     } catch (err) {
+      if (err instanceof HttpError && err.status === 422) {
+        setError('週次レポートには最低2日分のデータが必要です');
+        return;
+      }
       setError(err instanceof Error ? err.message : 'レポートの生成に失敗しました');
     } finally {
       setLoading(false);

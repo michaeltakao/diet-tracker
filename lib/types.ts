@@ -36,6 +36,7 @@ export interface CoachMenu {
   defaultReps: number;
   defaultSets: number;
   coachTip: string;
+  coachTipEn?: string;
 }
 
 export interface WeightEntry {
@@ -105,8 +106,14 @@ export interface UserHealthProfile {
   age:                 number | null;
   healthConditions:    string[];   // e.g. ['糖尿病', '高血圧']
   dietaryRestrictions: string[];   // e.g. ['ベジタリアン', 'グルテンフリー']
+  medications:         string[];   // e.g. ['メトホルミン', 'ワーファリン']
   fitnessGoal:         FitnessGoal;
   activityLevel:       ActivityLevel;
+}
+
+export interface MedLogEntry {
+  date:      string;    // YYYY-MM-DD
+  takenMeds: string[];  // medication names taken today
 }
 
 // ── Personalized Recommendations (LLM output) ─────────────────
@@ -199,4 +206,55 @@ export interface WeeklyAverage {
   avgProtein:   number;
   workoutDays:  number;
   avgWater:     number;
+}
+
+// ── Daily Check-in ────────────────────────────────────────────────────────
+
+export interface DailyCheckIn {
+  date:          string;                    // YYYY-MM-DD
+  mood:          1 | 2 | 3 | 4 | 5;        // 気分 (1=最悪 … 5=最高)
+  energy:        1 | 2 | 3 | 4 | 5;        // 体力 (1=消耗 … 5=絶好調)
+  sleepHours:    number;                    // 睡眠時間
+  sorenessAreas: MusclePart[];             // 筋肉痛部位
+  notes?:        string;
+}
+
+export interface WorkoutSuggestion {
+  proceed:           'full' | 'reduced' | 'alternative' | 'rest';
+  sessionName:       string;
+  adjustments:       string[];    // 種目ごとの調整メモ
+  intensityNote:     string;      // 例: "今日は80%強度で"
+  motivationMessage: string;
+  recoveryTips:      string[];
+  generatedAt:       string;      // ISO
+}
+
+// ── Training Plan ─────────────────────────────────────────────────────────
+
+export interface PlannedExercise {
+  id:            string;
+  name:          string;
+  musclePart:    MusclePart;
+  sets:          number;
+  repsMin:       number;
+  repsMax:       number;
+  targetWeight?: number;   // kg (optional starting suggestion)
+  notes?:        string;
+}
+
+export interface TrainingSession {
+  id:        string;
+  name:      string;        // e.g. "Push Day", "Lower A"
+  exercises: PlannedExercise[];
+}
+
+export interface TrainingProgram {
+  id:           string;
+  name:         string;
+  description:  string;
+  sessions:     TrainingSession[];
+  /** dayOfWeek (0=Sun…6=Sat) → session id. Empty string = rest day. */
+  weekSchedule: Record<number, string>;
+  isActive:     boolean;
+  createdAt:    string;
 }
