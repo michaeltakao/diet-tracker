@@ -86,7 +86,7 @@ export default function MigrationBanner({ status, summary, onDismiss }: Props) {
           ${cfg.bg} ${cfg.border} ${cfg.textColor}
           border rounded-2xl
           px-4 py-3
-          shadow-[0_8px_30px_rgb(0,0,0,0.10)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)]
+          shadow-elevated
           flex items-center gap-3
           pointer-events-auto
         `}

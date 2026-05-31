@@ -63,8 +63,8 @@ export default function AccountSection({ cardCls }: { cardCls: string }) {
             <CheckCircle size={18} className="text-green-500" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-black text-gray-400 uppercase tracking-widest">アカウント連携済み</p>
-            <p className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate mt-0.5">
+            <p className="text-xs font-black text-faint uppercase tracking-widest">アカウント連携済み</p>
+            <p className="text-sm font-bold text-fg truncate mt-0.5">
               {user.email}
             </p>
           </div>
@@ -76,7 +76,7 @@ export default function AccountSection({ cardCls }: { cardCls: string }) {
         <div className="mt-3 flex items-center justify-between">
           <div className="flex gap-2 flex-wrap">
             {BENEFITS.map(({ icon: Icon, text }) => (
-              <span key={text} className="flex items-center gap-1 text-[11px] text-gray-400">
+              <span key={text} className="flex items-center gap-1 text-[11px] text-faint">
                 <Icon size={10} className="text-green-400" />
                 {text}
               </span>
@@ -86,9 +86,9 @@ export default function AccountSection({ cardCls }: { cardCls: string }) {
 
         <button
           onClick={handleSignOut}
-          className="mt-3 flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors"
+          className="mt-3 flex items-center gap-2 text-xs font-bold text-faint hover:text-danger transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
         >
-          <LogOut size={13} />
+          <LogOut size={13} aria-hidden="true" />
           ログアウト
         </button>
       </div>
@@ -99,12 +99,12 @@ export default function AccountSection({ cardCls }: { cardCls: string }) {
 
   return (
     <div className={`${cardCls} mb-3`}>
-      <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">アカウント連携</p>
+      <p className="text-xs font-black text-faint uppercase tracking-widest mb-3">アカウント連携</p>
 
       {/* Status */}
-      <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-gray-50 dark:bg-gray-700/50 rounded-2xl">
-        <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-        <p className="text-xs font-bold text-gray-600 dark:text-gray-300">
+      <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-surface-2 rounded-2xl">
+        <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" aria-hidden="true" />
+        <p className="text-xs font-bold text-muted">
           ゲストモード — データはこのデバイスのみに保存
         </p>
       </div>
@@ -114,7 +114,7 @@ export default function AccountSection({ cardCls }: { cardCls: string }) {
         {BENEFITS.map(({ icon: Icon, text }) => (
           <div key={text} className="flex items-center gap-2">
             <Icon size={13} className="text-blue-400 shrink-0" />
-            <p className="text-xs text-gray-600 dark:text-gray-400">{text}</p>
+            <p className="text-xs text-muted">{text}</p>
           </div>
         ))}
       </div>
@@ -125,7 +125,7 @@ export default function AccountSection({ cardCls }: { cardCls: string }) {
           <button
             onClick={handleGoogle}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:border-gray-300 disabled:opacity-50 transition-all shadow-sm"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold bg-card border-2 border-line-strong text-fg hover:border-faint disabled:opacity-50 transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -137,12 +137,12 @@ export default function AccountSection({ cardCls }: { cardCls: string }) {
           </button>
           <button
             onClick={() => setEmailMode(true)}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
           >
-            <Mail size={15} />
+            <Mail size={15} aria-hidden="true" />
             メールで連携
           </button>
-          <p className="text-[10px] text-center text-gray-400 mt-1">
+          <p className="text-[10px] text-center text-faint mt-1">
             連携しなくてもすべての機能を使えます
           </p>
         </div>
@@ -158,19 +158,21 @@ export default function AccountSection({ cardCls }: { cardCls: string }) {
               onChange={e => setEmail(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleEmail(); }}
               placeholder="メールアドレスを入力"
-              className="flex-1 text-sm px-3 py-2.5 rounded-2xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              aria-label="メールアドレス"
+              className="flex-1 text-sm px-3 py-2.5 rounded-2xl border border-line-strong bg-surface-2 text-fg placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             />
             <button
               onClick={() => { setEmailMode(false); setEmail(''); setError(null); }}
-              className="p-2.5 rounded-2xl border border-gray-200 dark:border-gray-600 text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="キャンセル"
+              className="p-2.5 rounded-2xl border border-line-strong text-faint hover:text-fg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
             >
-              <X size={16} />
+              <X size={16} aria-hidden="true" />
             </button>
           </div>
           <button
             onClick={handleEmail}
             disabled={loading || !email.trim()}
-            className="w-full py-2.5 rounded-2xl text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 transition-colors"
+            className="w-full py-2.5 rounded-2xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
           >
             {loading ? '送信中...' : 'マジックリンクを送信'}
           </button>
@@ -188,7 +190,7 @@ export default function AccountSection({ cardCls }: { cardCls: string }) {
       )}
 
       {error && (
-        <p className="mt-2 text-xs text-red-500 text-center">{error}</p>
+        <p role="alert" className="mt-2 text-xs text-danger text-center">{error}</p>
       )}
     </div>
   );

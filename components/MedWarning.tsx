@@ -54,22 +54,23 @@ export default function MedWarning({
           {hasMore && (
             <button
               onClick={() => setExpanded(v => !v)}
-              className="flex items-center gap-1 text-xs font-bold mt-2 opacity-70 hover:opacity-100 transition-opacity"
+              aria-expanded={expanded}
+              className="flex items-center gap-1 text-xs font-bold mt-2 opacity-80 hover:opacity-100 transition-opacity rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
             >
               {expanded ? (
-                <><ChevronUp size={12} /> 折りたたむ</>
+                <><ChevronUp size={12} aria-hidden="true" /> 折りたたむ</>
               ) : (
-                <><ChevronDown size={12} /> あと{warnings.length - collapseAfter}件表示</>
+                <><ChevronDown size={12} aria-hidden="true" /> あと{warnings.length - collapseAfter}件表示</>
               )}
             </button>
           )}
         </div>
         <button
           onClick={() => setDismissed(true)}
-          className="shrink-0 opacity-50 hover:opacity-100 transition-opacity"
+          className="shrink-0 opacity-60 hover:opacity-100 transition-opacity rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
           aria-label="閉じる"
         >
-          <X size={14} />
+          <X size={14} aria-hidden="true" />
         </button>
       </div>
     </div>
