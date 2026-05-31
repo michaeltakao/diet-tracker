@@ -234,13 +234,13 @@ export default function LogPage() {
     }
   };
 
-  const cardCls = 'bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-gray-50 dark:border-gray-700';
+  const cardCls = 'bg-card rounded-3xl shadow-card border border-line';
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
       {/* ── Header ─────────────────────────────── */}
       <div className="pt-6 pb-4">
-        <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+        <h1 className="text-2xl font-black text-fg tracking-tight">
           {t.weeklyLog} 📅
         </h1>
       </div>
@@ -250,18 +250,20 @@ export default function LogPage() {
         <div className="flex items-center justify-between mb-3">
           <button
             onClick={() => setWeekOffset((o) => o - 1)}
-            className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-90 transition-all duration-200"
+            aria-label="前の週"
+            className="p-2 rounded-xl text-faint hover:bg-surface-2 active:scale-90 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           >
-            <ChevronLeft size={20} className="text-gray-500 dark:text-gray-400" />
+            <ChevronLeft size={20} aria-hidden="true" />
           </button>
-          <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+          <span className="text-sm font-bold text-muted">
             {weekOffset === 0 ? 'This Week' : weekOffset === -1 ? 'Last Week' : `${weekOffset > 0 ? '+' : ''}${weekOffset}w`}
           </span>
           <button
             onClick={() => setWeekOffset((o) => o + 1)}
-            className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-90 transition-all duration-200"
+            aria-label="次の週"
+            className="p-2 rounded-xl text-faint hover:bg-surface-2 active:scale-90 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           >
-            <ChevronRight size={20} className="text-gray-500 dark:text-gray-400" />
+            <ChevronRight size={20} aria-hidden="true" />
           </button>
         </div>
 
@@ -277,21 +279,24 @@ export default function LogPage() {
               <button
                 key={date}
                 onClick={() => setSelectedDate(date)}
+                aria-pressed={isSelected}
+                aria-label={formatFull(date, locale)}
                 className={`
                   flex-1 flex flex-col items-center py-2.5 rounded-2xl
                   transition-all duration-200
                   hover:scale-[1.04] active:scale-95
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
                   ${isSelected
-                    ? 'bg-gradient-to-b from-green-500 to-emerald-600 text-white shadow-[0_4px_12px_rgba(34,197,94,0.35)]'
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}
+                    ? 'bg-gradient-to-b from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                    : 'hover:bg-surface-2 text-muted'}
                 `}
               >
                 <span className="text-[10px] font-bold">{day}</span>
-                <span className={`text-sm font-black mt-0.5 ${isToday && !isSelected ? 'text-green-500' : ''}`}>
+                <span className={`text-sm font-black mt-0.5 ${isToday && !isSelected ? 'text-brand' : ''}`}>
                   {num}
                 </span>
                 {hasData && (
-                  <div className={`w-1.5 h-1.5 rounded-full mt-1 ${isSelected ? 'bg-white/70' : 'bg-green-400'}`} />
+                  <div className={`w-1.5 h-1.5 rounded-full mt-1 ${isSelected ? 'bg-white/80' : 'bg-brand'}`} aria-hidden="true" />
                 )}
               </button>
             );
@@ -301,11 +306,11 @@ export default function LogPage() {
 
       {/* ── Selected day summary ─────────────────── */}
       <div className={`${cardCls} p-4 mb-3`}>
-        <p className="text-xs font-medium text-gray-400 dark:text-gray-500 mb-3">{formatFull(selectedDate, locale)}</p>
+        <p className="text-xs font-medium text-faint mb-3">{formatFull(selectedDate, locale)}</p>
         <CalorieBar current={totals.calories} goal={goals.calories} />
         <div className="flex gap-3 mt-3 text-xs font-semibold">
           <span className="text-emerald-600 dark:text-emerald-400">P {totals.protein}g</span>
-          <span className="text-amber-600 dark:text-amber-400">F {totals.fat}g</span>
+          <span className="text-warning">F {totals.fat}g</span>
           <span className="text-blue-600 dark:text-blue-400">C {totals.carbs}g</span>
         </div>
       </div>
@@ -313,8 +318,8 @@ export default function LogPage() {
       {/* ── Daily entries ─────────────────────────── */}
       {selectedEntries.length === 0 ? (
         <div className={`${cardCls} p-10 text-center mb-4`}>
-          <p className="text-4xl mb-3">📋</p>
-          <p className="text-sm font-semibold text-gray-400 dark:text-gray-500">{t.noData}</p>
+          <p className="text-4xl mb-3" aria-hidden="true">📋</p>
+          <p className="text-sm font-semibold text-faint">{t.noData}</p>
         </div>
       ) : (
         <div className="space-y-4 mb-4">
@@ -323,7 +328,7 @@ export default function LogPage() {
             if (typeEntries.length === 0) return null;
             return (
               <div key={type}>
-                <h3 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">
+                <h3 className="text-xs font-black text-faint uppercase tracking-widest mb-2 ml-1">
                   {MEAL_LABELS[type]}
                 </h3>
                 <div className="space-y-2">
@@ -347,9 +352,9 @@ export default function LogPage() {
           <div className="p-1.5 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl">
             <BarChart3 className="w-4 h-4 text-white" />
           </div>
-          <h2 className="font-black text-gray-800 dark:text-gray-200">{t.habitReportTitle}</h2>
+          <h2 className="font-black text-fg">{t.habitReportTitle}</h2>
         </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mb-4 pl-8">{t.habitReportSubtitle}</p>
+        <p className="text-xs text-faint mb-4 pl-8">{t.habitReportSubtitle}</p>
 
         {/* Insufficient data */}
         {habitInsuff && (
@@ -381,7 +386,7 @@ export default function LogPage() {
         {/* Loading skeleton */}
         {habitLoading && (
           <div>
-            <p className="text-xs text-center text-purple-500 dark:text-purple-400 font-medium mb-3 animate-pulse">
+            <p className="text-xs text-center text-purple-600 dark:text-purple-400 font-medium mb-3 animate-pulse">
               {t.generatingReport}
             </p>
             <HabitSkeleton />
@@ -406,7 +411,7 @@ export default function LogPage() {
               </p>
               <ul className="space-y-2">
                 {habitReport.strengths.map((s, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <li key={i} className="flex items-start gap-2 text-sm text-muted">
                     <span className="text-emerald-500 font-black mt-0.5 flex-shrink-0">✓</span>
                     <span className="leading-relaxed">{s}</span>
                   </li>
@@ -421,7 +426,7 @@ export default function LogPage() {
               </p>
               <ul className="space-y-2">
                 {habitReport.frictions.map((f, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <li key={i} className="flex items-start gap-2 text-sm text-muted">
                     <span className="text-amber-500 font-black mt-0.5 flex-shrink-0">!</span>
                     <span className="leading-relaxed">{f}</span>
                   </li>
@@ -434,14 +439,14 @@ export default function LogPage() {
               <p className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-widest mb-2">
                 {t.habitNextWeek}
               </p>
-              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-relaxed">
+              <p className="text-sm font-semibold text-fg leading-relaxed">
                 {habitReport.nextWeekTarget}
               </p>
             </div>
 
             <button
               onClick={() => { setHabitReport(null); setHabitError(''); setHabitInsuff(false); }}
-              className="w-full py-2 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 underline"
+              className="w-full py-2 text-xs text-faint hover:text-fg underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
             >
               {t.regenerate}
             </button>
