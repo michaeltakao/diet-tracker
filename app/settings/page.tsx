@@ -50,11 +50,11 @@ const ACTIVITY_LEVELS: Array<{ value: ActivityLevel; label: string }> = [
 
 const inputCls = `
   w-full px-3.5 py-3 rounded-2xl text-sm font-semibold
-  border border-gray-200 dark:border-gray-600
-  bg-white dark:bg-gray-700
-  text-gray-800 dark:text-gray-100
-  placeholder-gray-300 dark:placeholder-gray-600
-  focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent
+  border border-line-strong
+  bg-surface-2
+  text-fg
+  placeholder:text-faint
+  focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:border-transparent
   transition-all duration-200
   tabular-nums
 `;
@@ -160,7 +160,7 @@ export default function SettingsPage() {
     setSaved(false);
   };
 
-  const cardCls = 'bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-gray-50 dark:border-gray-700 p-4';
+  const cardCls = 'bg-card rounded-3xl shadow-card border border-line p-4';
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
@@ -168,21 +168,21 @@ export default function SettingsPage() {
       <div className="flex items-center gap-3 pt-6 pb-5">
         <button
           onClick={() => router.back()}
+          aria-label="戻る"
           className="
-            w-10 h-10 rounded-2xl
-            bg-white dark:bg-gray-800
-            shadow-[0_4px_12px_rgb(0,0,0,0.06)] dark:shadow-[0_4px_12px_rgb(0,0,0,0.25)]
-            border border-gray-100 dark:border-gray-700
+            w-11 h-11 rounded-2xl
+            bg-card shadow-card border border-line
             flex items-center justify-center
-            text-gray-500 dark:text-gray-400
-            hover:text-gray-800 dark:hover:text-gray-200
+            text-faint
+            hover:text-fg
             hover:scale-[1.04] active:scale-95
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
             transition-all duration-200
           "
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={20} aria-hidden="true" />
         </button>
-        <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+        <h1 className="text-2xl font-black text-fg tracking-tight">
           {t.settings} ⚙️
         </h1>
       </div>
@@ -192,7 +192,7 @@ export default function SettingsPage() {
 
       {/* ── Language ──────────────────────────── */}
       <div className={`${cardCls} mb-3`}>
-        <label className="block text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">
+        <label className="block text-xs font-black text-faint uppercase tracking-widest mb-3">
           {t.language}
         </label>
         <div className="flex gap-2">
@@ -209,8 +209,8 @@ export default function SettingsPage() {
                 transition-all duration-200
                 hover:scale-[1.02] active:scale-95
                 ${lang === code
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-[0_4px_12px_rgba(34,197,94,0.35)]'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}
+                  ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                  : 'bg-surface-2 text-muted hover:bg-line'}
               `}
             >
               <span>{flag}</span>
@@ -222,7 +222,7 @@ export default function SettingsPage() {
 
       {/* ── Daily Goals ───────────────────────── */}
       <div className={`${cardCls} mb-3 space-y-4`}>
-        <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+        <p className="text-xs font-black text-faint uppercase tracking-widest">
           {t.dailyGoals}
         </p>
 
@@ -259,7 +259,7 @@ export default function SettingsPage() {
           },
         ] as const).map(({ field, label, icon, accent }) => (
           <div key={field}>
-            <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide mb-2">
               <span>{icon}</span>
               <span>{label}</span>
             </label>
@@ -276,7 +276,7 @@ export default function SettingsPage() {
 
       {/* ── Weight Goal ───────────────────────── */}
       <div className={`${cardCls} mb-5`}>
-        <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
+        <p className="text-xs font-black text-faint uppercase tracking-widest mb-4">
           ⚖️ {t.weightGoal}
         </p>
         <input
@@ -298,14 +298,14 @@ export default function SettingsPage() {
 
       {/* ── Health Profile ───────────────────── */}
       <div className={`${cardCls} mt-3 mb-3 space-y-5`}>
-        <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-1.5">
+        <p className="text-xs font-black text-faint uppercase tracking-widest flex items-center gap-1.5">
           <User size={13} />
           健康プロフィール（パーソナライズ推薦に使用）
         </p>
 
         {/* Age */}
         <div>
-          <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+          <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide mb-2">
             <span>🎂</span>
             <span>年齢</span>
           </label>
@@ -326,7 +326,7 @@ export default function SettingsPage() {
 
         {/* Fitness goal */}
         <div>
-          <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+          <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide mb-2">
             <span>🎯</span>
             <span>フィットネス目標</span>
           </label>
@@ -341,7 +341,7 @@ export default function SettingsPage() {
                   transition-all duration-200 hover:scale-[1.02] active:scale-95
                   ${healthProfile.fitnessGoal === value
                     ? 'bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-[0_4px_12px_rgba(139,92,246,0.35)]'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}
+                    : 'bg-surface-2 text-muted hover:bg-line'}
                 `}
               >
                 <span>{icon}</span>
@@ -353,7 +353,7 @@ export default function SettingsPage() {
 
         {/* Activity level */}
         <div>
-          <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+          <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide mb-2">
             <span>⚡</span>
             <span>活動レベル</span>
           </label>
@@ -367,7 +367,7 @@ export default function SettingsPage() {
                   transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]
                   ${healthProfile.activityLevel === value
                     ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-[0_4px_12px_rgba(139,92,246,0.3)]'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}
+                    : 'bg-surface-2 text-muted hover:bg-line'}
                 `}
               >
                 {value === healthProfile.activityLevel ? '● ' : '○ '}{label}
@@ -378,7 +378,7 @@ export default function SettingsPage() {
 
         {/* Health conditions */}
         <div>
-          <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+          <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide mb-2">
             <span>🏥</span>
             <span>健康状態・疾患（複数選択可）</span>
           </label>
@@ -394,7 +394,7 @@ export default function SettingsPage() {
                     transition-all duration-200 hover:scale-[1.04] active:scale-95
                     ${active
                       ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-700'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'}
+                      : 'bg-surface-2 text-faint border border-line hover:bg-line'}
                   `}
                 >
                   {active ? '✓ ' : ''}{item}
@@ -407,7 +407,7 @@ export default function SettingsPage() {
         {/* Medications */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide">
               <Pill size={12} />
               <span>服薬中の薬（任意）</span>
             </label>
@@ -435,9 +435,10 @@ export default function SettingsPage() {
                       }));
                       setSaved(false);
                     }}
-                    className="hover:text-red-500 transition-colors"
+                    aria-label={`${med}を削除`}
+                    className="rounded hover:text-danger transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
                   >
-                    <X size={10} />
+                    <X size={10} aria-hidden="true" />
                   </button>
                 </span>
               ))}
@@ -478,19 +479,20 @@ export default function SettingsPage() {
                 }
                 setMedInput('');
               }}
-              className="px-3 py-2 rounded-2xl bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400 hover:bg-violet-200 transition-colors"
+              aria-label="薬を追加"
+              className="px-3 py-2 rounded-2xl bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 hover:bg-violet-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
             >
-              <Plus size={16} />
+              <Plus size={16} aria-hidden="true" />
             </button>
           </div>
-          <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1.5">
+          <p className="text-[10px] text-faint mt-1.5">
             AIコーチが服薬状況を考慮したアドバイスを行います
           </p>
         </div>
 
         {/* Dietary restrictions */}
         <div>
-          <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+          <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide mb-2">
             <span>🥗</span>
             <span>食事制限（複数選択可）</span>
           </label>
@@ -506,7 +508,7 @@ export default function SettingsPage() {
                     transition-all duration-200 hover:scale-[1.04] active:scale-95
                     ${active
                       ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'}
+                      : 'bg-surface-2 text-faint border border-line hover:bg-line'}
                   `}
                 >
                   {active ? '✓ ' : ''}{item}
@@ -527,8 +529,8 @@ export default function SettingsPage() {
           hover:scale-[1.01] active:scale-[0.98]
           text-sm
           ${saved
-            ? 'bg-emerald-500 text-white shadow-[0_4px_14px_rgba(34,197,94,0.4)]'
-            : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-[0_4px_14px_rgba(34,197,94,0.35)] hover:from-green-600 hover:to-emerald-700'}
+            ? 'bg-emerald-600 text-white shadow-[0_4px_14px_rgba(16,185,129,0.4)]'
+            : 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_14px_rgba(16,185,129,0.35)] hover:from-brand-600 hover:to-brand-700'}
         `}
       >
         {saved ? (
@@ -546,7 +548,7 @@ export default function SettingsPage() {
 
       {/* ── Data & Storage ────────────────────── */}
       <div className={`${cardCls} mt-5 mb-3`}>
-        <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+        <p className="text-xs font-black text-faint uppercase tracking-widest mb-4 flex items-center gap-1.5">
           <Database size={13} />
           データ管理
         </p>
@@ -561,13 +563,13 @@ export default function SettingsPage() {
             ].map(({ label, value, icon }) => (
               <div
                 key={label}
-                className="bg-gray-50 dark:bg-gray-700/60 rounded-2xl p-2.5 text-center"
+                className="bg-surface-2 rounded-2xl p-2.5 text-center"
               >
                 <div className="text-base">{icon}</div>
-                <div className="text-lg font-black text-gray-800 dark:text-gray-100 tabular-nums leading-tight">
+                <div className="text-lg font-black text-fg tabular-nums leading-tight">
                   {value}
                 </div>
-                <div className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 mt-0.5">
+                <div className="text-[10px] font-semibold text-faint mt-0.5">
                   {label}
                 </div>
               </div>
@@ -579,20 +581,20 @@ export default function SettingsPage() {
         {stats && (
           <div className="mb-4">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-semibold text-gray-400 dark:text-gray-500">
+              <span className="text-xs font-semibold text-faint">
                 使用容量
               </span>
-              <span className="text-xs font-black text-gray-600 dark:text-gray-300 tabular-nums">
+              <span className="text-xs font-black text-muted tabular-nums">
                 {stats.usedKB} KB
               </span>
             </div>
-            <div className="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-surface-2 rounded-full overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500"
+                className="h-full rounded-full bg-gradient-to-r from-brand-400 to-brand-500 transition-all duration-500"
                 style={{ width: `${Math.min((stats.usedBytes / (4 * 1024 * 1024)) * 100, 100)}%` }}
               />
             </div>
-            <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1 text-right">
+            <p className="text-[10px] text-faint mt-1 text-right">
               最大 4 MB
             </p>
           </div>

@@ -105,7 +105,7 @@ function LoginPageInner() {
   if (isAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-sm text-slate-500">Redirecting…</p>
+        <p className="text-sm text-muted">Redirecting…</p>
       </div>
     );
   }
@@ -119,11 +119,11 @@ function LoginPageInner() {
           <Mail className="w-8 h-8 text-green-500" />
         </div>
         <div>
-          <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
+          <h1 className="text-xl font-semibold text-fg">
             Check your inbox
           </h1>
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-            We sent a magic link to <span className="font-medium text-slate-700 dark:text-slate-300">{email}</span>.<br />
+          <p className="mt-2 text-sm text-muted">
+            We sent a magic link to <span className="font-medium text-fg">{email}</span>.<br />
             Click the link to sign in.
           </p>
         </div>
@@ -144,13 +144,13 @@ function LoginPageInner() {
 
       {/* Brand */}
       <div className="flex flex-col items-center gap-2">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-lg">
-          <Leaf className="w-7 h-7 text-white" />
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-lg">
+          <Leaf className="w-7 h-7 text-white" aria-hidden="true" />
         </div>
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+        <h1 className="text-2xl font-bold text-fg">
           Diet Tracker
         </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-xs">
+        <p className="text-sm text-muted text-center max-w-xs">
           AI-powered nutrition & fitness tracking.
           Sign in to sync your data across devices.
         </p>
@@ -175,12 +175,13 @@ function LoginPageInner() {
           disabled={loadingOAuth}
           className="
             w-full flex items-center justify-center gap-3 rounded-xl
-            py-3 px-4 border border-slate-200 dark:border-slate-700
-            text-sm font-medium text-slate-700 dark:text-slate-200
-            bg-white dark:bg-slate-800
-            hover:bg-slate-50 dark:hover:bg-slate-700
+            py-3 px-4 border border-line
+            text-sm font-medium text-muted
+            bg-card
+            hover:bg-surface-2
             active:scale-[0.98] transition-all
             disabled:opacity-50 disabled:pointer-events-none
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
           "
         >
           {loadingOAuth
@@ -192,9 +193,9 @@ function LoginPageInner() {
 
         {/* Divider */}
         <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
-          <span className="text-xs text-slate-400">or</span>
-          <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+          <div className="flex-1 h-px bg-line" />
+          <span className="text-xs text-faint">or</span>
+          <div className="flex-1 h-px bg-line" />
         </div>
 
         {/* Email magic link */}
@@ -202,7 +203,7 @@ function LoginPageInner() {
           <div className="flex flex-col gap-1.5">
             <label
               htmlFor="login-email"
-              className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wide"
+              className="text-xs font-medium text-muted uppercase tracking-wide"
             >
               Email
             </label>
@@ -215,17 +216,17 @@ function LoginPageInner() {
               autoComplete="email"
               className="
                 w-full rounded-xl px-4 py-2.5 text-sm
-                border border-slate-200 dark:border-slate-700
-                bg-slate-50 dark:bg-slate-900
-                text-slate-800 dark:text-slate-100
-                placeholder:text-slate-400
-                focus:outline-none focus:ring-2 focus:ring-green-500/40 focus:border-green-500
+                border border-line-strong
+                bg-surface-2
+                text-fg
+                placeholder:text-faint
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus:border-transparent
               "
             />
           </div>
 
           {emailError && (
-            <p className="text-xs text-red-500">{emailError}</p>
+            <p role="alert" className="text-xs text-danger">{emailError}</p>
           )}
 
           <button
@@ -235,9 +236,10 @@ function LoginPageInner() {
               w-full flex items-center justify-center gap-2 rounded-xl
               py-3 px-4
               text-sm font-medium text-white
-              bg-green-500 hover:bg-green-600 active:bg-green-700
+              bg-brand-600 hover:bg-brand-700 active:bg-brand-700
               active:scale-[0.98] transition-all
               disabled:opacity-50 disabled:pointer-events-none
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
             "
           >
             {loadingEmail
@@ -252,13 +254,13 @@ function LoginPageInner() {
       {/* Guest mode */}
       <Link
         href={nextPath.startsWith('/') ? nextPath : '/'}
-        className="text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+        className="text-sm text-faint hover:text-fg transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
       >
         Continue without an account →
       </Link>
 
       {/* Privacy note */}
-      <p className="text-xs text-slate-400 dark:text-slate-600 text-center max-w-xs">
+      <p className="text-xs text-faint text-center max-w-xs">
         By signing in, you agree to store your health data in Supabase.
         Guest mode keeps all data on this device only.
       </p>

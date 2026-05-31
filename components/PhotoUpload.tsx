@@ -104,29 +104,33 @@ export default function PhotoUpload({ onAnalysisComplete }: PhotoUploadProps) {
     <div className="space-y-4">
       {!preview ? (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label={t.dropzoneText.replace('\n', ' ')}
           onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
-          className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors ${
+          className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
             isDragging
-              ? 'border-green-500 bg-green-50'
-              : 'border-gray-300 hover:border-green-400 hover:bg-gray-50'
+              ? 'border-brand bg-brand-50 dark:bg-brand-900/20'
+              : 'border-line-strong hover:border-brand hover:bg-surface-2'
           }`}
         >
           <div className="flex flex-col items-center gap-3">
-            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
-              <Camera size={28} className="text-green-600" />
+            <div className="w-14 h-14 bg-brand-100 dark:bg-brand-900/30 rounded-full flex items-center justify-center" aria-hidden="true">
+              <Camera size={28} className="text-brand-600 dark:text-brand-400" />
             </div>
             <div>
               {t.dropzoneText.split('\n').map((line, i) => (
-                <p key={i} className={i === 0 ? 'text-sm font-medium text-gray-700' : 'text-xs text-gray-500 mt-0.5'}>
+                <p key={i} className={i === 0 ? 'text-sm font-medium text-muted' : 'text-xs text-faint mt-0.5'}>
                   {line}
                 </p>
               ))}
             </div>
-            <div className="flex items-center gap-1 text-xs text-gray-400">
-              <Upload size={12} />
+            <div className="flex items-center gap-1 text-xs text-faint">
+              <Upload size={12} aria-hidden="true" />
               <span>JPEG, PNG, WebP supported</span>
             </div>
           </div>
@@ -149,25 +153,26 @@ export default function PhotoUpload({ onAnalysisComplete }: PhotoUploadProps) {
             />
             <button
               onClick={reset}
-              className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded-lg hover:bg-black/70 transition-colors"
+              aria-label={t.cancel}
+              className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-lg hover:bg-black/75 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
               {t.cancel}
             </button>
           </div>
 
           {error && (
-            <div className="flex items-start gap-2 bg-red-50 text-red-700 rounded-xl p-3 text-sm">
-              <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+            <div role="alert" className="flex items-start gap-2 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-xl p-3 text-sm">
+              <AlertCircle size={16} className="flex-shrink-0 mt-0.5" aria-hidden="true" />
               <span>{error}</span>
             </div>
           )}
 
           {result && (
-            <div className="flex items-start gap-2 bg-green-50 text-green-700 rounded-xl p-3 text-sm">
-              <CheckCircle size={16} className="flex-shrink-0 mt-0.5" />
+            <div role="status" className="flex items-start gap-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-xl p-3 text-sm">
+              <CheckCircle size={16} className="flex-shrink-0 mt-0.5" aria-hidden="true" />
               <div>
                 <p className="font-medium">{t.aiResult} ({t.confidence}: {confidenceLabel(result.confidence)})</p>
-                {result.notes && <p className="text-xs text-green-600 mt-0.5">{result.notes}</p>}
+                {result.notes && <p className="text-xs text-green-700 dark:text-green-400 mt-0.5">{result.notes}</p>}
               </div>
             </div>
           )}
@@ -176,16 +181,16 @@ export default function PhotoUpload({ onAnalysisComplete }: PhotoUploadProps) {
             <button
               onClick={analyzeImage}
               disabled={isAnalyzing}
-              className="w-full bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]"
             >
               {isAnalyzing ? (
                 <>
-                  <Loader2 size={18} className="animate-spin" />
+                  <Loader2 size={18} className="animate-spin" aria-hidden="true" />
                   {t.analyzing}
                 </>
               ) : (
                 <>
-                  <Camera size={18} />
+                  <Camera size={18} aria-hidden="true" />
                   {t.analyzeAI}
                 </>
               )}
