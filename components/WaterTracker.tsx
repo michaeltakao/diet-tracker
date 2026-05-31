@@ -32,19 +32,26 @@ export default function WaterTracker({ current, goal, onAdd }: WaterTrackerProps
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-lg ${isGoalMet ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-blue-50 dark:bg-blue-900/20'}`}>
-            <Droplets size={16} className={isGoalMet ? 'text-blue-600' : 'text-blue-400'} />
+          <div className={`p-1.5 rounded-lg ${isGoalMet ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-blue-50 dark:bg-blue-900/20'}`} aria-hidden="true">
+            <Droplets size={16} className={isGoalMet ? 'text-blue-600' : 'text-blue-500'} />
           </div>
-          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t.waterIntake}</span>
-          {isGoalMet && <span className="text-xs font-bold text-blue-500 animate-slide-in-up">✓ 達成！</span>}
+          <span className="text-sm font-semibold text-muted">{t.waterIntake}</span>
+          {isGoalMet && <span className="text-xs font-bold text-blue-600 dark:text-blue-400 animate-slide-in-up">✓ 達成！</span>}
         </div>
-        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 tabular-nums">
+        <span className="text-xs font-medium text-faint tabular-nums">
           {current.toLocaleString()} / {goal.toLocaleString()} ml
         </span>
       </div>
 
       {/* Progress bar */}
-      <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5 mb-3 overflow-hidden">
+      <div
+        className="w-full bg-surface-2 rounded-full h-2.5 mb-3 overflow-hidden"
+        role="progressbar"
+        aria-valuenow={Math.round(pct)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={t.waterIntake}
+      >
         <div
           className="bg-gradient-to-r from-sky-400 to-blue-500 h-full rounded-full transition-all duration-500 ease-out"
           style={{ width: `${pct}%` }}
@@ -67,13 +74,16 @@ export default function WaterTracker({ current, goal, onAdd }: WaterTrackerProps
                 }
               }}
               className={`
-                text-lg transition-all duration-200
+                text-lg rounded-md transition-all duration-200
                 hover:scale-110 active:scale-95
-                ${isFilled ? 'opacity-100' : 'opacity-20 grayscale'}
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                ${isFilled ? 'opacity-100' : 'opacity-30 grayscale'}
               `}
               title={`${(i + 1) * GLASS_ML} ml`}
+              aria-label={`${(i + 1) * GLASS_ML} ml`}
+              aria-pressed={isFilled}
             >
-              💧
+              <span aria-hidden="true">💧</span>
             </button>
           );
         })}
@@ -92,6 +102,7 @@ export default function WaterTracker({ current, goal, onAdd }: WaterTrackerProps
               hover:bg-blue-100 dark:hover:bg-blue-800/30
               active:scale-95
               rounded-xl transition-all duration-200
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
             "
           >
             +{ml}ml
@@ -109,13 +120,14 @@ export default function WaterTracker({ current, goal, onAdd }: WaterTrackerProps
             onKeyDown={(e) => e.key === 'Enter' && handleCustomAdd()}
             placeholder="カスタム ml"
             min="1"
+            aria-label="カスタム水分量 (ml)"
             className="
               flex-1 px-3 py-2 text-xs font-semibold rounded-xl
-              border border-gray-200 dark:border-gray-600
-              bg-white dark:bg-gray-700
-              text-gray-800 dark:text-gray-200
-              focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent
-              placeholder-gray-300 dark:placeholder-gray-500
+              border border-line-strong
+              bg-surface-2
+              text-fg
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus:border-transparent
+              placeholder:text-faint
             "
           />
           <button
@@ -123,10 +135,11 @@ export default function WaterTracker({ current, goal, onAdd }: WaterTrackerProps
             disabled={!customMl || isNaN(parseInt(customMl, 10)) || parseInt(customMl, 10) <= 0}
             className="
               px-3 py-2 text-xs font-bold rounded-xl
-              bg-blue-500 text-white
-              hover:bg-blue-600
+              bg-blue-600 text-white
+              hover:bg-blue-700
               disabled:opacity-40 disabled:cursor-not-allowed
               active:scale-95 transition-all duration-200
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
             "
           >
             +追加

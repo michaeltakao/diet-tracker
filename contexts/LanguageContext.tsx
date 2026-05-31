@@ -25,6 +25,13 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Keep <html lang> in sync with the selected language (WCAG 3.1.1).
+  // The root layout renders lang="ja" on the server; this corrects it on the
+  // client whenever the language changes so assistive tech announces correctly.
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
   const setLang = (newLang: Lang) => {
     setLangState(newLang);
     localStorage.setItem('diet-tracker-lang', newLang);

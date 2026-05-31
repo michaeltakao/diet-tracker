@@ -58,18 +58,24 @@ export default function CalorieContextBar() {
   const over = remaining < 0;
   const pct = snap.goal > 0 ? Math.min((snap.calories / snap.goal) * 100, 100) : 0;
 
+  // Backgrounds are deliberately dark enough for AA white text in both themes.
   const bgClass = over
-    ? 'bg-amber-500 dark:bg-amber-600'
+    ? 'bg-red-600'
     : pct > 85
-    ? 'bg-orange-400 dark:bg-orange-500'
-    : 'bg-emerald-500 dark:bg-emerald-600';
+    ? 'bg-amber-700'
+    : 'bg-emerald-600';
 
   return (
-    <div className={`relative overflow-hidden ${bgClass} select-none`} style={{ height: 36 }}>
+    <div
+      role="status"
+      className={`relative overflow-hidden ${bgClass} select-none`}
+      style={{ height: 36 }}
+    >
       {/* progress tint */}
       <div
         className="absolute inset-y-0 left-0 bg-black/10 transition-[width] duration-700"
         style={{ width: `${pct}%` }}
+        aria-hidden="true"
       />
 
       <div className="relative h-full flex items-center justify-between px-4 gap-3">
@@ -81,11 +87,11 @@ export default function CalorieContextBar() {
         </span>
 
         {/* right: macro pills */}
-        <div className="flex items-center gap-2.5 text-white/90 text-[11px] font-bold tabular-nums">
+        <div className="flex items-center gap-2.5 text-white text-[11px] font-bold tabular-nums">
           <span>P {Math.round(snap.protein)}g</span>
-          <span className="text-white/40">·</span>
+          <span className="text-white/50" aria-hidden="true">·</span>
           <span>F {Math.round(snap.fat)}g</span>
-          <span className="text-white/40">·</span>
+          <span className="text-white/50" aria-hidden="true">·</span>
           <span>C {Math.round(snap.carbs)}g</span>
         </div>
       </div>

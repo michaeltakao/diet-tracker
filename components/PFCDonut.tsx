@@ -41,7 +41,7 @@ export default function PFCDonut({ protein, fat, carbs, goalProtein, goalFat, go
 
   const legendItems = [
     { label: t.protein, value: protein, goal: goalProtein, color: COLORS.protein, text: 'text-emerald-600 dark:text-emerald-400' },
-    { label: t.fat,     value: fat,     goal: goalFat,     color: COLORS.fat,     text: 'text-amber-600 dark:text-amber-400' },
+    { label: t.fat,     value: fat,     goal: goalFat,     color: COLORS.fat,     text: 'text-warning' },
     { label: t.carbs,   value: carbs,   goal: goalCarbs,   color: COLORS.carbs,   text: 'text-blue-600 dark:text-blue-400' },
   ];
 
@@ -52,7 +52,12 @@ export default function PFCDonut({ protein, fat, carbs, goalProtein, goalFat, go
 
   return (
     <div className="flex flex-col items-center">
-      <div className="w-full" style={{ height: 200 }}>
+      <div
+        className="w-full"
+        style={{ height: 200 }}
+        role="img"
+        aria-label={`${t.macroBreakdown}: ${t.protein} ${protein}g, ${t.fat} ${fat}g, ${t.carbs} ${carbs}g — ${totalCalories} / ${goalCalories} kcal`}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -91,15 +96,15 @@ export default function PFCDonut({ protein, fat, carbs, goalProtein, goalFat, go
         >
           {hasData ? (
             <>
-              <span className="text-2xl font-black text-gray-800 dark:text-gray-100 tabular-nums leading-tight">
+              <span className="text-2xl font-black text-fg tabular-nums leading-tight">
                 {totalCalories.toLocaleString()}
               </span>
-              <span className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">
+              <span className="text-[11px] text-faint font-medium">
                 / {goalCalories.toLocaleString()} kcal
               </span>
             </>
           ) : (
-            <span className="text-xs text-gray-300 dark:text-gray-600 font-medium">記録なし</span>
+            <span className="text-xs text-faint font-medium">記録なし</span>
           )}
         </div>
       </div>
@@ -109,12 +114,12 @@ export default function PFCDonut({ protein, fat, carbs, goalProtein, goalFat, go
         {legendItems.map(({ label, value, goal, color, text }) => (
           <div key={label} className="flex flex-col items-center">
             <div className="flex items-center gap-1 mb-0.5">
-              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-              <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">{label}</span>
+              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} aria-hidden="true" />
+              <span className="text-[11px] font-medium text-faint">{label}</span>
             </div>
             <span className={`text-xs font-bold ${text} tabular-nums`}>
               {value}g
-              <span className="font-normal text-gray-400 dark:text-gray-500"> / {goal}g</span>
+              <span className="font-normal text-faint"> / {goal}g</span>
             </span>
           </div>
         ))}

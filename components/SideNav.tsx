@@ -27,12 +27,12 @@ export default function SideNav() {
       {/* Brand */}
       <div className="px-3 mb-8 select-none">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-sm">
+          <div className="w-7 h-7 bg-gradient-to-br from-brand-500 to-brand-600 rounded-lg flex items-center justify-center shadow-sm" aria-hidden="true">
             <span className="text-white text-xs font-black">D</span>
           </div>
-          <span className="text-base font-black text-gray-900 dark:text-white tracking-tight">Diet Tracker</span>
+          <span className="text-base font-black text-fg tracking-tight">Diet Tracker</span>
         </div>
-        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 pl-9">AI-powered health log</p>
+        <p className="text-[10px] text-faint mt-1 pl-9">AI-powered health log</p>
       </div>
 
       {/* Links */}
@@ -44,14 +44,16 @@ export default function SideNav() {
             <Link
               key={href}
               href={href}
+              aria-current={isActive ? 'page' : undefined}
               className={`
                 flex items-center gap-3 px-3 py-2.5 rounded-xl
                 text-sm font-semibold transition-all duration-200
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
                 ${accent
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-[0_4px_12px_rgba(34,197,94,0.35)] hover:shadow-[0_4px_18px_rgba(34,197,94,0.5)] hover:scale-[1.02]'
+                  ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)] hover:shadow-[0_4px_18px_rgba(16,185,129,0.5)] hover:scale-[1.02]'
                   : isActive
-                  ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
-                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
+                  : 'text-muted hover:bg-surface-2 hover:text-fg'
                 }
               `}
             >
@@ -59,10 +61,11 @@ export default function SideNav() {
                 size={17}
                 strokeWidth={isActive || accent ? 2.5 : 1.5}
                 className="shrink-0"
+                aria-hidden="true"
               />
               {label}
               {isActive && !accent && (
-                <span className="ml-auto w-1.5 h-1.5 bg-green-500 rounded-full" />
+                <span className="ml-auto w-1.5 h-1.5 bg-brand rounded-full" />
               )}
             </Link>
           );
@@ -70,8 +73,8 @@ export default function SideNav() {
       </div>
 
       {/* Footer */}
-      <div className="px-3 pt-4 border-t border-gray-100 dark:border-gray-800">
-        <p className="text-[10px] text-gray-300 dark:text-gray-600 text-center">
+      <div className="px-3 pt-4 border-t border-line">
+        <p className="text-[10px] text-faint text-center">
           Diet Tracker
         </p>
       </div>

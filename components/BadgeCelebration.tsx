@@ -61,15 +61,18 @@ export default function BadgeCelebration({ badges, onClose }: Props) {
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="バッジ獲得"
       className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in"
       style={{ background: 'rgba(15,23,42,0.55)' }}
       onClick={advance}
     >
       {/* Glassmorphism backdrop layer */}
-      <div className="absolute inset-0 backdrop-blur-sm" />
+      <div className="absolute inset-0 backdrop-blur-sm" aria-hidden="true" />
 
       {/* Confetti */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
         {confetti.map((c) => (
           <div
             key={c.id}
@@ -111,8 +114,8 @@ export default function BadgeCelebration({ badges, onClose }: Props) {
                 key={i}
                 className={`rounded-full transition-all duration-300 ${
                   i === currentIndex
-                    ? 'w-5 h-2 bg-green-500'
-                    : 'w-2 h-2 bg-gray-300 dark:bg-gray-600'
+                    ? 'w-5 h-2 bg-brand'
+                    : 'w-2 h-2 bg-line-strong'
                 }`}
               />
             ))}
@@ -120,31 +123,33 @@ export default function BadgeCelebration({ badges, onClose }: Props) {
         )}
 
         {/* Icon */}
-        <div className="text-7xl mb-4 animate-bounce select-none">{badge.icon}</div>
+        <div className="text-7xl mb-4 animate-bounce select-none" aria-hidden="true">{badge.icon}</div>
 
         {/* Label pill */}
-        <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-yellow-400 text-white text-xs font-black px-4 py-1.5 rounded-full mb-3 uppercase tracking-widest shadow-sm">
+        <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs font-black px-4 py-1.5 rounded-full mb-3 uppercase tracking-widest shadow-sm">
           🏅 バッジ獲得！
         </div>
 
-        <h2 className="text-xl font-black text-gray-900 dark:text-white mb-2 leading-tight">
+        <h2 className="text-xl font-black text-fg mb-2 leading-tight">
           {badge.name}
         </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
+        <p className="text-sm text-muted mb-6 leading-relaxed">
           {badge.description}
         </p>
 
         <button
           onClick={(e) => { e.stopPropagation(); advance(); }}
+          autoFocus
           className="
             w-full py-3.5
-            bg-gradient-to-r from-green-500 to-emerald-500
-            hover:from-green-600 hover:to-emerald-600
+            bg-gradient-to-r from-brand-500 to-brand-600
+            hover:from-brand-600 hover:to-brand-700
             active:scale-[0.97]
             text-white font-bold rounded-2xl
             transition-all duration-200
-            shadow-[0_4px_14px_rgba(34,197,94,0.4)]
+            shadow-[0_4px_14px_rgba(16,185,129,0.4)]
             text-sm
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
           "
         >
           {currentIndex < badges.length - 1 ? `次のバッジを見る →` : `やった！🎉`}

@@ -41,8 +41,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Allow pinch-zoom (WCAG 1.4.4): do NOT set maximumScale/userScalable.
   viewportFit: 'cover',           // for iPhone notch / Dynamic Island
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#22c55e' },
@@ -57,14 +56,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ProfileProvider>
           <LanguageProvider>
             {/* Desktop sidebar — hidden on mobile */}
-            <aside className="
-              hidden lg:flex flex-col
-              fixed top-0 left-0 h-full w-56 z-40
-              bg-white/90 dark:bg-gray-900/90
-              backdrop-blur-md
-              border-r border-gray-100 dark:border-gray-800
-              shadow-[1px_0_20px_rgb(0,0,0,0.03)]
-            ">
+            <aside
+              aria-label="メインナビゲーション"
+              className="
+                hidden lg:flex flex-col
+                fixed top-0 left-0 h-full w-56 z-40
+                bg-card/90
+                backdrop-blur-md
+                border-r border-line
+                shadow-[1px_0_20px_rgb(0,0,0,0.03)]
+              "
+            >
               <SideNav />
             </aside>
 

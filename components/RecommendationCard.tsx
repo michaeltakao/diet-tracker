@@ -38,7 +38,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   other:       '⚡',
 };
 
-const CARD = 'bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-gray-50 dark:border-gray-700';
+const CARD = 'bg-card rounded-3xl shadow-card border border-line';
 
 export default function RecommendationCard() {
   const [rec,      setRec]      = useState<Recommendation | null>(null);
@@ -102,11 +102,11 @@ export default function RecommendationCard() {
       <div className={`${CARD} p-4 mb-3`}>
         <div className="flex items-center gap-2 mb-2">
           <Sparkles size={15} className="text-violet-400" />
-          <span className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+          <span className="text-xs font-black text-faint uppercase tracking-widest">
             パーソナライズ推薦
           </span>
         </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-2 leading-relaxed">
+        <p className="text-xs text-faint text-center py-2 leading-relaxed">
           ログインして個人に最適化された<br />食事・運動推薦を取得できます
         </p>
       </div>
@@ -119,7 +119,7 @@ export default function RecommendationCard() {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Sparkles size={15} className="text-violet-500" />
-          <span className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+          <span className="text-xs font-black text-faint uppercase tracking-widest">
             今日のパーソナライズ推薦
           </span>
         </div>
@@ -127,7 +127,8 @@ export default function RecommendationCard() {
           {rec && (
             <button
               onClick={() => setExpanded(p => !p)}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-0.5"
+              aria-expanded={expanded}
+              className="text-faint hover:text-muted transition-colors p-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
               aria-label={expanded ? '折りたたむ' : '展開する'}
             >
               {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
@@ -140,9 +141,10 @@ export default function RecommendationCard() {
               flex items-center gap-1.5 px-3 py-1.5 rounded-xl
               text-xs font-bold transition-all duration-200
               hover:scale-[1.03] active:scale-95
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
               ${loading
-                ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
-                : 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/50'}
+                ? 'bg-surface-2 text-faint cursor-not-allowed'
+                : 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-900/50'}
             `}
           >
             <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
@@ -160,7 +162,7 @@ export default function RecommendationCard() {
 
       {/* ── Loading skeleton ── */}
       {loading && !rec && (
-        <div className="flex items-center justify-center py-6 gap-2 text-xs text-gray-400 dark:text-gray-500">
+        <div className="flex items-center justify-center py-6 gap-2 text-xs text-faint">
           <RefreshCw size={13} className="animate-spin" />
           AIがあなたのデータを分析中...
         </div>
@@ -168,18 +170,18 @@ export default function RecommendationCard() {
 
       {/* ── Empty state ── */}
       {!rec && !loading && !error && (
-        <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-3">
+        <p className="text-xs text-faint text-center py-3">
           「生成」をタップして今日の推薦を取得
         </p>
       )}
 
       {/* ── Collapsed summary ── */}
       {rec && !expanded && (
-        <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+        <div className="flex items-center gap-3 text-xs text-faint">
           <span>🍽️ {rec.foods.length}件の食事推薦</span>
           <span>💪 {rec.exercises.length}件の運動推薦</span>
           {rec.warnings.length > 0 && (
-            <span className="text-amber-500">⚠️ {rec.warnings.length}件の注意</span>
+            <span className="text-warning">⚠️ {rec.warnings.length}件の注意</span>
           )}
         </div>
       )}
@@ -192,8 +194,8 @@ export default function RecommendationCard() {
           {rec.warnings.length > 0 && (
             <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-2xl px-3 py-2.5">
               <div className="flex items-center gap-1.5 mb-1.5">
-                <AlertTriangle size={11} className="text-amber-500 flex-shrink-0" />
-                <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">
+                <AlertTriangle size={11} className="text-warning flex-shrink-0" aria-hidden="true" />
+                <span className="text-[10px] font-black text-warning uppercase tracking-widest">
                   健康注意事項
                 </span>
               </div>
@@ -207,28 +209,28 @@ export default function RecommendationCard() {
 
           {/* Foods */}
           <div>
-            <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
+            <p className="text-[10px] font-black text-faint uppercase tracking-widest mb-2">
               🍽️ おすすめの食事
             </p>
             <div className="space-y-2">
               {rec.foods.map((food, i) => (
                 <div
                   key={i}
-                  className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl px-3 py-2.5 flex items-start gap-2.5"
+                  className="bg-surface-2 rounded-2xl px-3 py-2.5 flex items-start gap-2.5"
                 >
                   <span className="text-base flex-shrink-0 mt-0.5" aria-hidden>
                     {getFoodIcon(food.macroHighlight)}
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                      <span className="text-xs font-bold text-gray-800 dark:text-gray-100 truncate">
+                      <span className="text-xs font-bold text-fg truncate">
                         {food.name}
                       </span>
-                      <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 flex-shrink-0 tabular-nums">
+                      <span className="text-[10px] font-semibold text-faint flex-shrink-0 tabular-nums">
                         ~{food.calories}kcal
                       </span>
                     </div>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                    <p className="text-[10px] text-faint leading-relaxed">
                       {food.reason}
                     </p>
                     <span className="inline-block mt-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full">
@@ -242,28 +244,28 @@ export default function RecommendationCard() {
 
           {/* Exercises */}
           <div>
-            <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
+            <p className="text-[10px] font-black text-faint uppercase tracking-widest mb-2">
               💪 おすすめの運動
             </p>
             <div className="space-y-2">
               {rec.exercises.map((ex, i) => (
                 <div
                   key={i}
-                  className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl px-3 py-2.5 flex items-start gap-2.5"
+                  className="bg-surface-2 rounded-2xl px-3 py-2.5 flex items-start gap-2.5"
                 >
                   <span className="text-base flex-shrink-0 mt-0.5" aria-hidden>
                     {CATEGORY_ICONS[ex.category] ?? '⚡'}
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                      <span className="text-xs font-bold text-gray-800 dark:text-gray-100 truncate">
+                      <span className="text-xs font-bold text-fg truncate">
                         {ex.name}
                       </span>
-                      <span className="text-[10px] font-semibold text-violet-500 dark:text-violet-400 flex-shrink-0">
+                      <span className="text-[10px] font-semibold text-violet-700 dark:text-violet-300 flex-shrink-0">
                         {ex.duration}
                       </span>
                     </div>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                    <p className="text-[10px] text-faint leading-relaxed">
                       {ex.reason}
                     </p>
                   </div>
@@ -290,15 +292,15 @@ export default function RecommendationCard() {
                 ).map(({ label, value, unit, color }) => (
                   <div key={label} className="text-center">
                     <div className={`text-[10px] font-black tabular-nums ${color}`}>{value}</div>
-                    <div className="text-[8px] text-gray-400 dark:text-gray-500">{unit}</div>
-                    <div className="text-[8px] text-gray-400 dark:text-gray-500">{label}</div>
+                    <div className="text-[8px] text-faint">{unit}</div>
+                    <div className="text-[8px] text-faint">{label}</div>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          <p className="text-[9px] text-gray-300 dark:text-gray-600 text-right">
+          <p className="text-[9px] text-faint text-right">
             生成: {new Date(rec.generatedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
