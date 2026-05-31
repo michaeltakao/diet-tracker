@@ -12,6 +12,7 @@ import {
 import BottomNav from '@/components/BottomNav';
 import AccountSection from '@/components/AccountSection';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useWeightUnit } from '@/lib/units';
 
 interface GoalForm {
   calories:   string;
@@ -62,6 +63,7 @@ const inputCls = `
 export default function SettingsPage() {
   const router = useRouter();
   const { t, lang, setLang } = useLanguage();
+  const { unit, setUnit } = useWeightUnit();
   const [form, setForm] = useState<GoalForm>({
     calories:   '2000',
     protein:    '150',
@@ -218,6 +220,40 @@ export default function SettingsPage() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* ── Weight unit ───────────────────────── */}
+      <div className={`${cardCls} mb-3`}>
+        <label className="block text-xs font-black text-faint uppercase tracking-widest mb-3">
+          {lang === 'en' ? 'Weight unit' : '重量の単位'}
+        </label>
+        <div className="flex gap-2">
+          {([
+            { code: 'kg' as const,  label: 'kg'  },
+            { code: 'lbs' as const, label: 'lbs' },
+          ]).map(({ code, label }) => (
+            <button
+              key={code}
+              onClick={() => setUnit(code)}
+              aria-pressed={unit === code}
+              className={`
+                flex-1 py-3 rounded-2xl text-sm font-bold
+                transition-all duration-200 hover:scale-[1.02] active:scale-95
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                ${unit === code
+                  ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                  : 'bg-surface-2 text-muted hover:bg-line'}
+              `}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-faint mt-2">
+          {lang === 'en'
+            ? 'Display only — data is always stored in kg.'
+            : '表示のみ切り替えます（データは常にkgで保存）。'}
+        </p>
       </div>
 
       {/* ── Daily Goals ───────────────────────── */}

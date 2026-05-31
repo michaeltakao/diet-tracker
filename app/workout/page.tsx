@@ -15,10 +15,13 @@ import BottomNav from '@/components/BottomNav';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import BadgeShelf from '@/components/BadgeShelf';
 import MedWarning from '@/components/MedWarning';
+import RestTimer from '@/components/RestTimer';
 import { getWorkoutWarnings } from '@/lib/medication-rules';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { postJson } from '@/lib/httpClient';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useWeightUnit, toDisplay, lbsToKg, formatWeight } from '@/lib/units';
+import { epley1RM } from '@/lib/onerm';
 
 const RECOMMENDED_MENUS: CoachMenu[] = [
   { id: 'c1', name: 'ベンチプレス',            musclePart: 'chest',     defaultWeight: 40, defaultReps: 10, defaultSets: 3,
@@ -122,7 +125,7 @@ function CoachSkeleton() {
   return (
     <div className="space-y-3 animate-pulse">
       {[['1/4', 'full'], ['full', '3/4'], ['full', '2/3'], ['1/3', 'full']].map(([w1, w2], i) => (
-        <div key={i} className="rounded-2xl p-3 bg-gray-100 dark:bg-gray-700">
+        <div key={i} className="rounded-2xl p-3 bg-surface-2">
           <div className={`h-2.5 skeleton rounded w-${w1} mb-2`} />
           <div className={`h-4 skeleton rounded w-${w2} mb-1`} />
           <div className="h-4 skeleton rounded w-2/3" />
@@ -135,6 +138,9 @@ function CoachSkeleton() {
 export default function WorkoutPage() {
   const today = getTodayDate();
   const { t, lang } = useLanguage();
+  const { unit } = useWeightUnit();
+  /** Parse the weight input (shown in the display unit) back into kg for storage. */
+  const toKg = (displayVal: number) => (unit === 'lbs' ? Math.round(lbsToKg(displayVal) * 10) / 10 : displayVal);
 
   const PARTS = PART_IDS.map(id => ({
     id,
@@ -191,7 +197,8 @@ export default function WorkoutPage() {
     const suggested = suggestWeight(last, menu.defaultWeight);
     setName(menu.name);
     setMusclePart(menu.musclePart);
-    setWeight(String(suggested));
+    // Form weight is shown in the user's display unit; storage stays kg.
+    setWeight(String(toDisplay(suggested, unit)));
     setReps(String(menu.defaultReps));
     setSets(String(menu.defaultSets));
     setCoachAdvice(lang === 'en' && menu.coachTipEn ? menu.coachTipEn : menu.coachTip);
@@ -201,7 +208,7 @@ export default function WorkoutPage() {
     e.preventDefault();
     if (!name.trim()) return;
 
-    const wt = parseFloat(weight) || 0;
+    const wt = toKg(parseFloat(weight) || 0);
     const isNewPR = await checkAndUpdatePR(name.trim(), wt, today);
 
     await addWorkoutEntry({
@@ -222,13 +229,13 @@ export default function WorkoutPage() {
         type: 'pr_achieved',
         name: `💪 ${name.trim()} ${t.prNewRecord}`,
         description: lang === 'en'
-          ? `New personal record on ${name.trim()}: ${wt}kg!`
-          : `${name.trim()} で ${wt}kg の自己ベストを更新しました！`,
+          ? `New personal record on ${name.trim()}: ${formatWeight(wt, unit)}!`
+          : `${name.trim()} で ${formatWeight(wt, unit)} の自己ベストを更新しました！`,
         icon: '💪',
         earnedAt: new Date().toISOString(),
       };
       await addBadge(prBadge);
-      setPrToast(`🏆 PR更新！${name.trim()} ${wt}kg`);
+      setPrToast(`🏆 PR更新！${name.trim()} ${formatWeight(wt, unit)}`);
       setCelebrationBadges([prBadge]);
     }
 
@@ -284,7 +291,7 @@ export default function WorkoutPage() {
     ...workouts.map((w)    => ({ ...w, _type: 'workout' as const })),
   ].sort((a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime());
 
-  const cardCls = 'bg-white dark:bg-gray-800 rounded-3xl p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.25)] border border-gray-50 dark:border-gray-700';
+  const cardCls = 'bg-card rounded-3xl p-4 shadow-card border border-line';
 
   return (
     <main className="min-h-screen bg-[var(--background)] pb-28 lg:pb-8 max-w-md lg:max-w-2xl mx-auto lg:px-6">
@@ -301,7 +308,7 @@ export default function WorkoutPage() {
       )}
 
       {/* Header */}
-      <div className="bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600 text-white px-4 pt-12 pb-8 rounded-b-[2.5rem] shadow-[0_16px_48px_rgba(34,197,94,0.25)]">
+      <div className="bg-gradient-to-br from-brand-600 via-emerald-600 to-teal-600 text-white px-4 pt-12 pb-8 rounded-b-[2.5rem] shadow-[0_16px_48px_rgba(16,185,129,0.25)]">
         <h1 className="text-2xl font-black flex items-center gap-2 tracking-tight">
           <Dumbbell className="w-6 h-6" /> {t.aiCoach}
         </h1>
@@ -319,7 +326,7 @@ export default function WorkoutPage() {
 
         {/* 1 ── 部位別メニュー ─────────────── */}
         <section className={`${cardCls} space-y-3`}>
-          <h2 className="font-black text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+          <h2 className="font-black text-fg flex items-center gap-1.5">
             <Flame className="w-5 h-5 text-orange-500" /> {t.recommendedByGroup}
           </h2>
           <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
@@ -336,8 +343,8 @@ export default function WorkoutPage() {
                     flex flex-col items-center px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap
                     transition-all duration-200 hover:scale-[1.04] active:scale-95
                     ${selectedPart === p.id
-                      ? 'bg-green-500 text-white shadow-[0_4px_12px_rgba(34,197,94,0.35)]'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}
+                      ? 'bg-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                      : 'bg-surface-2 text-muted'}
                   `}
                 >
                   {p.label}
@@ -356,9 +363,9 @@ export default function WorkoutPage() {
                 <button key={menu.id} type="button" onClick={() => handleSelectMenu(menu)}
                   className="
                     w-full text-left
-                    bg-gray-50 dark:bg-gray-700/60
+                    bg-surface-2
                     hover:bg-green-50 dark:hover:bg-green-900/20
-                    border border-gray-100 dark:border-gray-700
+                    border border-line
                     hover:border-green-200 dark:hover:border-green-800
                     rounded-2xl p-3
                     flex items-center justify-between
@@ -369,37 +376,37 @@ export default function WorkoutPage() {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className="text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-green-600 dark:group-hover:text-green-400">{menu.name}</p>
+                      <p className="text-sm font-bold text-fg group-hover:text-brand-600 dark:group-hover:text-brand-400">{menu.name}</p>
                       {pr && (
-                        <span className="text-[9px] font-black bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 px-1.5 py-0.5 rounded-full">
-                          🏆 PR {pr.maxWeight}kg
+                        <span className="text-[9px] font-black bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-1.5 py-0.5 rounded-full">
+                          🏆 PR {formatWeight(pr.maxWeight, unit)}
                         </span>
                       )}
                     </div>
                     {last ? (
                       <div className="mt-0.5 space-y-0.5">
-                        <p className="text-[11px] text-gray-400 dark:text-gray-500">
-                          {t.lastSessionPrefix} <span className="text-gray-600 dark:text-gray-400 font-semibold">{last.weight}kg × {last.reps}{lang === 'en' ? ' reps' : '回'} × {last.sets}set</span>
-                          <span className="ml-1 text-gray-400 dark:text-gray-600">{last.daysAgo === 0 ? t.todayShort : lang === 'en' ? `${last.daysAgo}d ago` : `${last.daysAgo}日前`}</span>
+                        <p className="text-[11px] text-faint">
+                          {t.lastSessionPrefix} <span className="text-muted font-semibold">{formatWeight(last.weight, unit)} × {last.reps}{lang === 'en' ? ' reps' : '回'} × {last.sets}set</span>
+                          <span className="ml-1 text-faint">{last.daysAgo === 0 ? t.todayShort : lang === 'en' ? `${last.daysAgo}d ago` : `${last.daysAgo}日前`}</span>
                         </p>
                         <p className="text-[11px]">
-                          <span className={isOverload ? 'text-green-600 dark:text-green-400 font-black' : 'text-gray-500 dark:text-gray-400 font-semibold'}>
-                            → {suggested}kg × {menu.defaultReps}回 × {menu.defaultSets}set
+                          <span className={isOverload ? 'text-brand-600 dark:text-brand-400 font-black' : 'text-faint font-semibold'}>
+                            → {formatWeight(suggested, unit)} × {menu.defaultReps}回 × {menu.defaultSets}set
                           </span>
                           {isOverload && (
-                            <span className="ml-1 text-[9px] font-bold bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded-full">
-                              +2.5kg UP
+                            <span className="ml-1 text-[9px] font-bold bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 px-1.5 py-0.5 rounded-full">
+                              +{toDisplay(suggested - last.weight, unit)}{unit} UP
                             </span>
                           )}
                         </p>
                       </div>
                     ) : (
-                      <p className="text-[11px] text-indigo-400 dark:text-indigo-400 mt-0.5 font-semibold">
-                        ✨ {t.firstChallengeLabel} — {menu.defaultWeight > 0 ? `${menu.defaultWeight}kg` : t.bodyweightLabel} × {menu.defaultReps}{lang === 'en' ? ' reps' : '回'}
+                      <p className="text-[11px] text-indigo-500 dark:text-indigo-400 mt-0.5 font-semibold">
+                        ✨ {t.firstChallengeLabel} — {menu.defaultWeight > 0 ? formatWeight(menu.defaultWeight, unit) : t.bodyweightLabel} × {menu.defaultReps}{lang === 'en' ? ' reps' : '回'}
                       </p>
                     )}
                   </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0 ml-2" />
+                  <ChevronRight className="w-4 h-4 text-faint flex-shrink-0 ml-2" />
                 </button>
               );
             })}
@@ -416,38 +423,55 @@ export default function WorkoutPage() {
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">{t.workoutName}</label>
+              <label className="block text-xs font-bold text-faint uppercase tracking-widest mb-1.5">{t.workoutName}</label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)}
                 placeholder="ベンチプレス、スクワットなど"
-                className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2.5 text-gray-800 dark:text-gray-200 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-400" />
+                className="w-full text-sm bg-surface-2 border border-line-strong rounded-xl px-3 py-2.5 text-fg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-400" />
             </div>
 
             {/* Log time */}
             <div>
-              <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">{t.selectLogTime}</label>
+              <label className="block text-xs font-bold text-faint uppercase tracking-widest mb-1.5">{t.selectLogTime}</label>
               <input type="time" value={logTime} onChange={(e) => setLogTime(e.target.value)}
-                className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2.5 text-gray-800 dark:text-gray-200 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-400" />
+                className="w-full text-sm bg-surface-2 border border-line-strong rounded-xl px-3 py-2.5 text-fg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-400" />
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              {([[t.weight, weight, setWeight], [t.reps, reps, setReps], [t.sets, sets, setSets]] as const).map(([label, val, setter]) => (
+              {([
+                [lang === 'en' ? `Weight (${unit})` : `重量 (${unit})`, weight, setWeight],
+                [t.reps, reps, setReps],
+                [t.sets, sets, setSets],
+              ] as const).map(([label, val, setter]) => (
                 <div key={label}>
-                  <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">{label}</label>
-                  <input type="number" value={val}
+                  <label className="block text-xs font-bold text-faint uppercase tracking-wide mb-1">{label}</label>
+                  <input type="number" value={val} aria-label={label}
                     onChange={(e) => (setter as React.Dispatch<React.SetStateAction<string>>)(e.target.value)}
-                    className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-2 py-2.5 text-center text-gray-800 dark:text-gray-200 focus:outline-none focus:border-green-500" />
+                    className="w-full text-sm bg-surface-2 border border-line-strong rounded-xl px-2 py-2.5 text-center text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]" />
                 </div>
               ))}
             </div>
 
+            {/* Live estimated 1RM (Epley) */}
+            {(() => {
+              const orm = epley1RM(toKg(parseFloat(weight) || 0), parseInt(reps) || 0);
+              if (orm <= 0) return null;
+              return (
+                <p className="text-[11px] text-faint text-right" aria-live="polite">
+                  {lang === 'en' ? 'Est. 1RM' : '推定1RM'}:{' '}
+                  <span className="font-black text-brand-600 dark:text-brand-400 tabular-nums">{formatWeight(orm, unit)}</span>
+                </p>
+              );
+            })()}
+
             <button type="submit"
               className="
                 w-full py-3.5 rounded-2xl font-black text-sm text-white
-                bg-gradient-to-r from-green-500 to-emerald-600
-                shadow-[0_4px_14px_rgba(34,197,94,0.4)]
-                hover:from-green-600 hover:to-emerald-700
+                bg-gradient-to-r from-brand-500 to-brand-600
+                shadow-[0_4px_14px_rgba(16,185,129,0.4)]
+                hover:from-brand-600 hover:to-brand-700
                 hover:scale-[1.01] active:scale-[0.98]
                 transition-all duration-200
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
               "
             >
               {t.recordWorkoutBtn}
@@ -455,12 +479,15 @@ export default function WorkoutPage() {
           </form>
         </section>
 
+        {/* 2.5 ── Rest-interval timer ─────── */}
+        <RestTimer />
+
         {/* 3 ── AI パーソナルコーチ ────────── */}
         <section className={`${cardCls} space-y-4`}>
-          <h2 className="font-black text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+          <h2 className="font-black text-fg flex items-center gap-1.5">
             <Sparkles className="w-5 h-5 text-purple-500" /> {t.aiCoach}
           </h2>
-          <p className="text-xs text-gray-400 dark:text-gray-500">{t.aiCoachDesc}</p>
+          <p className="text-xs text-faint">{t.aiCoachDesc}</p>
 
           {!isSupabaseConfigured() && (
             <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl p-4 text-center">
@@ -501,24 +528,24 @@ export default function WorkoutPage() {
               {/* Today's advice */}
               <div className="bg-purple-50 dark:bg-purple-900/20 rounded-2xl p-3 border border-purple-100 dark:border-purple-800">
                 <p className="text-xs font-bold text-purple-600 dark:text-purple-400 mb-1.5">📊 {t.todaySummaryLabel}</p>
-                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{aiAdvice.todayAdvice}</p>
+                <p className="text-sm text-muted leading-relaxed">{aiAdvice.todayAdvice}</p>
               </div>
               {/* Habit insight */}
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-3 border border-blue-100 dark:border-blue-800">
                 <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1.5">🕐 {t.habitInsightLabel}</p>
-                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{aiAdvice.habitInsight}</p>
+                <p className="text-sm text-muted leading-relaxed">{aiAdvice.habitInsight}</p>
               </div>
               {/* Tomorrow tip */}
               <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-3 border border-emerald-100 dark:border-emerald-800">
                 <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1.5">💡 {t.tomorrowAdviceLabel}</p>
-                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{aiAdvice.tomorrowTip}</p>
+                <p className="text-sm text-muted leading-relaxed">{aiAdvice.tomorrowTip}</p>
               </div>
               {/* Motivation */}
               <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl p-3 border border-yellow-100 dark:border-yellow-800 text-center">
                 <p className="text-sm font-black text-yellow-700 dark:text-yellow-400">{aiAdvice.motivationMessage}</p>
               </div>
               <button onClick={() => { setAiAdvice(null); setAiError(''); }}
-                className="w-full py-2 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 underline">
+                className="w-full py-2 text-xs text-faint hover:text-fg underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]">
                 {t.refreshAdvice}
               </button>
             </div>
@@ -527,27 +554,27 @@ export default function WorkoutPage() {
 
         {/* 4 ── 習慣タイムライン ──────────── */}
         <section className={`${cardCls} space-y-3`}>
-          <h2 className="font-black text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+          <h2 className="font-black text-fg flex items-center gap-1.5">
             <Clock className="w-5 h-5 text-blue-500" /> {t.activityTimeline}
           </h2>
-          <p className="text-xs text-gray-400 dark:text-gray-500">{t.activityTimelineDesc}</p>
+          <p className="text-xs text-faint">{t.activityTimelineDesc}</p>
           {timeline.length === 0 ? (
-            <p className="text-center text-xs text-gray-400 py-6">{t.noTimelineEntries}</p>
+            <p className="text-center text-xs text-faint py-6">{t.noTimelineEntries}</p>
           ) : (
-            <div className="relative border-l-2 border-gray-100 dark:border-gray-700 ml-3 pl-5 space-y-4 pt-1">
+            <div className="relative border-l-2 border-line ml-3 pl-5 space-y-4 pt-1">
               {timeline.map((entry) => (
                 <div key={entry.id} className="relative">
                   <div className={`absolute -left-[27px] top-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-gray-800 shadow-sm ${entry._type === 'food' ? 'bg-orange-400' : 'bg-green-500'}`} />
-                  <span className="text-xs font-bold text-gray-400 bg-gray-50 dark:bg-gray-700 px-1.5 py-0.5 rounded mr-1">
+                  <span className="text-xs font-bold text-faint bg-surface-2 px-1.5 py-0.5 rounded mr-1">
                     {formatTime(entry.addedAt)}
                   </span>
-                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                  <span className="text-sm font-semibold text-fg">
                     {entry._type === 'food' ? `🥗 ${(entry as FoodEntry).name}` : `🏋️ ${entry.name}`}
                   </span>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 pl-14">
+                  <p className="text-xs text-faint mt-0.5 pl-14">
                     {entry._type === 'food'
                       ? `${(entry as FoodEntry).calories}kcal · P${(entry as FoodEntry).protein}g · F${(entry as FoodEntry).fat}g · C${(entry as FoodEntry).carbs}g`
-                      : `${(entry as WorkoutEntry).weight}kg × ${(entry as WorkoutEntry).reps}${lang === 'en' ? ' reps' : '回'} × ${(entry as WorkoutEntry).sets}set`}
+                      : `${formatWeight((entry as WorkoutEntry).weight ?? 0, unit)} × ${(entry as WorkoutEntry).reps}${lang === 'en' ? ' reps' : '回'} × ${(entry as WorkoutEntry).sets}set`}
                   </p>
                 </div>
               ))}
@@ -558,20 +585,25 @@ export default function WorkoutPage() {
         {/* 5 ── 実施済み ─────────────────── */}
         {workouts.length > 0 && (
           <section className="space-y-2">
-            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">{t.completedSessions}</h3>
+            <h3 className="text-xs font-black text-faint uppercase tracking-widest px-1">{t.completedSessions}</h3>
             {workouts.map((w) => (
-              <div key={w.id} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-3 flex items-center justify-between shadow-[0_4px_12px_rgb(0,0,0,0.03)] hover:scale-[1.01] active:scale-[0.99] transition-all duration-200">
+              <div key={w.id} className="bg-card border border-line rounded-2xl p-3 flex items-center justify-between shadow-card hover:scale-[1.01] active:scale-[0.99] transition-all duration-200">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-xl">
                     <CheckCircle className="w-4 h-4 text-green-500" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{w.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{w.weight}kg × {w.reps}{lang === 'en' ? ' reps' : '回'} × {w.sets}set</p>
+                    <p className="text-sm font-bold text-fg">{w.name}</p>
+                    <p className="text-xs text-faint">
+                      {formatWeight(w.weight ?? 0, unit)} × {w.reps}{lang === 'en' ? ' reps' : '回'} × {w.sets}set
+                      {epley1RM(w.weight ?? 0, w.reps ?? 0) > 0 && (
+                        <span className="ml-1.5 text-[10px] font-bold text-brand-600 dark:text-brand-400">· 1RM {formatWeight(epley1RM(w.weight ?? 0, w.reps ?? 0), unit)}</span>
+                      )}
+                    </p>
                   </div>
                 </div>
                 <button type="button" onClick={() => handleDelete(w.id)}
-                  className="p-2 text-gray-300 dark:text-gray-600 hover:text-red-400 active:scale-95 transition-all duration-200">
+                  className="p-2 text-faint hover:text-red-400 active:scale-95 transition-all duration-200">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
