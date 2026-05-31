@@ -59,7 +59,7 @@ const PROCEED_STYLES_BG: Record<string, { bg: string; text: string }> = {
   full:        { bg: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800', text: 'text-green-700 dark:text-green-300' },
   reduced:     { bg: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800', text: 'text-amber-700 dark:text-amber-300' },
   alternative: { bg: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',    text: 'text-blue-700 dark:text-blue-300'  },
-  rest:        { bg: 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700',     text: 'text-gray-700 dark:text-gray-300'  },
+  rest:        { bg: 'bg-surface-2 border-line',     text: 'text-muted'  },
 };
 
 type Tab = 'today' | 'schedule' | 'programs';
@@ -70,20 +70,20 @@ function ExerciseRow({ ex }: { ex: PlannedExercise }) {
   const { lang } = useLanguage();
   const MUSCLE_LABELS = lang === 'en' ? MUSCLE_LABELS_EN : MUSCLE_LABELS_JA;
   return (
-    <div className="flex items-center gap-3 py-2 border-b border-gray-50 dark:border-gray-700 last:border-0">
+    <div className="flex items-center gap-3 py-2 border-b border-line last:border-0">
       <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${MUSCLE_COLORS[ex.musclePart] ?? ''}`}>
         {MUSCLE_LABELS[ex.musclePart]}
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{ex.name}</p>
-        {ex.notes && <p className="text-[10px] text-gray-400 truncate">{ex.notes}</p>}
+        <p className="text-sm font-bold text-fg truncate">{ex.name}</p>
+        {ex.notes && <p className="text-[10px] text-faint truncate">{ex.notes}</p>}
       </div>
       <div className="shrink-0 text-right">
-        <p className="text-xs font-black text-gray-700 dark:text-gray-300 tabular-nums">
+        <p className="text-xs font-black text-muted tabular-nums">
           {ex.sets}×{ex.repsMin === ex.repsMax ? ex.repsMin : `${ex.repsMin}–${ex.repsMax}`}
         </p>
         {ex.targetWeight != null && (
-          <p className="text-[10px] text-gray-400">{ex.targetWeight} kg</p>
+          <p className="text-[10px] text-faint">{ex.targetWeight} kg</p>
         )}
       </div>
     </div>
@@ -101,14 +101,14 @@ function SessionCard({
   const muscles = [...new Set(session.exercises.map(e => e.musclePart))];
 
   return (
-    <div className="border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden">
+    <div className="border border-line rounded-2xl overflow-hidden">
       <button
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+        className="w-full flex items-center gap-3 p-3 hover:bg-surface-2 dark:hover:bg-gray-700/50 transition-colors"
       >
-        <Dumbbell size={14} className="text-gray-400 shrink-0" />
+        <Dumbbell size={14} className="text-faint shrink-0" />
         <div className="flex-1 text-left">
-          <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{session.name}</p>
+          <p className="text-sm font-bold text-fg">{session.name}</p>
           <div className="flex gap-1 mt-0.5 flex-wrap">
             {muscles.map(m => (
               <span key={m} className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${MUSCLE_COLORS[m]}`}>
@@ -117,11 +117,11 @@ function SessionCard({
             ))}
           </div>
         </div>
-        <span className="text-xs text-gray-400 shrink-0">{session.exercises.length} {t.exercisesCountSuffix}</span>
-        {open ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+        <span className="text-xs text-faint shrink-0">{session.exercises.length} {t.exercisesCountSuffix}</span>
+        {open ? <ChevronUp size={14} className="text-faint" /> : <ChevronDown size={14} className="text-faint" />}
       </button>
       {open && (
-        <div className="px-3 pb-2 border-t border-gray-100 dark:border-gray-700">
+        <div className="px-3 pb-2 border-t border-line">
           {session.exercises.map(ex => <ExerciseRow key={ex.id} ex={ex} />)}
         </div>
       )}
@@ -145,25 +145,25 @@ function ProgramCard({
     <div className={`rounded-2xl border-2 overflow-hidden transition-all ${
       isActive
         ? 'border-green-400 dark:border-green-600 shadow-[0_0_0_2px_rgba(34,197,94,0.15)]'
-        : 'border-gray-100 dark:border-gray-700'
+        : 'border-line'
     }`}>
       <div className="p-3">
         <div className="flex items-start gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               {isActive && (
-                <span className="text-[10px] font-black text-white bg-green-500 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] font-black text-white bg-brand-600 px-2 py-0.5 rounded-full">
                   {t.activeProgramBadge}
                 </span>
               )}
-              <h3 className="text-sm font-black text-gray-800 dark:text-gray-200 truncate">{program.name}</h3>
+              <h3 className="text-sm font-black text-fg truncate">{program.name}</h3>
             </div>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">{program.description}</p>
-            <p className="text-[10px] text-gray-400 mt-1">{program.sessions.length} {t.sessionsCountSuffix}</p>
+            <p className="text-[11px] text-faint leading-relaxed">{program.description}</p>
+            <p className="text-[10px] text-faint mt-1">{program.sessions.length} {t.sessionsCountSuffix}</p>
           </div>
           <button
             onClick={() => setOpen(v => !v)}
-            className="text-gray-400 hover:text-gray-600 p-1"
+            className="text-faint hover:text-muted p-1"
           >
             {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
@@ -173,14 +173,14 @@ function ProgramCard({
           {!isActive && (
             <button
               onClick={onActivate}
-              className="flex-1 py-2 rounded-xl text-xs font-bold bg-green-500 text-white hover:bg-green-600 transition-colors"
+              className="flex-1 py-2 rounded-xl text-xs font-bold bg-brand-600 text-white hover:bg-green-600 transition-colors"
             >
               {t.startProgram}
             </button>
           )}
           <button
             onClick={onDuplicate}
-            className="px-3 py-2 rounded-xl text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-gray-200 transition-colors"
+            className="px-3 py-2 rounded-xl text-xs font-bold bg-surface-2 text-faint hover:bg-line transition-colors"
           >
             <Copy size={13} />
           </button>
@@ -196,7 +196,7 @@ function ProgramCard({
       </div>
 
       {open && (
-        <div className="border-t border-gray-100 dark:border-gray-700 p-3 space-y-2">
+        <div className="border-t border-line p-3 space-y-2">
           {program.sessions.map(s => <SessionCard key={s.id} session={s} />)}
         </div>
       )}
@@ -233,36 +233,36 @@ function CheckInWidget({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-50 dark:border-gray-700 overflow-hidden shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
+    <div className="bg-card rounded-3xl border border-line overflow-hidden shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
       <button
         onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-center gap-3 p-4 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors"
+        className="w-full flex items-center gap-3 p-4 hover:bg-surface-2 dark:hover:bg-gray-700/30 transition-colors"
       >
         <div className="w-9 h-9 rounded-2xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
           <Brain size={17} className="text-purple-500" />
         </div>
         <div className="flex-1 text-left">
-          <p className="text-sm font-black text-gray-800 dark:text-gray-200">{t.dailyCheckInTitle}</p>
+          <p className="text-sm font-black text-fg">{t.dailyCheckInTitle}</p>
           {value.mood ? (
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-faint mt-0.5">
               {t.moodLabel} {MOOD_EMOJIS[value.mood]}  {t.energyLabel} {ENERGY_EMOJIS[value.energy]}  {t.sleepLabel} {value.sleepHours}h
             </p>
           ) : (
-            <p className="text-xs text-gray-400 mt-0.5">{t.tapToRecord}</p>
+            <p className="text-xs text-faint mt-0.5">{t.tapToRecord}</p>
           )}
         </div>
         {value.mood > 0 && (
-          <span className="text-[10px] font-black text-green-500 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">{t.recordedLabel}</span>
+          <span className="text-[10px] font-black text-brand bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">{t.recordedLabel}</span>
         )}
-        {expanded ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
+        {expanded ? <ChevronUp size={15} className="text-faint" /> : <ChevronDown size={15} className="text-faint" />}
       </button>
 
       {expanded && (
-        <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-700 space-y-4 pt-3">
+        <div className="px-4 pb-4 border-t border-line space-y-4 pt-3">
 
           {/* Mood */}
           <div>
-            <p className="text-xs font-black text-gray-500 mb-2">{t.moodLabel}</p>
+            <p className="text-xs font-black text-faint mb-2">{t.moodLabel}</p>
             <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map(n => (
                 <button
@@ -271,11 +271,11 @@ function CheckInWidget({
                   className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-xl border-2 transition-all ${
                     value.mood === n
                       ? 'border-purple-400 bg-purple-50 dark:bg-purple-900/20'
-                      : 'border-gray-100 dark:border-gray-700 hover:border-gray-300'
+                      : 'border-line hover:border-line-strong'
                   }`}
                 >
                   <span className="text-lg">{MOOD_EMOJIS[n]}</span>
-                  <span className="text-[9px] font-bold text-gray-500">{MOOD_LABELS[n]}</span>
+                  <span className="text-[9px] font-bold text-faint">{MOOD_LABELS[n]}</span>
                 </button>
               ))}
             </div>
@@ -283,7 +283,7 @@ function CheckInWidget({
 
           {/* Energy */}
           <div>
-            <p className="text-xs font-black text-gray-500 mb-2">{t.energyLabel}</p>
+            <p className="text-xs font-black text-faint mb-2">{t.energyLabel}</p>
             <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map(n => (
                 <button
@@ -292,11 +292,11 @@ function CheckInWidget({
                   className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-xl border-2 transition-all ${
                     value.energy === n
                       ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20'
-                      : 'border-gray-100 dark:border-gray-700 hover:border-gray-300'
+                      : 'border-line hover:border-line-strong'
                   }`}
                 >
                   <span className="text-lg">{ENERGY_EMOJIS[n]}</span>
-                  <span className="text-[9px] font-bold text-gray-500">{ENERGY_LABELS[n]}</span>
+                  <span className="text-[9px] font-bold text-faint">{ENERGY_LABELS[n]}</span>
                 </button>
               ))}
             </div>
@@ -304,29 +304,29 @@ function CheckInWidget({
 
           {/* Sleep */}
           <div>
-            <p className="text-xs font-black text-gray-500 mb-2 flex items-center gap-1.5">
+            <p className="text-xs font-black text-faint mb-2 flex items-center gap-1.5">
               <Moon size={12} className="text-indigo-400" />
               {t.sleepLabel}
             </p>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => set({ sleepHours: Math.max(0, value.sleepHours - 0.5) })}
-                className="w-9 h-9 rounded-xl border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-bold text-lg"
+                className="w-9 h-9 rounded-xl border border-line-strong flex items-center justify-center text-faint hover:bg-surface-2 dark:hover:bg-gray-700 transition-colors font-bold text-lg"
               >−</button>
               <div className="flex-1 text-center">
-                <span className="text-2xl font-black text-gray-900 dark:text-white tabular-nums">{value.sleepHours}</span>
-                <span className="text-sm text-gray-400 ml-1">{t.hoursSuffix}</span>
+                <span className="text-2xl font-black text-fg tabular-nums">{value.sleepHours}</span>
+                <span className="text-sm text-faint ml-1">{t.hoursSuffix}</span>
               </div>
               <button
                 onClick={() => set({ sleepHours: Math.min(14, value.sleepHours + 0.5) })}
-                className="w-9 h-9 rounded-xl border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-bold text-lg"
+                className="w-9 h-9 rounded-xl border border-line-strong flex items-center justify-center text-faint hover:bg-surface-2 dark:hover:bg-gray-700 transition-colors font-bold text-lg"
               >＋</button>
             </div>
           </div>
 
           {/* Soreness */}
           <div>
-            <p className="text-xs font-black text-gray-500 mb-2 flex items-center gap-1.5">
+            <p className="text-xs font-black text-faint mb-2 flex items-center gap-1.5">
               <Flame size={12} className="text-orange-400" />
               {t.sorenessLabel}
             </p>
@@ -338,7 +338,7 @@ function CheckInWidget({
                   className={`text-xs font-bold px-3 py-1.5 rounded-full border-2 transition-all ${
                     value.sorenessAreas.includes(m)
                       ? `${MUSCLE_COLORS[m]} border-current`
-                      : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:border-gray-300'
+                      : 'border-line-strong text-faint hover:border-line-strong'
                   }`}
                 >
                   {MUSCLE_LABELS[m]}
@@ -349,13 +349,13 @@ function CheckInWidget({
 
           {/* Notes */}
           <div>
-            <p className="text-xs font-black text-gray-500 mb-2">{t.notesOptional}</p>
+            <p className="text-xs font-black text-faint mb-2">{t.notesOptional}</p>
             <textarea
               value={value.notes ?? ''}
               onChange={e => set({ notes: e.target.value })}
               placeholder={t.notesPlaceholder}
               rows={2}
-              className="w-full text-sm px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
+              className="w-full text-sm px-3 py-2 rounded-xl border border-line-strong bg-surface-2 text-muted placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
             />
           </div>
 
@@ -394,19 +394,19 @@ function SuggestionCard({
   } as Record<string, { bg: string; text: string; label: string }>;
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-50 dark:border-gray-700 p-4 shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
+      <div className="bg-card rounded-3xl border border-line p-4 shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center animate-pulse shrink-0">
             <Zap size={17} className="text-indigo-500" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-black text-gray-800 dark:text-gray-200">{t.aiAnalyzingTitle}</p>
-            <p className="text-xs text-gray-400">{t.aiGeneratingDesc}</p>
+            <p className="text-sm font-black text-fg">{t.aiAnalyzingTitle}</p>
+            <p className="text-xs text-faint">{t.aiGeneratingDesc}</p>
           </div>
         </div>
         <div className="mt-3 space-y-2">
           {[40, 60, 30].map((w, i) => (
-            <div key={i} className={`h-3 bg-gray-100 dark:bg-gray-700 rounded-full animate-pulse`} style={{ width: `${w}%` }} />
+            <div key={i} className={`h-3 bg-surface-2 rounded-full animate-pulse`} style={{ width: `${w}%` }} />
           ))}
         </div>
       </div>
@@ -667,7 +667,7 @@ export default function PlanPage() {
     reload();
   };
 
-  const cardCls = 'bg-white dark:bg-gray-800 rounded-3xl border border-gray-50 dark:border-gray-700 p-4 shadow-[0_4px_16px_rgb(0,0,0,0.04)]';
+  const cardCls = 'bg-card rounded-3xl border border-line p-4 shadow-[0_4px_16px_rgb(0,0,0,0.04)]';
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
@@ -676,18 +676,18 @@ export default function PlanPage() {
       <div className="flex items-center gap-3 pt-6 pb-4">
         <button
           onClick={() => router.back()}
-          className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-500 hover:scale-105 active:scale-95 transition-all"
+          className="w-10 h-10 rounded-2xl bg-card shadow-sm border border-line flex items-center justify-center text-faint hover:scale-105 active:scale-95 transition-all"
         >
           <ChevronLeft size={20} />
         </button>
-        <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+        <h1 className="text-2xl font-black text-fg tracking-tight flex items-center gap-2">
           <CalendarDays size={22} className="text-blue-500" />
           トレーニング計画
         </h1>
       </div>
 
       {/* Tabs */}
-      <div className="flex bg-gray-100 dark:bg-gray-800 rounded-2xl p-1 gap-1 mb-4">
+      <div className="flex bg-surface-2 rounded-2xl p-1 gap-1 mb-4">
         {([
           { key: 'today',    label: lang === 'en' ? 'Today'    : '今日' },
           { key: 'schedule', label: lang === 'en' ? 'Schedule' : '週スケジュール' },
@@ -699,8 +699,8 @@ export default function PlanPage() {
             className={`
               flex-1 py-2 rounded-xl text-xs font-bold transition-all
               ${tab === key
-                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}
+                ? 'bg-surface-2 text-fg shadow-sm'
+                : 'text-faint hover:text-muted'}
             `}
           >
             {label}
@@ -750,16 +750,16 @@ export default function PlanPage() {
               <div className={cardCls}>
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest">
+                    <p className="text-xs font-black text-faint uppercase tracking-widest">
                       {lang === 'en' ? fmtLongEn(today) : fmtMonthDayDowLongJa(today)}
                     </p>
-                    <h2 className="text-xl font-black text-gray-900 dark:text-white mt-0.5">
+                    <h2 className="text-xl font-black text-fg mt-0.5">
                       {todaySession.name}
                     </h2>
                   </div>
                   <button
                     onClick={() => router.push('/workout')}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-[0_4px_12px_rgba(34,197,94,0.35)] hover:opacity-90 transition-all"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold bg-gradient-to-r from-brand-500 to-emerald-600 text-white shadow-[0_4px_12px_rgba(34,197,94,0.35)] hover:opacity-90 transition-all"
                   >
                     <Zap size={13} />
                     {lang === 'en' ? 'Start' : '開始'}
@@ -773,34 +773,34 @@ export default function PlanPage() {
               {/* Volume summary */}
               <div className={`${cardCls} grid grid-cols-3 gap-3 text-center`}>
                 <div>
-                  <p className="text-2xl font-black text-gray-900 dark:text-white tabular-nums">
+                  <p className="text-2xl font-black text-fg tabular-nums">
                     {todaySession.exercises.length}
                   </p>
-                  <p className="text-[10px] text-gray-400">{t.exerciseCountLabel}</p>
+                  <p className="text-[10px] text-faint">{t.exerciseCountLabel}</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-black text-gray-900 dark:text-white tabular-nums">
+                  <p className="text-2xl font-black text-fg tabular-nums">
                     {todaySession.exercises.reduce((s, e) => s + e.sets, 0)}
                   </p>
-                  <p className="text-[10px] text-gray-400">{t.totalSetsLabel}</p>
+                  <p className="text-[10px] text-faint">{t.totalSetsLabel}</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-black text-gray-900 dark:text-white tabular-nums">
+                  <p className="text-2xl font-black text-fg tabular-nums">
                     {[...new Set(todaySession.exercises.map(e => e.musclePart))].length}
                   </p>
-                  <p className="text-[10px] text-gray-400">{t.musclePartLabel}</p>
+                  <p className="text-[10px] text-faint">{t.musclePartLabel}</p>
                 </div>
               </div>
             </>
           ) : (
             <div className={`${cardCls} text-center py-10`}>
-              <CalendarDays size={40} className="text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-              <p className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-1">
+              <CalendarDays size={40} className="text-faint mx-auto mb-3" />
+              <p className="text-sm font-bold text-faint mb-1">
                 {active
                   ? (lang === 'en' ? 'Today is a rest day 🛌' : '今日は休息日です 🛌')
                   : (lang === 'en' ? 'No program set' : 'プログラムが設定されていません')}
               </p>
-              <p className="text-xs text-gray-400 mb-4">
+              <p className="text-xs text-faint mb-4">
                 {active
                   ? (lang === 'en' ? 'Rest up for tomorrow\'s session' : '明日のセッションに備えて休みましょう')
                   : (lang === 'en' ? 'Select a program from the Programs tab' : '「プログラム」タブからプログラムを選択してください')}
@@ -819,7 +819,7 @@ export default function PlanPage() {
           {/* Upcoming week preview */}
           {active && (
             <div className={cardCls}>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">{t.weekScheduleLabel}</p>
+              <p className="text-xs font-black text-faint uppercase tracking-widest mb-3">{t.weekScheduleLabel}</p>
               <div className="space-y-1.5">
                 {DOW.map((d, i) => {
                   const sid = active.weekSchedule[i];
@@ -833,12 +833,12 @@ export default function PlanPage() {
                       }`}
                     >
                       <span className={`w-7 text-center text-xs font-black ${
-                        isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'
+                        isToday ? 'text-blue-600 dark:text-blue-400' : 'text-faint'
                       }`}>{d}</span>
                       {sess ? (
-                        <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{sess.name}</span>
+                        <span className="text-xs font-bold text-muted">{sess.name}</span>
                       ) : (
-                        <span className="text-xs text-gray-300 dark:text-gray-600">{t.restDayLabel}</span>
+                        <span className="text-xs text-faint">{t.restDayLabel}</span>
                       )}
                       {isToday && <span className="ml-auto text-[10px] font-black text-blue-500">{t.todayShort}</span>}
                     </div>
@@ -856,19 +856,19 @@ export default function PlanPage() {
           {active ? (
             <>
               <div className={cardCls}>
-                <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">{t.activeProgramLabel}</p>
-                <p className="text-base font-black text-gray-900 dark:text-white mb-3">{active.name}</p>
-                <p className="text-xs text-gray-400 mb-3">{t.assignDaysDesc}</p>
+                <p className="text-xs font-black text-faint uppercase tracking-widest mb-1">{t.activeProgramLabel}</p>
+                <p className="text-base font-black text-fg mb-3">{active.name}</p>
+                <p className="text-xs text-faint mb-3">{t.assignDaysDesc}</p>
                 <div className="space-y-2">
                   {DOW.map((d, i) => {
                     const currentId = active.weekSchedule[i] ?? '';
                     return (
                       <div key={i} className="flex items-center gap-3">
-                        <span className="w-6 text-xs font-black text-gray-500 text-center">{d}</span>
+                        <span className="w-6 text-xs font-black text-faint text-center">{d}</span>
                         <select
                           value={currentId}
                           onChange={e => handleScheduleChange(i, e.target.value)}
-                          className="flex-1 text-xs font-semibold px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          className="flex-1 text-xs font-semibold px-3 py-2 rounded-xl border border-line-strong bg-surface-2 text-muted focus:outline-none focus:ring-2 focus:ring-blue-400"
                         >
                           <option value="">{t.restDayOption}</option>
                           {active.sessions.map(s => (
@@ -882,7 +882,7 @@ export default function PlanPage() {
               </div>
 
               <div className={cardCls}>
-                <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">{t.sessionListLabel}</p>
+                <p className="text-xs font-black text-faint uppercase tracking-widest mb-3">{t.sessionListLabel}</p>
                 <div className="space-y-2">
                   {active.sessions.map(s => <SessionCard key={s.id} session={s} />)}
                 </div>
@@ -890,7 +890,7 @@ export default function PlanPage() {
             </>
           ) : (
             <div className={`${cardCls} text-center py-8`}>
-              <p className="text-sm font-semibold text-gray-400">
+              <p className="text-sm font-semibold text-faint">
                 {lang === 'en' ? 'Select a program to view its schedule' : 'プログラムを選択するとスケジュールが表示されます'}
               </p>
               <button
@@ -923,7 +923,7 @@ export default function PlanPage() {
                 saveProgram(prog);
                 reload();
               }}
-              className="px-4 py-3 rounded-2xl text-sm font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 transition-all"
+              className="px-4 py-3 rounded-2xl text-sm font-bold bg-surface-2 text-muted hover:bg-line transition-all"
             >
               <Plus size={16} />
             </button>
@@ -931,15 +931,15 @@ export default function PlanPage() {
 
           {showTemplates && (
             <div className={cardCls}>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">{t.templatesLabel}</p>
+              <p className="text-xs font-black text-faint uppercase tracking-widest mb-3">{t.templatesLabel}</p>
               <div className="space-y-3">
                 {templates.map(tmpl => (
-                  <div key={tmpl.id} className="border border-gray-100 dark:border-gray-700 rounded-2xl p-3">
-                    <h4 className="text-sm font-black text-gray-800 dark:text-gray-200 mb-0.5">{tmpl.name}</h4>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">{tmpl.description}</p>
+                  <div key={tmpl.id} className="border border-line rounded-2xl p-3">
+                    <h4 className="text-sm font-black text-fg mb-0.5">{tmpl.name}</h4>
+                    <p className="text-[11px] text-faint mb-2">{tmpl.description}</p>
                     <div className="flex gap-1.5 mb-2 flex-wrap">
                       {tmpl.sessions.map(s => (
-                        <span key={s.id} className="text-[10px] font-bold px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full">
+                        <span key={s.id} className="text-[10px] font-bold px-2 py-0.5 bg-surface-2 text-muted rounded-full">
                           {s.name}
                         </span>
                       ))}
@@ -959,7 +959,7 @@ export default function PlanPage() {
 
           {programs.length > 0 ? (
             <div className="space-y-3">
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">{t.myProgramsLabel}</p>
+              <p className="text-xs font-black text-faint uppercase tracking-widest px-1">{t.myProgramsLabel}</p>
               {programs.map(prog => (
                 <ProgramCard
                   key={prog.id}
@@ -973,9 +973,9 @@ export default function PlanPage() {
             </div>
           ) : (
             <div className={`${cardCls} text-center py-8`}>
-              <Dumbbell size={36} className="text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-gray-400">{t.noProgramsMsg}</p>
-              <p className="text-xs text-gray-400 mt-1">{t.noProgramsDescMsg}</p>
+              <Dumbbell size={36} className="text-faint mx-auto mb-3" />
+              <p className="text-sm font-semibold text-faint">{t.noProgramsMsg}</p>
+              <p className="text-xs text-faint mt-1">{t.noProgramsDescMsg}</p>
             </div>
           )}
         </div>

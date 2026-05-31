@@ -26,16 +26,16 @@ const PHASE_LABEL: Record<string, string> = {
 };
 
 const PHASE_COLOR: Record<string, string> = {
-  IDLE:       'text-gray-400',
+  IDLE:       'text-faint',
   DESCENDING: 'text-blue-500',
   BOTTOM:     'text-violet-600 font-black',
   ASCENDING:  'text-emerald-500',
-  COMPLETE:   'text-green-500',
+  COMPLETE:   'text-brand',
 };
 
 const SCORE_COLOR = (s: number) =>
   s >= 90 ? 'text-emerald-500' :
-  s >= 75 ? 'text-green-500' :
+  s >= 75 ? 'text-brand' :
   s >= 50 ? 'text-amber-500' : 'text-red-500';
 
 // ── Angle gauge ─────────────────────────────────────────────────────────────
@@ -48,11 +48,11 @@ function AngleGauge({
   const inRange = value >= ideal.min && value <= ideal.max;
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <span className="text-[10px] text-gray-400 font-semibold">{label}</span>
+      <span className="text-[10px] text-faint font-semibold">{label}</span>
       <span className={`text-lg font-black tabular-nums ${inRange ? 'text-emerald-500' : 'text-amber-500'}`}>
         {value}{unit}
       </span>
-      <span className="text-[9px] text-gray-400">
+      <span className="text-[9px] text-faint">
         理想 {ideal.min}–{ideal.max}{unit}
       </span>
     </div>
@@ -64,16 +64,16 @@ function AngleGauge({
 function FeedbackCard({ fb }: { fb: RepFeedback }) {
   const notes = [fb.kneeNote, fb.hipNote, fb.trunkNote, fb.shinNote].filter(Boolean);
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-3.5 animate-slide-in-up">
+    <div className="bg-card rounded-2xl border border-line p-3.5 animate-slide-in-up">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-black text-gray-500 uppercase tracking-widest">最新レップ</span>
+        <span className="text-xs font-black text-faint uppercase tracking-widest">最新レップ</span>
         <span className={`text-2xl font-black tabular-nums ${SCORE_COLOR(fb.score)}`}>{fb.score}<span className="text-xs ml-0.5">点</span></span>
       </div>
-      <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-2">{fb.overall}</p>
+      <p className="text-sm font-bold text-fg mb-2">{fb.overall}</p>
       {notes.length > 0 && (
         <ul className="space-y-1">
           {notes.map((n, i) => (
-            <li key={i} className="text-xs text-gray-600 dark:text-gray-400 flex gap-1.5">
+            <li key={i} className="text-xs text-muted flex gap-1.5">
               <span className="text-amber-400 shrink-0">▸</span>{n}
             </li>
           ))}
@@ -247,7 +247,7 @@ export default function FormPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const cardCls = 'bg-white dark:bg-gray-800 rounded-3xl border border-gray-50 dark:border-gray-700 p-4 shadow-[0_4px_16px_rgb(0,0,0,0.04)]';
+  const cardCls = 'bg-card rounded-3xl border border-line p-4 shadow-[0_4px_16px_rgb(0,0,0,0.04)]';
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
@@ -256,23 +256,25 @@ export default function FormPage() {
       <div className="flex items-center gap-3 pt-6 pb-4">
         <button
           onClick={() => router.back()}
-          className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-500 hover:scale-105 active:scale-95 transition-all"
+          aria-label="戻る"
+          className="w-11 h-11 rounded-2xl bg-card shadow-card border border-line flex items-center justify-center text-faint hover:text-fg hover:scale-105 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={20} aria-hidden="true" />
         </button>
         <div>
-          <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-black text-fg tracking-tight flex items-center gap-2">
             <Activity size={22} className="text-violet-500" />
             フォームチェッカー
           </h1>
-          <p className="text-xs text-gray-400 mt-0.5">スクワット — リアルタイム解析</p>
+          <p className="text-xs text-faint mt-0.5">スクワット — リアルタイム解析</p>
         </div>
         <button
           onClick={handleReset}
-          className="ml-auto p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+          className="ml-auto p-2 rounded-xl text-faint hover:text-fg hover:bg-surface-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           title="リセット"
+          aria-label="リセット"
         >
-          <RotateCcw size={16} />
+          <RotateCcw size={16} aria-hidden="true" />
         </button>
       </div>
 
@@ -302,22 +304,22 @@ export default function FormPage() {
           {sqState && running && (
             <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm rounded-xl px-3 py-1.5 text-center">
               <div className="text-2xl font-black text-white tabular-nums leading-none">{sqState.repCount}</div>
-              <div className="text-[10px] text-gray-400">rep</div>
+              <div className="text-[10px] text-faint">rep</div>
             </div>
           )}
 
           {/* Idle state */}
           {!running && !loading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-              <Camera size={40} className="text-gray-600" />
-              <p className="text-gray-400 text-sm font-semibold">カメラを起動してください</p>
+              <Camera size={40} className="text-muted" />
+              <p className="text-faint text-sm font-semibold">カメラを起動してください</p>
             </div>
           )}
 
           {loading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
               <div className="w-8 h-8 border-3 border-violet-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-400 text-sm">AIモデルを読み込み中…</p>
+              <p className="text-faint text-sm">AIモデルを読み込み中…</p>
             </div>
           )}
         </div>
@@ -339,9 +341,11 @@ export default function FormPage() {
           </button>
           <button
             onClick={() => setShowCustom(v => !v)}
-            className="px-4 py-3 rounded-2xl text-sm font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 transition-all"
+            aria-label="理想フォームをカスタマイズ"
+            aria-expanded={showCustom}
+            className="px-4 py-3 rounded-2xl text-sm font-bold bg-surface-2 text-muted hover:bg-line transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           >
-            <Upload size={16} />
+            <Upload size={16} aria-hidden="true" />
           </button>
         </div>
 
@@ -353,14 +357,14 @@ export default function FormPage() {
       {/* Angle gauges */}
       {sqState && (
         <div className={`${cardCls} mb-3`}>
-          <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">リアルタイム関節角度</p>
+          <p className="text-xs font-black text-faint uppercase tracking-widest mb-3">リアルタイム関節角度</p>
           <div className="grid grid-cols-4 gap-2">
             <AngleGauge label="膝"   value={sqState.angles.knee}  ideal={customForm.kneeAngle} />
             <AngleGauge label="股関節" value={sqState.angles.hip}   ideal={customForm.hipAngle} />
             <AngleGauge label="体幹傾き" value={sqState.angles.trunk} ideal={customForm.trunkLean} />
             <AngleGauge label="脛"   value={sqState.angles.shin}  ideal={customForm.shinAngle} />
           </div>
-          <p className="text-[9px] text-gray-300 dark:text-gray-600 mt-2 text-right">
+          <p className="text-[9px] text-faint mt-2 text-right">
             Kalmanフィルタ適用済み
           </p>
         </div>
@@ -369,19 +373,19 @@ export default function FormPage() {
       {/* How to use */}
       {!sqState && (
         <div className={`${cardCls} mb-3`}>
-          <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+          <p className="text-xs font-black text-faint uppercase tracking-widest mb-2 flex items-center gap-1.5">
             <Info size={12} />
             使い方
           </p>
-          <ol className="space-y-1.5 text-xs text-gray-600 dark:text-gray-400">
+          <ol className="space-y-1.5 text-xs text-muted">
             <li>1. カメラを起動（横から全身が映るよう設置）</li>
             <li>2. スクワットを行うと自動でレップカウント開始</li>
             <li>3. 各レップ後にフォームスコアとフィードバックが表示されます</li>
             <li>4. 設定ボタン（↑右）でボトムポジションの理想角度をカスタマイズ可能</li>
           </ol>
-          <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-            <p className="text-[10px] text-gray-400 font-semibold mb-1">解析アルゴリズム</p>
-            <p className="text-[10px] text-gray-400">
+          <div className="mt-3 pt-3 border-t border-line">
+            <p className="text-[10px] text-faint font-semibold mb-1">解析アルゴリズム</p>
+            <p className="text-[10px] text-faint">
               Kalmanフィルタ（ノイズ除去）+ 5フェーズ状態機械（IDLE→DESCENDING→BOTTOM→ASCENDING→COMPLETE）+ 関節角度ベースのフォーム評価
             </p>
           </div>
@@ -398,12 +402,12 @@ export default function FormPage() {
       {/* History */}
       {history.length > 1 && (
         <div className={`${cardCls} mb-3`}>
-          <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">過去のレップ</p>
+          <p className="text-xs font-black text-faint uppercase tracking-widest mb-2">過去のレップ</p>
           <div className="flex gap-2 flex-wrap">
             {history.slice(1).map((fb, i) => (
               <div
                 key={i}
-                className={`px-3 py-1.5 rounded-full text-xs font-black ${SCORE_COLOR(fb.score)} bg-gray-50 dark:bg-gray-700`}
+                className={`px-3 py-1.5 rounded-full text-xs font-black ${SCORE_COLOR(fb.score)} bg-surface-2`}
               >
                 {fb.score}点
               </div>
@@ -415,10 +419,10 @@ export default function FormPage() {
       {/* Custom ideal form panel */}
       {showCustom && (
         <div className={`${cardCls} mb-3`}>
-          <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">
+          <p className="text-xs font-black text-faint uppercase tracking-widest mb-3">
             理想フォームのカスタマイズ
           </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+          <p className="text-xs text-faint mb-3">
             プロの動画をMediaPipeで解析した数値、または自身のベストフォームの角度を入力してください
           </p>
           {(
@@ -430,7 +434,7 @@ export default function FormPage() {
             ] as const
           ).map(({ label, key }) => (
             <div key={key} className="mb-3">
-              <p className="text-xs font-bold text-gray-500 mb-1.5">{label}</p>
+              <p className="text-xs font-bold text-faint mb-1.5">{label}</p>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
@@ -439,9 +443,9 @@ export default function FormPage() {
                     ...prev,
                     [key]: { ...prev[key], min: Number(e.target.value) },
                   }))}
-                  className="w-20 px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center"
+                  className="w-20 px-2 py-1.5 text-sm border border-line-strong rounded-xl bg-surface-2 text-center"
                 />
-                <span className="text-xs text-gray-400">〜</span>
+                <span className="text-xs text-faint">〜</span>
                 <input
                   type="number"
                   value={customForm[key].max}
@@ -449,15 +453,15 @@ export default function FormPage() {
                     ...prev,
                     [key]: { ...prev[key], max: Number(e.target.value) },
                   }))}
-                  className="w-20 px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center"
+                  className="w-20 px-2 py-1.5 text-sm border border-line-strong rounded-xl bg-surface-2 text-center"
                 />
-                <span className="text-xs text-gray-400">°</span>
+                <span className="text-xs text-faint">°</span>
               </div>
             </div>
           ))}
           <button
             onClick={applyCustomForm}
-            className="w-full py-2.5 rounded-2xl text-sm font-bold bg-violet-500 text-white hover:bg-violet-600 transition-colors"
+            className="w-full py-2.5 rounded-2xl text-sm font-bold bg-violet-600 text-white hover:bg-violet-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-violet-500"
           >
             適用する
           </button>
