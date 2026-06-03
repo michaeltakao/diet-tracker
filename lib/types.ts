@@ -118,11 +118,28 @@ export interface MedLogEntry {
 
 // ── Personalized Recommendations (LLM output) ─────────────────
 
+/**
+ * A deterministic safety annotation attached to a recommendation, derived
+ * from the static condition/medication rules — NOT from the LLM. `info` and
+ * `caution` notes annotate; `contraindicated` notes cause the item to be
+ * dropped before it ever reaches the user.
+ */
+export type SafetySeverity = 'contraindicated' | 'caution' | 'info';
+
+export interface SafetyNote {
+  severity: SafetySeverity;
+  message:  string;
+  source:   'condition' | 'medication';
+  ref:      string;   // the triggering condition/medication, e.g. 'ワーファリン'
+}
+
 export interface RecommendedFood {
   name:           string;
   reason:         string;
   calories:       number;
-  macroHighlight: string;   // e.g. "高タンパク・低脂質"
+  macroHighlight: string;        // e.g. "高タンパク・低脂質"
+  macroFit?:      string;        // e.g. "残りタンパク質28gを補える" — content-based fit explanation
+  safetyNotes?:   SafetyNote[];  // deterministic caution flags (contraindicated items are removed, not flagged)
 }
 
 export interface RecommendedExercise {
@@ -133,11 +150,12 @@ export interface RecommendedExercise {
 }
 
 export interface Recommendation {
-  foods:          RecommendedFood[];
-  exercises:      RecommendedExercise[];
-  warnings:       string[];
-  adjustedMacros: DailyGoals | null;
-  generatedAt:    string;              // ISO
+  foods:            RecommendedFood[];
+  exercises:        RecommendedExercise[];
+  warnings:         string[];            // deterministically guaranteed: static rules merged with LLM warnings
+  adjustedMacros:   DailyGoals | null;   // clamped to condition caps (e.g. CKD protein ≤ 0.8 g/kg)
+  macroCapsApplied?: string[];           // human-readable record of any caps applied during clamping
+  generatedAt:      string;              // ISO
 }
 
 // ── Weekly Report (AI-generated, cached in DB) ────────────────

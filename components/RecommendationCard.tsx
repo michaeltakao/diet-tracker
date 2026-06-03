@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Sparkles, RefreshCw, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
-import { getAppData, getHealthProfile, getWaterForDate, getStreak } from '@/lib/data';
+import { getAppData, getHealthProfile, getWaterForDate, getStreak, getLatestWeightEntry } from '@/lib/data';
 import { postJson } from '@/lib/httpClient';
 import { useProfile } from '@/contexts/ProfileContext';
 import type { Recommendation } from '@/lib/types';
@@ -88,6 +88,7 @@ export default function RecommendationCard() {
         recentFoodLog,
         recentWorkoutLog,
         streak,
+        weightKg:         getLatestWeightEntry()?.weight ?? null,
       });
       setRec(data);
     } catch (err) {
@@ -207,6 +208,20 @@ export default function RecommendationCard() {
             </div>
           )}
 
+          {/* Macro caps applied (deterministic safety clamp) */}
+          {rec.macroCapsApplied && rec.macroCapsApplied.length > 0 && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl px-3 py-2.5">
+              <p className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-widest mb-1">
+                🛡️ 安全のため目標値を制限
+              </p>
+              {rec.macroCapsApplied.map((cap, i) => (
+                <p key={i} className="text-xs text-red-700 dark:text-red-300 leading-relaxed">
+                  {cap}
+                </p>
+              ))}
+            </div>
+          )}
+
           {/* Foods */}
           <div>
             <p className="text-[10px] font-black text-faint uppercase tracking-widest mb-2">
@@ -233,9 +248,26 @@ export default function RecommendationCard() {
                     <p className="text-[10px] text-faint leading-relaxed">
                       {food.reason}
                     </p>
-                    <span className="inline-block mt-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full">
-                      {food.macroHighlight}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-1 mt-1">
+                      <span className="inline-block text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full">
+                        {food.macroHighlight}
+                      </span>
+                      {food.macroFit && (
+                        <span className="inline-block text-[9px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded-full">
+                          🎯 {food.macroFit}
+                        </span>
+                      )}
+                    </div>
+                    {food.safetyNotes && food.safetyNotes.length > 0 && (
+                      <div className="mt-1 space-y-0.5">
+                        {food.safetyNotes.map((note, j) => (
+                          <p key={j} className="text-[9px] text-amber-700 dark:text-amber-300 leading-relaxed flex items-start gap-1">
+                            <AlertTriangle size={9} className="text-warning flex-shrink-0 mt-0.5" aria-hidden="true" />
+                            <span>{note.message}</span>
+                          </p>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -300,6 +332,9 @@ export default function RecommendationCard() {
             </div>
           )}
 
+          <p className="text-[9px] text-faint leading-relaxed">
+            ※ 本推薦は情報提供であり、医療上の判断は主治医・薬剤師にご相談ください。
+          </p>
           <p className="text-[9px] text-faint text-right">
             生成: {new Date(rec.generatedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
           </p>

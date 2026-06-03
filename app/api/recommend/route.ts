@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { getServerUser } from '@/lib/supabase-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
-import type { UserHealthProfile, DailyGoals } from '@/lib/types';
+import { buildSafetyReport, filterRecommendation } from '@/lib/recommend-safety';
+import type { UserHealthProfile, DailyGoals, Recommendation } from '@/lib/types';
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -18,6 +19,7 @@ interface RecommendRequest {
   recentFoodLog:    Array<{ date: string; name: string; calories: number; mealType: string }>;
   recentWorkoutLog: Array<{ date: string; name: string; category: string }>;
   streak:           number;
+  weightKg?:        number | null;   // latest logged weight, for condition-based macro caps
 }
 
 const FITNESS_GOAL_LABELS: Record<string, string> = {
@@ -46,7 +48,8 @@ Respond ONLY in JSON with this exact structure (no markdown, no code block):
       "name": "food name in Japanese",
       "reason": "one sentence, health-condition-aware",
       "calories": approximate_kcal_as_number,
-      "macroHighlight": "short label e.g. 高タンパク・低脂質"
+      "macroHighlight": "short label e.g. 高タンパク・低脂質",
+      "macroFit": "short label tying it to the remaining macro budget, e.g. 残りタンパク質を補える"
     }
   ],
   "exercises": [
@@ -68,6 +71,7 @@ Respond ONLY in JSON with this exact structure (no markdown, no code block):
 }
 
 Rules:
+- SAFETY (highest priority): NEVER recommend any food listed under 禁忌 in the 【安全制約】 section, and never exceed any limit stated there. A deterministic safety filter will reject violations, so comply exactly.
 - foods: 3-5 specific food recommendations covering the user's remaining macro budget
 - exercises: 2-3 recommendations appropriate for their activity level and fitness goal
 - warnings: only if health conditions require dietary caution; empty array [] if no relevant conditions
@@ -96,6 +100,11 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     const body = await request.json() as RecommendRequest;
     const { profile, goals, today } = body;
+    const weightKg = body.weightKg ?? null;
+
+    // Deterministic safety context: injected into the prompt (defense at source)
+    // and re-applied to the LLM output below (defense-in-depth).
+    const safety = buildSafetyReport(profile, weightKg);
 
     const remainingCalories = goals.calories - body.todayCalories;
     const remainingProtein  = goals.protein  - body.todayProtein;
@@ -109,6 +118,10 @@ export async function POST(request: Request): Promise<NextResponse> {
 - 食事制限: ${profile.dietaryRestrictions.length > 0 ? profile.dietaryRestrictions.join('、') : 'なし'}
 - フィットネス目標: ${FITNESS_GOAL_LABELS[profile.fitnessGoal] ?? profile.fitnessGoal}
 - 活動レベル: ${ACTIVITY_LABELS[profile.activityLevel] ?? profile.activityLevel}
+${weightKg != null ? `- 体重: ${weightKg}kg` : ''}
+
+【安全制約（必ず遵守）】
+${safety.promptInjection || '特記事項なし'}
 
 【今日の目標値】
 - カロリー目標: ${goals.calories}kcal / タンパク質: ${goals.protein}g / 脂質: ${goals.fat}g / 炭水化物: ${goals.carbs}g / 水分: ${goals.water}ml
@@ -149,8 +162,18 @@ ${body.recentWorkoutLog.length > 0
       );
     }
 
-    const parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
-    return NextResponse.json({ ...parsed, generatedAt: new Date().toISOString() });
+    const parsed = JSON.parse(jsonMatch[0]) as Partial<Recommendation>;
+    const rawRec: Recommendation = {
+      foods:          parsed.foods          ?? [],
+      exercises:      parsed.exercises       ?? [],
+      warnings:       parsed.warnings        ?? [],
+      adjustedMacros: parsed.adjustedMacros  ?? null,
+      generatedAt:    new Date().toISOString(),
+    };
+
+    // Safety gate: remove contraindicated foods, clamp macros, guarantee warnings.
+    const safeRec = filterRecommendation(rawRec, profile, weightKg);
+    return NextResponse.json(safeRec);
 
   } catch (error) {
     console.error('[RECOMMEND_API_ERROR]', error);
