@@ -58,6 +58,7 @@ export default function RestTimer() {
   // Fire completion feedback exactly when the countdown reaches zero.
   useEffect(() => {
     if (running && remaining === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- idempotent: stop exactly once when the countdown reaches zero
       setRunning(false);
       if (typeof navigator !== 'undefined') navigator.vibrate?.([200, 100, 200]);
       beep();

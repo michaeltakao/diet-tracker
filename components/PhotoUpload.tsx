@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import { Upload, Camera, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { postJson } from '@/lib/httpClient';
@@ -145,11 +146,16 @@ export default function PhotoUpload({ onAnalysisComplete }: PhotoUploadProps) {
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="relative">
-            <img
+          <div className="relative h-52">
+            {/* Object/data-URL preview: optimizer can't process it, so fill the
+                fixed-height parent and render unoptimized. */}
+            <Image
               src={preview}
               alt="Food preview"
-              className="w-full h-52 object-cover rounded-2xl"
+              fill
+              unoptimized
+              sizes="100vw"
+              className="object-cover rounded-2xl"
             />
             <button
               onClick={reset}

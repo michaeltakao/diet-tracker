@@ -546,6 +546,7 @@ export default function PlanPage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount/date change
     reload();
     const saved = getCheckIn(today);
     if (saved) setCheckIn(saved);
@@ -622,6 +623,7 @@ export default function PlanPage() {
   // Auto-fetch suggestion when check-in is already saved
   useEffect(() => {
     const saved = getCheckIn(today);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot auto-fetch when a saved check-in already exists
     if (saved?.mood && saved?.energy) fetchSuggestion(saved);
   }, [today, fetchSuggestion]);
 
@@ -642,7 +644,7 @@ export default function PlanPage() {
   const handleDuplicate = (prog: TrainingProgram) => {
     const copy: TrainingProgram = {
       ...prog,
-      id: Math.random().toString(36).slice(2, 10),
+      id: crypto.randomUUID(),
       name: prog.name + (lang === 'en' ? ' (Copy)' : ' (コピー)'),
       isActive: false,
       createdAt: new Date().toISOString(),

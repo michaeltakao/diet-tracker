@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogIn, LogOut, CheckCircle, Cloud, Brain, RefreshCw, Mail, X } from 'lucide-react';
+import { LogOut, CheckCircle, Cloud, Brain, RefreshCw, Mail, X } from 'lucide-react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { isSupabaseConfigured } from '@/lib/supabase';
 

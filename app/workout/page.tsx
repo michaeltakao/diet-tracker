@@ -184,6 +184,7 @@ export default function WorkoutPage() {
     setWorkoutWarnings(getWorkoutWarnings(profile.healthConditions, profile.medications ?? []));
   }, [today]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
   useEffect(() => { loadData(); }, [loadData]);
 
   useEffect(() => {

@@ -161,6 +161,7 @@ export default function LogPage() {
     setGoals(data.goals);
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
   useEffect(() => { loadData(); }, [loadData]);
 
   const anchorDate = new Date();

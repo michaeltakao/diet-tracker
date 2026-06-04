@@ -44,6 +44,7 @@ export default function CalorieContextBar() {
   const [snap, setSnap] = useState<Snapshot>(ZERO);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only snapshot read on mount; re-reads on focus/route change
     setSnap(readSnapshot());
     const onFocus = () => setSnap(readSnapshot());
     window.addEventListener('focus', onFocus);

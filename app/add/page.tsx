@@ -77,6 +77,7 @@ export default function AddPage() {
   const [speedToast, setSpeedToast]         = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
     setRecentFoods(getRecentFoods(6));
     const profile = getHealthProfile();
     setNutritionWarnings(getNutritionWarnings(profile.healthConditions, profile.medications ?? []));
@@ -85,6 +86,7 @@ export default function AddPage() {
 
   // Auto-refresh time when tab changes to manual so it's fresh
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh the timestamp when the user switches to manual entry
     if (tab === 'manual') setLogTime(getCurrentTime());
   }, [tab]);
 

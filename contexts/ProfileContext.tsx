@@ -113,15 +113,19 @@ const ProfileContext = createContext<ProfileContextType>({
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
+  // Env-derived and identical on server and client, so it is safe to seed state.
+  const supabaseEnabled = isSupabaseConfigured();
+
   const [user,             setUser]             = useState<User | null>(null);
   const [profile,          setProfile]          = useState<ProfileRow | null>(null);
-  const [isLoading,        setIsLoading]        = useState(true);
+  // We only "load" when a backend exists to resolve a session against; in guest
+  // mode there is nothing to await, so start resolved (avoids a setState in the
+  // mount effect and a spurious loading flash).
+  const [isLoading,        setIsLoading]        = useState(supabaseEnabled);
   const [migrationStatus,  setMigrationStatus]  = useState<MigrationStatus>('idle');
   const [migrationSummary, setMigrationSummary] = useState<MigrationSummary | null>(null);
   // Prevents double-trigger on INITIAL_SESSION + getUser() both firing on mount
   const migrationTriggeredRef = useRef(false);
-
-  const supabaseEnabled = isSupabaseConfigured();
 
   // ── Fetch profile row from DB ──────────────────────────────────────────────
 
@@ -189,10 +193,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   // ── Initial auth check + subscription ──────────────────────────────────────
 
   useEffect(() => {
-    if (!supabaseEnabled) {
-      setIsLoading(false);
-      return;
-    }
+    // Guest mode: isLoading was seeded false, so there is nothing to do here.
+    if (!supabaseEnabled) return;
 
     const supabase = createClient();
 

@@ -85,6 +85,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const data = getAppData();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
     setForm({
       calories:   String(data.goals.calories),
       protein:    String(data.goals.protein),

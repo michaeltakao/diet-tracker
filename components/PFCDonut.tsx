@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useMounted } from '@/lib/use-mounted';
 
 interface PFCDonutProps {
   protein: number;
@@ -25,8 +25,7 @@ export default function PFCDonut({ protein, fat, carbs, goalProtein, goalFat, go
 
   // Prevent recharts ResponsiveContainer from measuring during SSG
   // (getBoundingClientRect returns -1 width/height in jsdom → console warning)
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
   const totalCalories = Math.round(protein * 4 + fat * 9 + carbs * 4);
   const goalCalories  = Math.round(goalProtein * 4 + goalFat * 9 + goalCarbs * 4);
   const hasData = protein > 0 || fat > 0 || carbs > 0;

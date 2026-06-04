@@ -6,7 +6,7 @@
  * toggle in 筋トレMEMO.
  */
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 export type WeightUnit = 'kg' | 'lbs';
 
@@ -55,29 +55,33 @@ export function getStoredUnit(): WeightUnit {
   return localStorage.getItem(UNIT_STORAGE_KEY) === 'lbs' ? 'lbs' : 'kg';
 }
 
+/** Subscribe to cross-tab (`storage`) and same-tab (custom event) unit changes. */
+function subscribeUnit(onChange: () => void): () => void {
+  window.addEventListener('storage', onChange);
+  window.addEventListener('diet-tracker:unit-change', onChange);
+  return () => {
+    window.removeEventListener('storage', onChange);
+    window.removeEventListener('diet-tracker:unit-change', onChange);
+  };
+}
+
+/** Server snapshot — storage is unavailable during SSR, so default to kg. */
+const getServerUnit = (): WeightUnit => 'kg';
+
 /**
  * React hook for the weight-unit preference.
  *
- * Reads from localStorage on mount and stays in sync across tabs/components
- * via the `storage` event and a same-tab custom event dispatched by setUnit.
+ * Backed by `useSyncExternalStore`: the snapshot reads localStorage and stays in
+ * sync across tabs/components via the `storage` event and a same-tab custom event
+ * dispatched by setUnit. SSR/first-hydration render resolves to 'kg' to avoid a
+ * hydration mismatch, then re-reads the stored preference on the client.
  */
 export function useWeightUnit(): { unit: WeightUnit; setUnit: (u: WeightUnit) => void } {
-  const [unit, setUnitState] = useState<WeightUnit>('kg');
-
-  useEffect(() => {
-    setUnitState(getStoredUnit());
-    const sync = () => setUnitState(getStoredUnit());
-    window.addEventListener('storage', sync);
-    window.addEventListener('diet-tracker:unit-change', sync);
-    return () => {
-      window.removeEventListener('storage', sync);
-      window.removeEventListener('diet-tracker:unit-change', sync);
-    };
-  }, []);
+  const unit = useSyncExternalStore(subscribeUnit, getStoredUnit, getServerUnit);
 
   const setUnit = (u: WeightUnit) => {
     localStorage.setItem(UNIT_STORAGE_KEY, u);
-    setUnitState(u);
+    // Notify this tab's subscribers; the `storage` event covers other tabs.
     window.dispatchEvent(new Event('diet-tracker:unit-change'));
   };
 

@@ -53,6 +53,7 @@ export default function HomePage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
     loadData();
     void checkAndAwardBadges(getTodayDate()).then(newBadges => {
       if (newBadges.length > 0) setCelebrationBadges(newBadges);

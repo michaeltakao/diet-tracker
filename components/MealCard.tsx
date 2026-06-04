@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Trash2, Pencil, Check, X } from 'lucide-react';
 import { FoodEntry } from '@/lib/types';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -166,9 +167,14 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
       transition-all duration-200
     ">
       {entry.photoDataUrl && (
-        <img
+        // Data-URL photo: the Next image optimizer cannot process data: URLs, so
+        // we render it unoptimized at its fixed 64×64 (w-16 h-16) display size.
+        <Image
           src={entry.photoDataUrl}
           alt={entry.name}
+          width={64}
+          height={64}
+          unoptimized
           className="w-16 h-16 rounded-xl object-cover flex-shrink-0 shadow-sm"
         />
       )}

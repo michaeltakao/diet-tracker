@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Droplets } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useMounted } from '@/lib/use-mounted';
 
 interface WaterTrackerProps {
   current: number; // ml
@@ -15,8 +16,7 @@ const GLASS_ML = 200;
 export default function WaterTracker({ current, goal, onAdd }: WaterTrackerProps) {
   const { t } = useLanguage();
   const [customMl, setCustomMl] = useState('');
-  const [mounted,  setMounted]  = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
 
   const handleCustomAdd = () => {
     const ml = parseInt(customMl, 10);

@@ -23,6 +23,7 @@ export default function MedsPage() {
 
   useEffect(() => {
     const profile = getHealthProfile();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
     setMedications(profile.medications ?? []);
     setHealthConditions(profile.healthConditions ?? []);
     const todayLog = getTodayMedLog();

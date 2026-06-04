@@ -32,6 +32,7 @@ export default function WeightPage() {
     setGoalWeightState(data.goals.goalWeight);
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
   useEffect(() => { load(); }, []);
 
   const handleAdd = () => {

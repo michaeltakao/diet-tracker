@@ -39,6 +39,7 @@ export default function PwaInstallBanner() {
     if (localStorage.getItem(DISMISS_KEY)) return;
 
     const p = detectPlatform();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only platform detection on mount (needs navigator)
     setPlatform(p);
 
     // Chrome / Edge / Android: listen for install prompt
