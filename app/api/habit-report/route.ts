@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import { getServerUser } from '@/lib/supabase-server';
+import { resolveClientId, accessGateBlocked } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
 const apiKey = process.env.GEMINI_API_KEY;
@@ -44,12 +44,10 @@ Analyze the user's 7-day behavioral data and return ONLY valid JSON (no markdown
 Be warm, encouraging, and precise. Reference actual numbers from the data.`;
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const user = await getServerUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const gate = accessGateBlocked(request);
+  if (gate) return gate;
 
-  const rl = checkRateLimit(user.id, 'habit-report', RATE_LIMITS['habit-report']);
+  const rl = checkRateLimit(await resolveClientId(request), 'habit-report', RATE_LIMITS['habit-report']);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Please wait before retrying.' },

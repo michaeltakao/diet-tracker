@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import { getServerUser } from '@/lib/supabase-server';
+import { resolveClientId, accessGateBlocked } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildHealthContextPrompt } from '@/lib/medication-rules';
 import { runParallelAgents } from '@/lib/parallel-agents';
@@ -36,12 +36,10 @@ interface WeeklyReportRequest {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const user = await getServerUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const gate = accessGateBlocked(request);
+  if (gate) return gate;
 
-  const rl = checkRateLimit(user.id, 'weekly-report', RATE_LIMITS['weekly-report']);
+  const rl = checkRateLimit(await resolveClientId(request), 'weekly-report', RATE_LIMITS['weekly-report']);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Please wait before retrying.' },

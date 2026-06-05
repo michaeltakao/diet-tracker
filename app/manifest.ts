@@ -14,19 +14,19 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ['health', 'fitness', 'food'],
     icons: [
       {
-        src: '/icon.png',
+        src: '/icon',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/icon.png',
+        src: '/icon',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable',
       },
       {
-        src: '/apple-icon.png',
+        src: '/apple-icon',
         sizes: '180x180',
         type: 'image/png',
       },
@@ -38,14 +38,14 @@ export default function manifest(): MetadataRoute.Manifest {
         short_name: '追加',
         description: '今日の食事をすばやく追加する',
         url: '/add',
-        icons: [{ src: '/icon.png', sizes: '96x96' }],
+        icons: [{ src: '/icon', sizes: '96x96' }],
       },
       {
         name: '体重を記録',
         short_name: '体重',
         description: '今日の体重を記録する',
         url: '/weight',
-        icons: [{ src: '/icon.png', sizes: '96x96' }],
+        icons: [{ src: '/icon', sizes: '96x96' }],
       },
     ],
   };
