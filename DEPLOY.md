@@ -20,8 +20,14 @@ Gemini key.
 | Variable | Required? | Purpose |
 | --- | --- | --- |
 | `GEMINI_API_KEY` | **Yes** | All AI routes. Server-side only — do **not** prefix with `NEXT_PUBLIC_`. |
-| `APP_ACCESS_CODE` | Recommended (public, no-login) | When set, AI routes require it. The app prompts once and stores it locally. Unset = no gate. |
+| `APP_ACCESS_CODE` | **One of these two** in production | Shared secret. When set, anonymous AI calls must send a matching `x-access-code` header (the app prompts once and stores it). Logged-in users bypass it. |
+| `ALLOW_ANONYMOUS` | **One of these two** in production | Set to `true` for fully open guest access (rate-limited by IP only). Use only for throwaway/private URLs. |
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` | Optional | Enable login + cloud sync. Omit to stay in guest mode. |
+
+> **Fail-closed default:** in production the AI routes reject anonymous callers
+> (HTTP 503) unless `APP_ACCESS_CODE` or `ALLOW_ANONYMOUS=true` is set — so you
+> can't accidentally ship an open, paid endpoint. Local `next dev` is unaffected.
+> Prefer `APP_ACCESS_CODE` for any URL that might be shared.
 
 ## Option A — Vercel dashboard (recommended)
 
@@ -31,7 +37,8 @@ Gemini key.
    PR #5 into `main` first and deploy `main`).
 4. **Environment Variables** → add:
    - `GEMINI_API_KEY` = your key
-   - `APP_ACCESS_CODE` = a long random string (recommended for a public URL)
+   - `APP_ACCESS_CODE` = a long random string (recommended) **or** `ALLOW_ANONYMOUS=true`
+     (required in production — without one of them the AI routes return 503)
 5. **Deploy**. You get an HTTPS URL like `https://diet-tracker-xxxx.vercel.app`.
 
 ## Option B — Vercel CLI

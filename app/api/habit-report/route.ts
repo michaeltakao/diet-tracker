@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import { resolveClientId, accessGateBlocked } from '@/lib/api-guard';
+import { guardAiRoute } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
 const apiKey = process.env.GEMINI_API_KEY;
@@ -44,10 +44,10 @@ Analyze the user's 7-day behavioral data and return ONLY valid JSON (no markdown
 Be warm, encouraging, and precise. Reference actual numbers from the data.`;
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const gate = accessGateBlocked(request);
-  if (gate) return gate;
+  const guard = await guardAiRoute(request);
+  if ('blocked' in guard) return guard.blocked;
 
-  const rl = checkRateLimit(await resolveClientId(request), 'habit-report', RATE_LIMITS['habit-report']);
+  const rl = checkRateLimit(guard.clientId, 'habit-report', RATE_LIMITS['habit-report']);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Please wait before retrying.' },

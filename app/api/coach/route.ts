@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import { resolveClientId, accessGateBlocked } from '@/lib/api-guard';
+import { guardAiRoute } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildHealthContextPrompt } from '@/lib/medication-rules';
 
@@ -42,10 +42,10 @@ Be specific and personalized. Reference actual numbers from the data. Keep it wa
 Do not include markdown code block formatting. Return only raw JSON.`;
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const gate = accessGateBlocked(request);
-  if (gate) return gate;
+  const guard = await guardAiRoute(request);
+  if ('blocked' in guard) return guard.blocked;
 
-  const rl = checkRateLimit(await resolveClientId(request), 'coach', RATE_LIMITS['coach']);
+  const rl = checkRateLimit(guard.clientId, 'coach', RATE_LIMITS['coach']);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Please wait before retrying.' },

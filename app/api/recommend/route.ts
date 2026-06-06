@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import { resolveClientId, accessGateBlocked } from '@/lib/api-guard';
+import { guardAiRoute } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildSafetyReport, filterRecommendation } from '@/lib/recommend-safety';
 import type { UserHealthProfile, DailyGoals, Recommendation } from '@/lib/types';
@@ -80,10 +80,10 @@ Rules:
 - Return only raw JSON, no extra text`;
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const gate = accessGateBlocked(request);
-  if (gate) return gate;
+  const guard = await guardAiRoute(request);
+  if ('blocked' in guard) return guard.blocked;
 
-  const rl = checkRateLimit(await resolveClientId(request), 'recommend', RATE_LIMITS['recommend']);
+  const rl = checkRateLimit(guard.clientId, 'recommend', RATE_LIMITS['recommend']);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Please wait before retrying.' },

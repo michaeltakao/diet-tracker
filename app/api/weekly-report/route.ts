@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import { resolveClientId, accessGateBlocked } from '@/lib/api-guard';
+import { guardAiRoute } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildHealthContextPrompt } from '@/lib/medication-rules';
 import { runParallelAgents } from '@/lib/parallel-agents';
@@ -36,10 +36,10 @@ interface WeeklyReportRequest {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const gate = accessGateBlocked(request);
-  if (gate) return gate;
+  const guard = await guardAiRoute(request);
+  if ('blocked' in guard) return guard.blocked;
 
-  const rl = checkRateLimit(await resolveClientId(request), 'weekly-report', RATE_LIMITS['weekly-report']);
+  const rl = checkRateLimit(guard.clientId, 'weekly-report', RATE_LIMITS['weekly-report']);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Please wait before retrying.' },
