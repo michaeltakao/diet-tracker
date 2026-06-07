@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { generateWithRetry } from '@/lib/gemini';
 import { getServerUser, createServerSupabase } from '@/lib/supabase-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildHealthContextPrompt } from '@/lib/medication-rules';
@@ -235,7 +236,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   // ── Call Gemini ─────────────────────────────────────────────────────────────
 
   const ai = new GoogleGenAI({ apiKey });
-  const result = await ai.models.generateContent({
+  const result = await generateWithRetry(ai, {
     model: 'gemini-2.5-flash',
     config: { systemInstruction: SYSTEM_PROMPT, temperature: 0.7 },
     contents: [{ role: 'user', parts: [{ text: userMessage }] }],

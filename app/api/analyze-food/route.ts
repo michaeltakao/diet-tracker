@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { generateWithRetry } from '@/lib/gemini';
 import { guardAiRoute } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
@@ -76,7 +77,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     // Strip data URL prefix if present (e.g. "data:image/jpeg;base64,")
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: 'gemini-2.5-flash',
       contents: [
         {

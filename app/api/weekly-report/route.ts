@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { generateWithRetry } from '@/lib/gemini';
 import { guardAiRoute } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildHealthContextPrompt } from '@/lib/medication-rules';
@@ -167,7 +168,7 @@ ${resultMap['goal'] ?? '（提案なし）'}
   "nextWeekGoal": "数値目標を含む、達成可能な来週の目標"
 }`;
 
-    const orchestratorResponse = await ai.models.generateContent({
+    const orchestratorResponse = await generateWithRetry(ai, {
       model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: orchestratorPrompt }] }],
     });
