@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Sparkles, BarChart3 } from 'lucide-react';
-import { getAppData, removeFoodEntry } from '@/lib/data';
+import { getAppData, removeFoodEntry, updateFoodEntry } from '@/lib/data';
 import { FoodEntry, DailyGoals } from '@/lib/types';
 import MealCard from '@/components/MealCard';
 import CalorieBar from '@/components/CalorieBar';
+import WeeklyReportCard from '@/components/WeeklyReportCard';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -22,17 +23,19 @@ function getWeekDates(anchor: Date): string[] {
   });
 }
 
-function formatShort(dateStr: string): { day: string; num: string } {
-  const d = new Date(dateStr + 'T00:00:00');
-  return {
-    day: d.toLocaleDateString('en-US', { weekday: 'short' }),
-    num: String(d.getDate()),
-  };
+import { fmtCalendarCell, fmtMonthDayDowLongJa, fmtLongEn } from '@/lib/format-date';
+import { postJson, HttpError } from '@/lib/httpClient';
+
+function formatShort(dateStr: string, locale: string): { day: string; num: string } {
+  if (locale !== 'ja-JP') {
+    const d = new Date(dateStr + 'T00:00:00');
+    return { day: ['Su','Mo','Tu','We','Th','Fr','Sa'][d.getDay()], num: String(d.getDate()) };
+  }
+  return fmtCalendarCell(dateStr);
 }
 
-function formatFull(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+function formatFull(dateStr: string, locale: string): string {
+  return locale === 'ja-JP' ? fmtMonthDayDowLongJa(dateStr) : fmtLongEn(dateStr);
 }
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
@@ -139,7 +142,8 @@ interface HabitReport {
 }
 
 export default function LogPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = lang === 'ja' ? 'ja-JP' : 'en-US';
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
   const [weekOffset, setWeekOffset]     = useState(0);
   const [allEntries, setAllEntries]     = useState<FoodEntry[]>([]);
@@ -168,7 +172,8 @@ export default function LogPage() {
   const getCaloriesForDate = (date: string) =>
     allEntries.filter((e) => e.date === date).reduce((sum, e) => sum + e.calories, 0);
 
-  const handleDelete = (id: string) => { removeFoodEntry(id); loadData(); };
+  const handleDelete = (id: string) => { void removeFoodEntry(id); loadData(); };
+  const handleEdit   = (updated: FoodEntry) => { void updateFoodEntry(updated); loadData(); };
 
   const totals = selectedEntries.reduce(
     (acc, e) => ({ calories: acc.calories + e.calories, protein: acc.protein + e.protein, fat: acc.fat + e.fat, carbs: acc.carbs + e.carbs }),
@@ -204,31 +209,25 @@ export default function LogPage() {
         return;
       }
 
-      const res = await fetch('/api/habit-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          daysWithData,
-          totalDays: 7,
-          avgDailyCalories,
-          calorieGoal: data.goals.calories,
-          lateNightEatingDays,
-          noBreakfastDays,
-          avgBreakfastHour,
-          workoutDays,
-          missedPostWorkoutDays,
-          streak: 0, // could import getStreak() here if needed
-          dailySummary: matrix,
-        }),
+      const report = await postJson<HabitReport>('/api/habit-report', {
+        daysWithData,
+        totalDays: 7,
+        avgDailyCalories,
+        calorieGoal: data.goals.calories,
+        lateNightEatingDays,
+        noBreakfastDays,
+        avgBreakfastHour,
+        workoutDays,
+        missedPostWorkoutDays,
+        streak: 0, // could import getStreak() here if needed
+        dailySummary: matrix,
       });
-
-      if (res.status === 422) { setHabitInsuff(true); return; }
-      if (!res.ok) {
-        const err = await res.json() as { error: string };
-        throw new Error(err.error);
-      }
-      setHabitReport(await res.json() as HabitReport);
+      setHabitReport(report);
     } catch (err) {
+      if (err instanceof HttpError && err.status === 422) {
+        setHabitInsuff(true);
+        return;
+      }
       setHabitError(err instanceof Error ? err.message : 'エラーが発生しました');
     } finally {
       setHabitLoading(false);
@@ -238,7 +237,7 @@ export default function LogPage() {
   const cardCls = 'bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-gray-50 dark:border-gray-700';
 
   return (
-    <div className="max-w-md mx-auto pb-28 px-4 bg-[var(--background)] min-h-screen">
+    <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
       {/* ── Header ─────────────────────────────── */}
       <div className="pt-6 pb-4">
         <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
@@ -268,7 +267,7 @@ export default function LogPage() {
 
         <div className="flex gap-1">
           {weekDates.map((date) => {
-            const { day, num } = formatShort(date);
+            const { day, num } = formatShort(date, locale);
             const isSelected = date === selectedDate;
             const isToday    = date === today;
             const cals = getCaloriesForDate(date);
@@ -302,7 +301,7 @@ export default function LogPage() {
 
       {/* ── Selected day summary ─────────────────── */}
       <div className={`${cardCls} p-4 mb-3`}>
-        <p className="text-xs font-medium text-gray-400 dark:text-gray-500 mb-3">{formatFull(selectedDate)}</p>
+        <p className="text-xs font-medium text-gray-400 dark:text-gray-500 mb-3">{formatFull(selectedDate, locale)}</p>
         <CalorieBar current={totals.calories} goal={goals.calories} />
         <div className="flex gap-3 mt-3 text-xs font-semibold">
           <span className="text-emerald-600 dark:text-emerald-400">P {totals.protein}g</span>
@@ -329,7 +328,7 @@ export default function LogPage() {
                 </h3>
                 <div className="space-y-2">
                   {typeEntries.map((entry) => (
-                    <MealCard key={entry.id} entry={entry} onDelete={handleDelete} />
+                    <MealCard key={entry.id} entry={entry} onDelete={handleDelete} onEdit={handleEdit} />
                   ))}
                 </div>
               </div>
@@ -337,6 +336,9 @@ export default function LogPage() {
           })}
         </div>
       )}
+
+      {/* ── Weekly Report ────────────────────────── */}
+      <WeeklyReportCard />
 
       {/* ── AI Habit Analytics Widget ─────────────── */}
       <section className={`${cardCls} p-4`}>

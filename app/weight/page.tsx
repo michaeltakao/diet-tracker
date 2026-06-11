@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Scale, Plus, Trash2, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import {
   addWeightEntry, getWeightEntries, removeWeightEntry, getAppData,
@@ -12,9 +13,10 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 function getTodayDate() { return new Date().toISOString().split('T')[0]; }
 
+import { fmtShortJa } from '@/lib/format-date';
+
 function formatDateShort(dateStr: string) {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' });
+  return fmtShortJa(dateStr);
 }
 
 export default function WeightPage() {
@@ -52,12 +54,14 @@ export default function WeightPage() {
   const latest     = entries.at(-1);
   const previous   = entries.at(-2);
   const diff       = latest && previous ? +(latest.weight - previous.weight).toFixed(1) : null;
-  const toGoal     = latest && goalWeight ? +(latest.weight - goalWeight).toFixed(1) : null;
+  const toGoal     = latest && goalWeight != null ? +(latest.weight - goalWeight).toFixed(1) : null;
+  const goalAchieved = toGoal !== null && Math.abs(toGoal) < 0.05;
+  const goalRemaining = toGoal !== null && !goalAchieved ? +Math.abs(toGoal).toFixed(1) : null;
 
   const cardCls = 'bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-gray-50 dark:border-gray-700';
 
   return (
-    <div className="max-w-md mx-auto pb-28 px-4 bg-[var(--background)] min-h-screen">
+    <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
       {/* ── Header ────────────────────────────── */}
       <div className="flex items-center justify-between pt-6 pb-5">
         <div className="flex items-center gap-2.5">
@@ -129,7 +133,7 @@ export default function WeightPage() {
           </div>
           {todayEntry && (
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 font-medium">
-              今日の記録: <span className="font-bold text-indigo-500">{todayEntry.weight} kg</span>（上書きされます）
+              {t.todayEntryLabel} <span className="font-bold text-indigo-500">{todayEntry.weight} kg</span>{t.todayOverwrite}
             </p>
           )}
         </div>
@@ -147,7 +151,7 @@ export default function WeightPage() {
 
           {/* Change from previous */}
           <div className={`${cardCls} p-3 col-span-1 text-center`}>
-            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">前回比</p>
+            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">{t.prevEntry}</p>
             {diff !== null ? (
               <>
                 <div className="flex items-center justify-center gap-0.5">
@@ -169,16 +173,16 @@ export default function WeightPage() {
 
           {/* To goal */}
           <div className={`${cardCls} p-3 col-span-1 text-center`}>
-            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">目標まで</p>
+            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">{t.toGoalLabel}</p>
             {toGoal !== null ? (
               <>
-                <p className={`text-xl font-black tabular-nums leading-tight ${toGoal <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                  {toGoal <= 0 ? '✓' : `${toGoal}`}
+                <p className={`text-xl font-black tabular-nums leading-tight ${goalAchieved ? 'text-emerald-600 dark:text-emerald-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                  {goalAchieved ? '✓' : `${goalRemaining}`}
                 </p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 font-medium">{toGoal > 0 ? 'kg' : '達成！'}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 font-medium">{goalAchieved ? t.goalAchievedLabel : 'kg'}</p>
               </>
             ) : (
-              <p className="text-sm text-gray-300 dark:text-gray-600 font-medium mt-2">未設定</p>
+              <p className="text-sm text-gray-300 dark:text-gray-600 font-medium mt-2">{t.goalNotSet}</p>
             )}
           </div>
         </div>
@@ -192,23 +196,45 @@ export default function WeightPage() {
         </div>
       )}
 
+      {/* ── Goal weight CTA ──────────────────── */}
+      {!goalWeight && (
+        <Link
+          href="/settings"
+          className="
+            flex items-center justify-between
+            rounded-3xl p-4 mb-3
+            bg-gradient-to-r from-indigo-50 to-purple-50
+            dark:from-indigo-900/20 dark:to-purple-900/20
+            border border-indigo-100 dark:border-indigo-800
+            hover:scale-[1.01] active:scale-[0.99]
+            transition-all duration-200
+          "
+        >
+          <div>
+            <p className="text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-0.5">{t.weightGoal}</p>
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t.setGoalDesc}</p>
+          </div>
+          <span className="text-indigo-400 font-black text-lg">→</span>
+        </Link>
+      )}
+
       {/* ── Goal banner ───────────────────────── */}
       {goalWeight && latest && (
         <div className={`
           rounded-3xl p-4 mb-3
-          ${latest.weight <= goalWeight
+          ${goalAchieved
             ? 'bg-gradient-to-r from-emerald-500 to-teal-600 shadow-[0_8px_24px_rgba(34,197,94,0.3)]'
             : 'bg-gradient-to-r from-indigo-500 to-purple-600 shadow-[0_8px_24px_rgba(99,102,241,0.25)]'}
         `}>
           <p className="text-xs font-bold text-white/70 uppercase tracking-widest mb-1">{t.weightGoal}</p>
           <div className="flex items-end justify-between">
             <p className="text-3xl font-black text-white tabular-nums">{goalWeight} <span className="text-lg font-medium">kg</span></p>
-            {latest.weight <= goalWeight ? (
-              <span className="text-white font-black text-lg">🎉 達成！</span>
+            {goalAchieved ? (
+              <span className="text-white font-black text-lg">🎉 {t.goalAchievedLabel}</span>
             ) : (
               <p className="text-right">
-                <span className="text-white/70 text-xs font-medium block">あと</span>
-                <span className="text-white font-black text-xl tabular-nums">{toGoal} kg</span>
+                <span className="text-white/70 text-xs font-medium block">{t.goalRemainingPrefix}</span>
+                <span className="text-white font-black text-xl tabular-nums">{goalRemaining} kg</span>
               </p>
             )}
           </div>
@@ -216,7 +242,7 @@ export default function WeightPage() {
       )}
 
       {/* ── History list ──────────────────────── */}
-      <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 mt-1">記録履歴</h2>
+      <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 mt-1">{t.weightHistory}</h2>
 
       {entries.length === 0 ? (
         <div className={`${cardCls} p-10 text-center`}>

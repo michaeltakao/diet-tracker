@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, PenLine, Clock, Zap } from 'lucide-react';
-import { addFoodEntry, getRecentFoods } from '@/lib/data';
+import { addFoodEntry, getRecentFoods, getHealthProfile } from '@/lib/data';
 import { FoodEntry } from '@/lib/types';
 import PhotoUpload from '@/components/PhotoUpload';
 import BottomNav from '@/components/BottomNav';
+import MedWarning from '@/components/MedWarning';
+import { getNutritionWarnings } from '@/lib/medication-rules';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 type MealType = FoodEntry['mealType'];
@@ -58,6 +60,8 @@ const EMPTY_FORM: FormData = {
   carbs: '',
 };
 
+const SPEED_MODE_KEY = 'diet-tracker:speed-mode';
+
 export default function AddPage() {
   const router = useRouter();
   const { t } = useLanguage();
@@ -67,7 +71,17 @@ export default function AddPage() {
   const [errors, setErrors]                 = useState<Partial<FormData>>({});
   const [logTime, setLogTime]               = useState(getCurrentTime());
   const [quickAddToast, setQuickAddToast]   = useState(false);
-  const recentFoods = getRecentFoods(6);
+  const [recentFoods, setRecentFoods]       = useState<FoodEntry[]>([]);
+  const [nutritionWarnings, setNutritionWarnings] = useState<string[]>([]);
+  const [speedMode, setSpeedMode]           = useState(false);
+  const [speedToast, setSpeedToast]         = useState(false);
+
+  useEffect(() => {
+    setRecentFoods(getRecentFoods(6));
+    const profile = getHealthProfile();
+    setNutritionWarnings(getNutritionWarnings(profile.healthConditions, profile.medications ?? []));
+    setSpeedMode(localStorage.getItem(SPEED_MODE_KEY) === 'true');
+  }, []);
 
   // Auto-refresh time when tab changes to manual so it's fresh
   useEffect(() => {
@@ -101,6 +115,12 @@ export default function AddPage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const toggleSpeedMode = () => {
+    const next = !speedMode;
+    setSpeedMode(next);
+    localStorage.setItem(SPEED_MODE_KEY, String(next));
+  };
+
   const handleSubmit = () => {
     if (!validate()) return;
     const entry: FoodEntry = {
@@ -115,12 +135,19 @@ export default function AddPage() {
       photoDataUrl,
       addedAt: buildTimestamp(getTodayDate(), logTime),
     };
-    addFoodEntry(entry);
-    router.push('/');
+    void addFoodEntry(entry);
+    if (speedMode) {
+      setForm({ ...EMPTY_FORM, mealType: form.mealType });
+      setPhotoDataUrl(undefined);
+      setSpeedToast(true);
+      setTimeout(() => setSpeedToast(false), 1500);
+    } else {
+      router.push('/');
+    }
   };
 
   const handleQuickAdd = (recent: FoodEntry) => {
-    addFoodEntry({
+    void addFoodEntry({
       ...recent,
       id: crypto.randomUUID(),
       date: getTodayDate(),
@@ -128,9 +155,13 @@ export default function AddPage() {
       photoDataUrl: undefined,
       addedAt: buildTimestamp(getTodayDate(), getCurrentTime()),
     });
-    // Show brief toast then go home
+    setRecentFoods(getRecentFoods(6));
     setQuickAddToast(true);
-    setTimeout(() => router.push('/'), 900);
+    if (!speedMode) {
+      setTimeout(() => router.push('/'), 900);
+    } else {
+      setTimeout(() => setQuickAddToast(false), 1200);
+    }
   };
 
   const updateField = (field: keyof FormData, value: string) => {
@@ -148,20 +179,51 @@ export default function AddPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto pb-28 px-4 bg-[var(--background)] min-h-screen">
+    <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
       {/* Quick-add success toast */}
       {quickAddToast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-500 text-white font-bold text-sm px-5 py-3 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap">
+        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-green-500 text-white font-bold text-sm px-5 py-3 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap">
           ✓ {t.quickAddSuccess}
         </div>
       )}
 
+      {/* Speed mode added toast */}
+      {speedToast && (
+        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white font-bold text-sm px-5 py-3 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap">
+          ✓ {t.quickAddSuccess}
+        </div>
+      )}
+
+      {/* ── Med / condition warnings ─────────────── */}
+      {nutritionWarnings.length > 0 && (
+        <div className="pt-4">
+          <MedWarning warnings={nutritionWarnings} type="food" collapseAfter={2} />
+        </div>
+      )}
+
       {/* ── Header ──────────────────────────────── */}
-      <div className="pt-6 pb-3 flex items-center justify-between">
+      <div className="pt-4 pb-3 flex items-center justify-between">
         <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{t.addMeal}</h1>
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 font-medium">
-          <Clock size={12} />
-          <span>{mealTypeLabels[guessMealType()]}</span>
+        <div className="flex items-center gap-2">
+          {/* Speed Mode toggle */}
+          <button
+            onClick={toggleSpeedMode}
+            title={t.speedModeDesc}
+            className={`
+              flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold
+              transition-all duration-200
+              ${speedMode
+                ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-700'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-600'}
+            `}
+          >
+            <Zap size={11} className={speedMode ? 'text-violet-500' : ''} />
+            {t.speedMode}
+          </button>
+          <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 font-medium">
+            <Clock size={12} />
+            <span>{mealTypeLabels[guessMealType()]}</span>
+          </div>
         </div>
       </div>
 

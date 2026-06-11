@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Settings, Flame } from 'lucide-react';
+import { Plus, Settings, Flame, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import {
-  getAppData, removeFoodEntry, addWater, getWaterForDate, getStreak,
-  checkAndAwardBadges, getBadges,
+  getAppData, removeFoodEntry, updateFoodEntry, addWater, getWaterForDate, getStreak,
+  checkAndAwardBadges, getBadges, addFoodEntry,
 } from '@/lib/data';
 import { FoodEntry, DailyGoals, Badge } from '@/lib/types';
 import CalorieBar from '@/components/CalorieBar';
@@ -15,6 +15,7 @@ import MealCard from '@/components/MealCard';
 import WaterTracker from '@/components/WaterTracker';
 import BadgeShelf from '@/components/BadgeShelf';
 import BadgeCelebration from '@/components/BadgeCelebration';
+import RecommendationCard from '@/components/RecommendationCard';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -24,9 +25,10 @@ function getTodayDate(): string {
   return new Date().toISOString().split('T')[0];
 }
 
+import { fmtMonthDayDowShortJa } from '@/lib/format-date';
+
 function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
+  return fmtMonthDayDowShortJa(dateStr);
 }
 
 export default function HomePage() {
@@ -38,6 +40,8 @@ export default function HomePage() {
   const [today]                 = useState(getTodayDate());
   const [celebrationBadges, setCelebrationBadges] = useState<Badge[]>([]);
   const [earnedBadges, setEarnedBadges]           = useState<Badge[]>([]);
+  const [collapsedMeals, setCollapsedMeals]       = useState<Set<string>>(new Set());
+  const [copyToast, setCopyToast]                 = useState<string | null>(null);
 
   const loadData = () => {
     const data = getAppData();
@@ -56,13 +60,41 @@ export default function HomePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleDelete = (id: string) => { removeFoodEntry(id); loadData(); };
+  const handleDelete = (id: string) => { void removeFoodEntry(id); loadData(); };
+  const handleEdit   = (updated: FoodEntry) => { void updateFoodEntry(updated); loadData(); };
 
   const handleAddWater = async (ml: number) => {
     await addWater(today, ml);
     setWater(getWaterForDate(today));
     const newBadges = await checkAndAwardBadges(today);
     if (newBadges.length > 0) { setCelebrationBadges(newBadges); setEarnedBadges(getBadges()); }
+  };
+
+  const handleCopyYesterday = async () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const data = getAppData();
+    const yesterdayEntries = data.foodEntries.filter((e) => e.date === yesterdayStr);
+    if (yesterdayEntries.length === 0) {
+      setCopyToast(t.noYesterdayData);
+      setTimeout(() => setCopyToast(null), 2000);
+      return;
+    }
+    for (const entry of yesterdayEntries) {
+      await addFoodEntry({ ...entry, id: crypto.randomUUID(), date: today, addedAt: new Date().toISOString() });
+    }
+    loadData();
+    setCopyToast(t.copyYesterdayDone);
+    setTimeout(() => setCopyToast(null), 2500);
+  };
+
+  const toggleMeal = (type: string) => {
+    setCollapsedMeals((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type); else next.add(type);
+      return next;
+    });
   };
 
   const totals = entries.reduce(
@@ -86,10 +118,17 @@ export default function HomePage() {
   };
 
   return (
-    <div className="max-w-md mx-auto pb-28 px-4 bg-[var(--background)] min-h-screen">
+    <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
       {/* Badge Celebration */}
       {celebrationBadges.length > 0 && (
         <BadgeCelebration badges={celebrationBadges} onClose={() => setCelebrationBadges([])} />
+      )}
+
+      {/* Copy-yesterday toast */}
+      {copyToast && (
+        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 font-bold text-sm px-5 py-2.5 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap">
+          {copyToast}
+        </div>
       )}
 
       {/* ── Header ─────────────────────────────────── */}
@@ -107,6 +146,23 @@ export default function HomePage() {
               </span>
             </div>
           )}
+          <button
+            onClick={() => void handleCopyYesterday()}
+            title={t.copyYesterdayDesc}
+            className="
+              w-10 h-10 rounded-2xl
+              bg-white dark:bg-gray-800
+              shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)]
+              border border-gray-100 dark:border-gray-700
+              flex items-center justify-center
+              text-gray-400 dark:text-gray-500
+              hover:text-emerald-600 dark:hover:text-emerald-400
+              hover:scale-[1.04] active:scale-95
+              transition-all duration-200
+            "
+          >
+            <Copy size={16} />
+          </button>
           <Link
             href="/settings"
             className="
@@ -171,6 +227,9 @@ export default function HomePage() {
         />
       </div>
 
+      {/* ── Personalized Recommendation ─────────────── */}
+      <RecommendationCard />
+
       {/* ── Water Tracker ───────────────────────────── */}
       <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-gray-50 dark:border-gray-700 p-4 mb-3">
         <WaterTracker current={water} goal={goals.water ?? 2000} onAdd={handleAddWater} />
@@ -193,20 +252,38 @@ export default function HomePage() {
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{t.noMealsSub}</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {MEAL_TYPES.map((type) => {
             const typeEntries = grouped[type];
             if (typeEntries.length === 0) return null;
+            const sectionCals = typeEntries.reduce((s, e) => s + e.calories, 0);
+            const collapsed = collapsedMeals.has(type);
             return (
-              <div key={type}>
-                <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">
-                  {MEAL_LABELS[type]}
-                </h3>
-                <div className="space-y-2">
-                  {typeEntries.map((entry) => (
-                    <MealCard key={entry.id} entry={entry} onDelete={handleDelete} />
-                  ))}
-                </div>
+              <div key={type} className="bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-gray-50 dark:border-gray-700 overflow-hidden">
+                <button
+                  onClick={() => toggleMeal(type)}
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    {collapsed
+                      ? <ChevronRight size={14} className="text-gray-400" />
+                      : <ChevronDown size={14} className="text-gray-400" />
+                    }
+                    <span className="text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                      {MEAL_LABELS[type]}
+                    </span>
+                  </div>
+                  <span className="text-xs font-bold text-gray-400 dark:text-gray-500 tabular-nums">
+                    {sectionCals.toLocaleString()} kcal
+                  </span>
+                </button>
+                {!collapsed && (
+                  <div className="px-3 pb-3 space-y-2">
+                    {typeEntries.map((entry) => (
+                      <MealCard key={entry.id} entry={entry} onDelete={handleDelete} onEdit={handleEdit} />
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}

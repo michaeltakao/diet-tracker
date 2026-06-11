@@ -265,21 +265,32 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   // ── Goals ──────────────────────────────────────────────────────────────────
 
   const updateGoals = useCallback((goals: DailyGoals) => {
-    // Always update localStorage (offline fallback, STEP 2 contract)
     _updateLocalGoals(goals);
 
-    // STEP 6 NOTE: add Supabase write here once dual-write layer is active
-    // For now, update local profile state for immediate UI reflection
     if (user && profile) {
-      setProfile(prev => prev ? {
-        ...prev,
+      const next = {
+        ...profile,
         goal_calories:  goals.calories,
         goal_protein_g: goals.protein,
         goal_fat_g:     goals.fat,
         goal_carbs_g:   goals.carbs,
         goal_water_ml:  goals.water,
         goal_weight_kg: goals.goalWeight ?? null,
-      } : prev);
+      };
+      setProfile(next);
+
+      // Dual-write to Supabase (fire-and-forget)
+      const supabase = createClient();
+      void supabase.from('profiles').update({
+        goal_calories:  goals.calories,
+        goal_protein_g: goals.protein,
+        goal_fat_g:     goals.fat,
+        goal_carbs_g:   goals.carbs,
+        goal_water_ml:  goals.water,
+        goal_weight_kg: goals.goalWeight ?? null,
+      }).eq('id', user.id).then(({ error }) => {
+        if (error) console.warn('[ProfileContext] updateGoals Supabase failed:', error.message);
+      });
     }
   }, [user, profile]);
 

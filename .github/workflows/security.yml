@@ -1,0 +1,40 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly on Monday 09:00 UTC
+    - cron: '0 9 * * 1'
+
+jobs:
+  audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit dependencies
+        # --audit-level=high: fail on high/critical only, not on low/moderate
+        run: npm audit --audit-level=high
+
+      - name: Check for secrets in diff
+        if: github.event_name == 'pull_request'
+        run: |
+          # Basic check for common secret patterns in changed files
+          git diff origin/${{ github.base_ref }}...HEAD -- \
+            ':(exclude)*.lock' ':(exclude)node_modules' | \
+          grep -E '(SUPABASE_SERVICE_ROLE|SECRET_KEY|PRIVATE_KEY|password\s*=\s*["\x27][^"\x27]{8,})' \
+            && { echo "::error::Possible secret detected in diff"; exit 1; } || true

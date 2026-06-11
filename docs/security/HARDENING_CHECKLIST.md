@@ -56,24 +56,19 @@ grep -rn "body.*user_id\|req.*user_id\|userId.*body" app/api/
 
 ---
 
-### [H-003] Input Size Limits
+### [H-003] Input Size Limits — ✅ CLOSED (2026-05-28)
 **Risk:** `analyze-food` accepts base64 image — no size limit means possible memory exhaustion.
-
-**Fix:**
-```typescript
-const body = await request.text();
-if (body.length > 10 * 1024 * 1024) { // 10MB limit
-  return NextResponse.json({ error: 'Request too large' }, { status: 413 });
-}
-```
+**Fixed:** `analyze-food/route.ts` checks `imageBase64.length > 4MB` and returns 413 before forwarding to Gemini.
+**Note:** Check runs after `request.json()` parse; acceptable for current load, but pre-parse check (`request.text()`) would be more robust if needed later.
 
 ---
 
-### [H-004] Rate Limiting on AI Routes
+### [H-004] Rate Limiting on AI Routes — ✅ CLOSED (2026-05-28)
 **Risk:** Even with auth, an authenticated user can spam AI endpoints.
-
-**Recommendation:** Use Supabase Edge Functions or a simple in-memory counter per user.
-Simple approach: store last_ai_call timestamp in user profile; reject if < 5 seconds since last call.
+**Fixed:** Sliding-window rate limiter (`lib/rate-limit.ts`) applied to all three AI routes:
+- `analyze-food`: 10 req/min
+- `coach`: 20 req/min
+- `habit-report`: 5 req/min (rate limit call was imported but missing — added 2026-05-28)
 
 ---
 
@@ -142,8 +137,8 @@ SELECT tablename, policyname, cmd FROM pg_policies WHERE schemaname = 'public';
 |----|-------|----------|--------|---------|
 | H-001 | Unauth AI routes | CRITICAL | ✅ CLOSED 2026-05-28 | backend |
 | H-002 | user_id source | HIGH | NEEDS AUDIT | security |
-| H-003 | Input size limits | HIGH | OPEN | backend |
-| H-004 | Rate limiting | HIGH | OPEN | backend |
+| H-003 | Input size limits | HIGH | ✅ CLOSED 2026-05-28 | backend |
+| H-004 | Rate limiting | HIGH | ✅ CLOSED 2026-05-28 | backend |
 | H-005 | Error leakage | MEDIUM | NEEDS AUDIT | backend |
 | H-006 | CORS | MEDIUM | LOW RISK NOW | — |
 | H-007 | Service role exposure | MEDIUM | OPEN | security |

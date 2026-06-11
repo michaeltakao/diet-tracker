@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { getServerUser } from '@/lib/supabase-server';
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -24,6 +25,17 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const rl = checkRateLimit(user.id, 'analyze-food', RATE_LIMITS['analyze-food']);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Please wait before retrying.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(Math.ceil(rl.resetAfterMs / 1000)) },
+      }
+    );
+  }
+
   if (!apiKey) {
     return NextResponse.json(
       { error: 'GEMINI_API_KEY is not configured in environment variables.' },
@@ -41,6 +53,15 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json(
         { error: 'Missing imageBase64 or mimeType in request body.' },
         { status: 400 }
+      );
+    }
+
+    // 4MB base64 ≈ 3MB decoded — Gemini recommends < 5MB inline data
+    const MAX_BASE64_CHARS = 4 * 1024 * 1024;
+    if (imageBase64.length > MAX_BASE64_CHARS) {
+      return NextResponse.json(
+        { error: 'Image too large. Maximum size is 3MB.' },
+        { status: 413 }
       );
     }
 

@@ -4,8 +4,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   getAppData, addWorkoutEntry, removeWorkoutEntry,
   checkAndUpdatePR, addBadge, checkAndAwardBadges, getStreak, getBadges,
+  getHealthProfile,
 } from '@/lib/data';
-import { WorkoutEntry, MusclePart, CoachMenu, FoodEntry, Badge } from '@/lib/types';
+import { WorkoutEntry, MusclePart, CoachMenu, FoodEntry, Badge, PersonalRecord } from '@/lib/types';
 import {
   Dumbbell, Clock, Flame, ShieldAlert, CheckCircle,
   Trash2, ChevronRight, Sparkles,
@@ -13,30 +14,52 @@ import {
 import BottomNav from '@/components/BottomNav';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import BadgeShelf from '@/components/BadgeShelf';
+import MedWarning from '@/components/MedWarning';
+import { getWorkoutWarnings } from '@/lib/medication-rules';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { postJson } from '@/lib/httpClient';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const RECOMMENDED_MENUS: CoachMenu[] = [
-  { id: 'c1', name: 'ベンチプレス',            musclePart: 'chest',     defaultWeight: 40, defaultReps: 10, defaultSets: 3, coachTip: '大胸筋をしっかりストレッチさせる意識で、バーを胸まで下ろしましょう！' },
-  { id: 'c2', name: 'ダンベルフライ',          musclePart: 'chest',     defaultWeight: 10, defaultReps: 12, defaultSets: 3, coachTip: 'トップポジションで顎を引くと、大胸筋上部まで強く収縮します！' },
-  { id: 'b1', name: 'ラットプルダウン',        musclePart: 'back',      defaultWeight: 35, defaultReps: 10, defaultSets: 3, coachTip: '胸を張り、バーを鎖骨に向かって引くことで背中に強烈に効きます。' },
-  { id: 'b2', name: 'デッドリフト',            musclePart: 'back',      defaultWeight: 60, defaultReps: 8,  defaultSets: 3, coachTip: '背中を絶対に丸めないように！お腹に力を入れて体幹を固定しましょう。' },
-  { id: 'l1', name: 'バーベルスクワット',      musclePart: 'legs',      defaultWeight: 50, defaultReps: 8,  defaultSets: 3, coachTip: 'お尻を後ろに引くように。膝が内側に入らないよう注意してください！' },
-  { id: 'l2', name: 'レッグプレス',            musclePart: 'legs',      defaultWeight: 80, defaultReps: 12, defaultSets: 3, coachTip: '膝が90度になる位置まで深く下ろすと大腿四頭筋にしっかり効きます。' },
-  { id: 's1', name: 'ショルダープレス',        musclePart: 'shoulders', defaultWeight: 10, defaultReps: 12, defaultSets: 3, coachTip: '肩がすくまないように、耳から肩を離した状態で真上に押し上げます。' },
-  { id: 's2', name: 'サイドレイズ',            musclePart: 'shoulders', defaultWeight: 5,  defaultReps: 15, defaultSets: 3, coachTip: '小指側を少し高くして、三角筋中部を意識して真横に上げましょう。' },
-  { id: 'a1', name: 'アームカール',            musclePart: 'arms',      defaultWeight: 8,  defaultReps: 12, defaultSets: 3, coachTip: '肘の位置をしっかりと固定し、反動を使わずに二頭筋の力だけで持ち上げて！' },
-  { id: 'a2', name: 'トライセプスプレスダウン', musclePart: 'arms',     defaultWeight: 15, defaultReps: 12, defaultSets: 3, coachTip: '肘を体の横に固定したまま、前腕だけを動かして三頭筋を収縮させましょう。' },
-  { id: 'ab1', name: 'クランチ',               musclePart: 'abs',      defaultWeight: 0,  defaultReps: 15, defaultSets: 3, coachTip: 'おへそを覗き込むようにして、お腹を上から潰していく感覚が大切です。' },
-  { id: 'ab2', name: 'プランク',               musclePart: 'abs',      defaultWeight: 0,  defaultReps: 30, defaultSets: 3, coachTip: '腰が落ちないよう体を一直線に保ちながら、お腹に力を入れ続けましょう。' },
+  { id: 'c1', name: 'ベンチプレス',            musclePart: 'chest',     defaultWeight: 40, defaultReps: 10, defaultSets: 3,
+    coachTip: '大胸筋をしっかりストレッチさせる意識で、バーを胸まで下ろしましょう！',
+    coachTipEn: 'Focus on stretching your chest as you lower the bar — bring it all the way to your chest!' },
+  { id: 'c2', name: 'ダンベルフライ',          musclePart: 'chest',     defaultWeight: 10, defaultReps: 12, defaultSets: 3,
+    coachTip: 'トップポジションで顎を引くと、大胸筋上部まで強く収縮します！',
+    coachTipEn: 'Tuck your chin at the top to engage the upper chest for a stronger contraction.' },
+  { id: 'b1', name: 'ラットプルダウン',        musclePart: 'back',      defaultWeight: 35, defaultReps: 10, defaultSets: 3,
+    coachTip: '胸を張り、バーを鎖骨に向かって引くことで背中に強烈に効きます。',
+    coachTipEn: 'Puff your chest out and pull the bar toward your collarbone for maximum back engagement.' },
+  { id: 'b2', name: 'デッドリフト',            musclePart: 'back',      defaultWeight: 60, defaultReps: 8,  defaultSets: 3,
+    coachTip: '背中を絶対に丸めないように！お腹に力を入れて体幹を固定しましょう。',
+    coachTipEn: 'Never round your back! Brace your core hard to keep your spine neutral throughout.' },
+  { id: 'l1', name: 'バーベルスクワット',      musclePart: 'legs',      defaultWeight: 50, defaultReps: 8,  defaultSets: 3,
+    coachTip: 'お尻を後ろに引くように。膝が内側に入らないよう注意してください！',
+    coachTipEn: 'Push your hips back and keep your knees tracking over your toes — never let them cave in.' },
+  { id: 'l2', name: 'レッグプレス',            musclePart: 'legs',      defaultWeight: 80, defaultReps: 12, defaultSets: 3,
+    coachTip: '膝が90度になる位置まで深く下ろすと大腿四頭筋にしっかり効きます。',
+    coachTipEn: 'Lower the platform until your knees reach 90° for full quad activation.' },
+  { id: 's1', name: 'ショルダープレス',        musclePart: 'shoulders', defaultWeight: 10, defaultReps: 12, defaultSets: 3,
+    coachTip: '肩がすくまないように、耳から肩を離した状態で真上に押し上げます。',
+    coachTipEn: 'Keep your shoulders down — press straight up with ears away from shoulders.' },
+  { id: 's2', name: 'サイドレイズ',            musclePart: 'shoulders', defaultWeight: 5,  defaultReps: 15, defaultSets: 3,
+    coachTip: '小指側を少し高くして、三角筋中部を意識して真横に上げましょう。',
+    coachTipEn: 'Lead with your pinky slightly higher to isolate the lateral deltoid.' },
+  { id: 'a1', name: 'アームカール',            musclePart: 'arms',      defaultWeight: 8,  defaultReps: 12, defaultSets: 3,
+    coachTip: '肘の位置をしっかりと固定し、反動を使わずに二頭筋の力だけで持ち上げて！',
+    coachTipEn: 'Lock your elbows in place and curl using only your biceps — no swinging!' },
+  { id: 'a2', name: 'トライセプスプレスダウン', musclePart: 'arms',     defaultWeight: 15, defaultReps: 12, defaultSets: 3,
+    coachTip: '肘を体の横に固定したまま、前腕だけを動かして三頭筋を収縮させましょう。',
+    coachTipEn: 'Keep elbows pinned to your sides and move only your forearms to fully squeeze the triceps.' },
+  { id: 'ab1', name: 'クランチ',               musclePart: 'abs',      defaultWeight: 0,  defaultReps: 15, defaultSets: 3,
+    coachTip: 'おへそを覗き込むようにして、お腹を上から潰していく感覚が大切です。',
+    coachTipEn: 'Curl up as if trying to see your navel — imagine crushing your abs from the top down.' },
+  { id: 'ab2', name: 'プランク',               musclePart: 'abs',      defaultWeight: 0,  defaultReps: 30, defaultSets: 3,
+    coachTip: '腰が落ちないよう体を一直線に保ちながら、お腹に力を入れ続けましょう。',
+    coachTipEn: 'Keep your body in a straight line — don\'t let your hips drop, and squeeze your core continuously.' },
 ];
 
-const PARTS = [
-  { id: 'chest'     as MusclePart, label: '胸' },
-  { id: 'back'      as MusclePart, label: '背中' },
-  { id: 'legs'      as MusclePart, label: '脚' },
-  { id: 'shoulders' as MusclePart, label: '肩' },
-  { id: 'arms'      as MusclePart, label: '腕' },
-  { id: 'abs'       as MusclePart, label: '腹筋' },
-];
+const PART_IDS: MusclePart[] = ['chest', 'back', 'legs', 'shoulders', 'arms', 'abs'];
 
 interface CoachAdvice {
   todayAdvice: string;
@@ -64,6 +87,36 @@ function formatTime(iso: string) {
   catch { return '--:--'; }
 }
 
+/** Days since the given muscle group was last trained (null = no history). */
+function getDaysSinceGroup(musclePart: MusclePart, workouts: WorkoutEntry[]): number | null {
+  const relevant = workouts.filter(w => w.musclePart === musclePart);
+  if (relevant.length === 0) return null;
+  const latest = relevant.reduce((a, b) => a.date > b.date ? a : b);
+  return Math.floor((Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86_400_000);
+}
+
+/** Last completed session for a specific exercise (excludes today). */
+function getLastSession(name: string, workouts: WorkoutEntry[], today: string): {
+  weight: number; reps: number; sets: number; daysAgo: number;
+} | null {
+  const prev = workouts
+    .filter(w => w.name === name && w.date < today && (w.weight ?? 0) > 0)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  if (prev.length === 0) return null;
+  const last = prev[0];
+  const daysAgo = Math.floor((Date.now() - new Date(last.date + 'T00:00:00').getTime()) / 86_400_000);
+  return { weight: last.weight ?? 0, reps: last.reps ?? 0, sets: last.sets ?? 0, daysAgo };
+}
+
+/**
+ * Progressive overload suggestion: if last session hit ≥ 12 reps, add 2.5 kg.
+ * Falls back to defaultWeight when no history.
+ */
+function suggestWeight(last: { weight: number; reps: number } | null, defaultWeight: number): number {
+  if (!last || last.weight === 0) return defaultWeight;
+  return last.reps >= 12 ? last.weight + 2.5 : last.weight;
+}
+
 // ── Skeleton for AI coach loading ────────────────────
 function CoachSkeleton() {
   return (
@@ -81,6 +134,13 @@ function CoachSkeleton() {
 
 export default function WorkoutPage() {
   const today = getTodayDate();
+  const { t, lang } = useLanguage();
+
+  const PARTS = PART_IDS.map(id => ({
+    id,
+    label: t[`mp${id.charAt(0).toUpperCase()}${id.slice(1)}` as 'mpChest'],
+  }));
+
   const [workouts, setWorkouts]           = useState<WorkoutEntry[]>([]);
   const [foodEntries, setFoodEntries]     = useState<FoodEntry[]>([]);
   const [selectedPart, setSelectedPart]  = useState<MusclePart>('chest');
@@ -90,7 +150,7 @@ export default function WorkoutPage() {
   const [reps, setReps]                  = useState('10');
   const [sets, setSets]                  = useState('3');
   const [logTime, setLogTime]            = useState(getCurrentTime());
-  const [coachAdvice, setCoachAdvice]    = useState('メニューを選択すると、ここにパーソナルアドバイスが表示されます。');
+  const [coachAdvice, setCoachAdvice]    = useState(t.defaultCoachTip);
   const [allBadges, setAllBadges]        = useState<Badge[]>([]);
 
   // AI coach
@@ -102,11 +162,20 @@ export default function WorkoutPage() {
   const [celebrationBadges, setCelebrationBadges] = useState<Badge[]>([]);
   const [prToast, setPrToast]                     = useState<string | null>(null);
 
+  // History for smart recommendations
+  const [allWorkouts,    setAllWorkouts]    = useState<WorkoutEntry[]>([]);
+  const [personalRecords, setPersonalRecords] = useState<Record<string, PersonalRecord>>({});
+  const [workoutWarnings, setWorkoutWarnings] = useState<string[]>([]);
+
   const loadData = useCallback(() => {
     const data = getAppData();
     setWorkouts(data.workoutEntries.filter((w) => w.date === today));
     setFoodEntries(data.foodEntries.filter((f) => f.date === today));
     setAllBadges(getBadges());
+    setAllWorkouts(data.workoutEntries);
+    setPersonalRecords(data.personalRecords ?? {});
+    const profile = getHealthProfile();
+    setWorkoutWarnings(getWorkoutWarnings(profile.healthConditions, profile.medications ?? []));
   }, [today]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -118,12 +187,14 @@ export default function WorkoutPage() {
   }, [prToast]);
 
   const handleSelectMenu = (menu: CoachMenu) => {
+    const last      = getLastSession(menu.name, allWorkouts, today);
+    const suggested = suggestWeight(last, menu.defaultWeight);
     setName(menu.name);
     setMusclePart(menu.musclePart);
-    setWeight(String(menu.defaultWeight));
+    setWeight(String(suggested));
     setReps(String(menu.defaultReps));
     setSets(String(menu.defaultSets));
-    setCoachAdvice(menu.coachTip);
+    setCoachAdvice(lang === 'en' && menu.coachTipEn ? menu.coachTipEn : menu.coachTip);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -149,8 +220,10 @@ export default function WorkoutPage() {
       const prBadge: Badge = {
         id: crypto.randomUUID(),
         type: 'pr_achieved',
-        name: `💪 ${name.trim()} PR達成！`,
-        description: `${name.trim()} で ${wt}kg の自己ベストを更新しました！`,
+        name: `💪 ${name.trim()} ${t.prNewRecord}`,
+        description: lang === 'en'
+          ? `New personal record on ${name.trim()}: ${wt}kg!`
+          : `${name.trim()} で ${wt}kg の自己ベストを更新しました！`,
         icon: '💪',
         earnedAt: new Date().toISOString(),
       };
@@ -188,21 +261,17 @@ export default function WorkoutPage() {
         .slice(0, 10)
         .map((w) => ({ date: w.date, name: w.name, weight: w.weight ?? 0 }));
 
-      const res = await fetch('/api/coach', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          today, ...totals,
-          calorieGoal: data.goals.calories, proteinGoal: data.goals.protein,
-          fatGoal: data.goals.fat, carbsGoal: data.goals.carbs,
-          waterConsumed: data.waterByDate[today] ?? 0, waterGoal: data.goals.water ?? 2000,
-          todayWorkouts: workouts.map((w) => ({ name: w.name, weight: w.weight ?? 0, reps: w.reps ?? 0, sets: w.sets ?? 0 })),
-          recentFoodLog, recentWorkoutLog, streak: getStreak(),
-        }),
+      const advice = await postJson<CoachAdvice>('/api/coach', {
+        today, ...totals,
+        calorieGoal: data.goals.calories, proteinGoal: data.goals.protein,
+        fatGoal: data.goals.fat, carbsGoal: data.goals.carbs,
+        waterConsumed: data.waterByDate[today] ?? 0, waterGoal: data.goals.water ?? 2000,
+        todayWorkouts: workouts.map((w) => ({ name: w.name, weight: w.weight ?? 0, reps: w.reps ?? 0, sets: w.sets ?? 0 })),
+        recentFoodLog, recentWorkoutLog, streak: getStreak(),
+        healthConditions: getHealthProfile().healthConditions,
+        medications: getHealthProfile().medications ?? [],
       });
-
-      if (!res.ok) { const err = await res.json() as { error: string }; throw new Error(err.error); }
-      setAiAdvice(await res.json() as CoachAdvice);
+      setAiAdvice(advice);
     } catch (err) {
       setAiError(err instanceof Error ? err.message : 'エラーが発生しました');
     } finally {
@@ -218,7 +287,7 @@ export default function WorkoutPage() {
   const cardCls = 'bg-white dark:bg-gray-800 rounded-3xl p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.25)] border border-gray-50 dark:border-gray-700';
 
   return (
-    <main className="min-h-screen bg-[var(--background)] pb-28 max-w-md mx-auto">
+    <main className="min-h-screen bg-[var(--background)] pb-28 lg:pb-8 max-w-md lg:max-w-2xl mx-auto lg:px-6">
       {/* Badge Celebration */}
       {celebrationBadges.length > 0 && (
         <BadgeCelebration badges={celebrationBadges} onClose={() => setCelebrationBadges([])} />
@@ -234,57 +303,106 @@ export default function WorkoutPage() {
       {/* Header */}
       <div className="bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600 text-white px-4 pt-12 pb-8 rounded-b-[2.5rem] shadow-[0_16px_48px_rgba(34,197,94,0.25)]">
         <h1 className="text-2xl font-black flex items-center gap-2 tracking-tight">
-          <Dumbbell className="w-6 h-6" /> AIパーソナルコーチ
+          <Dumbbell className="w-6 h-6" /> {t.aiCoach}
         </h1>
-        <p className="text-green-100 text-sm mt-1 font-medium">部位別メニュー提案 ＋ PR追跡 ＋ 習慣分析</p>
+        <p className="text-green-100 text-sm mt-1 font-medium">{t.workoutSubtitle}</p>
       </div>
+
+      {/* Med / condition workout warnings */}
+      {workoutWarnings.length > 0 && (
+        <div className="px-4 mt-4">
+          <MedWarning warnings={workoutWarnings} type="workout" collapseAfter={2} />
+        </div>
+      )}
 
       <div className="px-4 pt-5 space-y-4">
 
         {/* 1 ── 部位別メニュー ─────────────── */}
         <section className={`${cardCls} space-y-3`}>
           <h2 className="font-black text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
-            <Flame className="w-5 h-5 text-orange-500" /> 部位別おすすめメニュー
+            <Flame className="w-5 h-5 text-orange-500" /> {t.recommendedByGroup}
           </h2>
           <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
-            {PARTS.map((p) => (
-              <button key={p.id} type="button" onClick={() => setSelectedPart(p.id)}
-                className={`
-                  px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap
-                  transition-all duration-200
-                  hover:scale-[1.04] active:scale-95
-                  ${selectedPart === p.id
-                    ? 'bg-green-500 text-white shadow-[0_4px_12px_rgba(34,197,94,0.35)]'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}
-                `}
-              >{p.label}</button>
-            ))}
+            {PARTS.map((p) => {
+              const days = getDaysSinceGroup(p.id, allWorkouts);
+              const recoveryDot =
+                days === null  ? null :
+                days === 0     ? <span className="block text-[9px] font-bold leading-none text-red-400/90">{t.todayShort}</span> :
+                days === 1     ? <span className="block text-[9px] font-bold leading-none text-amber-400">{lang === 'en' ? '1d ago' : '1日前'}</span> :
+                                 <span className="block text-[9px] font-bold leading-none text-emerald-400">{lang === 'en' ? `${days}d ago` : `${days}日前`}</span>;
+              return (
+                <button key={p.id} type="button" onClick={() => setSelectedPart(p.id)}
+                  className={`
+                    flex flex-col items-center px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap
+                    transition-all duration-200 hover:scale-[1.04] active:scale-95
+                    ${selectedPart === p.id
+                      ? 'bg-green-500 text-white shadow-[0_4px_12px_rgba(34,197,94,0.35)]'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}
+                  `}
+                >
+                  {p.label}
+                  {recoveryDot}
+                </button>
+              );
+            })}
           </div>
           <div className="space-y-1.5">
-            {RECOMMENDED_MENUS.filter((m) => m.musclePart === selectedPart).map((menu) => (
-              <button key={menu.id} type="button" onClick={() => handleSelectMenu(menu)}
-                className="
-                  w-full text-left
-                  bg-gray-50 dark:bg-gray-700/60
-                  hover:bg-green-50 dark:hover:bg-green-900/20
-                  border border-gray-100 dark:border-gray-700
-                  hover:border-green-200 dark:hover:border-green-800
-                  rounded-2xl p-3
-                  flex items-center justify-between
-                  transition-all duration-200
-                  hover:scale-[1.01] active:scale-[0.99]
-                  group
-                "
-              >
-                <div>
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-green-600 dark:group-hover:text-green-400">{menu.name}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    推奨: <b className="text-gray-700 dark:text-gray-300">{menu.defaultWeight}kg</b> × <b className="text-gray-700 dark:text-gray-300">{menu.defaultReps}回</b> × <b className="text-gray-700 dark:text-gray-300">{menu.defaultSets}set</b>
-                  </p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </button>
-            ))}
+            {RECOMMENDED_MENUS.filter((m) => m.musclePart === selectedPart).map((menu) => {
+              const last      = getLastSession(menu.name, allWorkouts, today);
+              const suggested = suggestWeight(last, menu.defaultWeight);
+              const pr        = personalRecords[menu.name];
+              const isOverload = last && suggested > last.weight;
+              return (
+                <button key={menu.id} type="button" onClick={() => handleSelectMenu(menu)}
+                  className="
+                    w-full text-left
+                    bg-gray-50 dark:bg-gray-700/60
+                    hover:bg-green-50 dark:hover:bg-green-900/20
+                    border border-gray-100 dark:border-gray-700
+                    hover:border-green-200 dark:hover:border-green-800
+                    rounded-2xl p-3
+                    flex items-center justify-between
+                    transition-all duration-200
+                    hover:scale-[1.01] active:scale-[0.99]
+                    group
+                  "
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-green-600 dark:group-hover:text-green-400">{menu.name}</p>
+                      {pr && (
+                        <span className="text-[9px] font-black bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 px-1.5 py-0.5 rounded-full">
+                          🏆 PR {pr.maxWeight}kg
+                        </span>
+                      )}
+                    </div>
+                    {last ? (
+                      <div className="mt-0.5 space-y-0.5">
+                        <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                          {t.lastSessionPrefix} <span className="text-gray-600 dark:text-gray-400 font-semibold">{last.weight}kg × {last.reps}{lang === 'en' ? ' reps' : '回'} × {last.sets}set</span>
+                          <span className="ml-1 text-gray-400 dark:text-gray-600">{last.daysAgo === 0 ? t.todayShort : lang === 'en' ? `${last.daysAgo}d ago` : `${last.daysAgo}日前`}</span>
+                        </p>
+                        <p className="text-[11px]">
+                          <span className={isOverload ? 'text-green-600 dark:text-green-400 font-black' : 'text-gray-500 dark:text-gray-400 font-semibold'}>
+                            → {suggested}kg × {menu.defaultReps}回 × {menu.defaultSets}set
+                          </span>
+                          {isOverload && (
+                            <span className="ml-1 text-[9px] font-bold bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded-full">
+                              +2.5kg UP
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-indigo-400 dark:text-indigo-400 mt-0.5 font-semibold">
+                        ✨ {t.firstChallengeLabel} — {menu.defaultWeight > 0 ? `${menu.defaultWeight}kg` : t.bodyweightLabel} × {menu.defaultReps}{lang === 'en' ? ' reps' : '回'}
+                      </p>
+                    )}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0 ml-2" />
+                </button>
+              );
+            })}
           </div>
         </section>
 
@@ -298,7 +416,7 @@ export default function WorkoutPage() {
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">種目名</label>
+              <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">{t.workoutName}</label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)}
                 placeholder="ベンチプレス、スクワットなど"
                 className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2.5 text-gray-800 dark:text-gray-200 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-400" />
@@ -306,13 +424,13 @@ export default function WorkoutPage() {
 
             {/* Log time */}
             <div>
-              <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">記録時刻</label>
+              <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">{t.selectLogTime}</label>
               <input type="time" value={logTime} onChange={(e) => setLogTime(e.target.value)}
                 className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2.5 text-gray-800 dark:text-gray-200 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-400" />
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              {([['重量(kg)', weight, setWeight], ['回数', reps, setReps], ['セット', sets, setSets]] as const).map(([label, val, setter]) => (
+              {([[t.weight, weight, setWeight], [t.reps, reps, setReps], [t.sets, sets, setSets]] as const).map(([label, val, setter]) => (
                 <div key={label}>
                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">{label}</label>
                   <input type="number" value={val}
@@ -332,7 +450,7 @@ export default function WorkoutPage() {
                 transition-all duration-200
               "
             >
-              今日のトレーニングに記録する
+              {t.recordWorkoutBtn}
             </button>
           </form>
         </section>
@@ -340,11 +458,19 @@ export default function WorkoutPage() {
         {/* 3 ── AI パーソナルコーチ ────────── */}
         <section className={`${cardCls} space-y-4`}>
           <h2 className="font-black text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
-            <Sparkles className="w-5 h-5 text-purple-500" /> AIパーソナルコーチ
+            <Sparkles className="w-5 h-5 text-purple-500" /> {t.aiCoach}
           </h2>
-          <p className="text-xs text-gray-400 dark:text-gray-500">今日の食事・トレーニングを分析してアドバイスを生成します</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">{t.aiCoachDesc}</p>
 
-          {!aiAdvice && !aiLoading && (
+          {!isSupabaseConfigured() && (
+            <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl p-4 text-center">
+              <p className="text-xs font-semibold text-purple-500 dark:text-purple-400">
+                🔐 {t.loginForAI}
+              </p>
+            </div>
+          )}
+
+          {isSupabaseConfigured() && !aiAdvice && !aiLoading && (
             <button onClick={handleGetAIAdvice}
               className="
                 w-full py-3.5
@@ -366,7 +492,7 @@ export default function WorkoutPage() {
           {aiError && (
             <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs p-3 rounded-xl border border-red-100 dark:border-red-800">
               ⚠️ {aiError}
-              <button onClick={handleGetAIAdvice} className="ml-2 underline font-semibold">再試行</button>
+              <button onClick={handleGetAIAdvice} className="ml-2 underline font-semibold">{t.retry}</button>
             </div>
           )}
 
@@ -374,17 +500,17 @@ export default function WorkoutPage() {
             <div className="space-y-2.5 animate-fade-in">
               {/* Today's advice */}
               <div className="bg-purple-50 dark:bg-purple-900/20 rounded-2xl p-3 border border-purple-100 dark:border-purple-800">
-                <p className="text-xs font-bold text-purple-600 dark:text-purple-400 mb-1.5">📊 今日の総評</p>
+                <p className="text-xs font-bold text-purple-600 dark:text-purple-400 mb-1.5">📊 {t.todaySummaryLabel}</p>
                 <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{aiAdvice.todayAdvice}</p>
               </div>
               {/* Habit insight */}
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-3 border border-blue-100 dark:border-blue-800">
-                <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1.5">🕐 習慣インサイト</p>
+                <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1.5">🕐 {t.habitInsightLabel}</p>
                 <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{aiAdvice.habitInsight}</p>
               </div>
               {/* Tomorrow tip */}
               <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-3 border border-emerald-100 dark:border-emerald-800">
-                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1.5">💡 明日のアドバイス</p>
+                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1.5">💡 {t.tomorrowAdviceLabel}</p>
                 <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{aiAdvice.tomorrowTip}</p>
               </div>
               {/* Motivation */}
@@ -393,7 +519,7 @@ export default function WorkoutPage() {
               </div>
               <button onClick={() => { setAiAdvice(null); setAiError(''); }}
                 className="w-full py-2 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 underline">
-                再取得する
+                {t.refreshAdvice}
               </button>
             </div>
           )}
@@ -402,11 +528,11 @@ export default function WorkoutPage() {
         {/* 4 ── 習慣タイムライン ──────────── */}
         <section className={`${cardCls} space-y-3`}>
           <h2 className="font-black text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
-            <Clock className="w-5 h-5 text-blue-500" /> 今日の行動タイムライン
+            <Clock className="w-5 h-5 text-blue-500" /> {t.activityTimeline}
           </h2>
-          <p className="text-xs text-gray-400 dark:text-gray-500">食事と筋トレを時間軸で確認して生活習慣を改善しましょう</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">{t.activityTimelineDesc}</p>
           {timeline.length === 0 ? (
-            <p className="text-center text-xs text-gray-400 py-6">今日の記録はまだありません</p>
+            <p className="text-center text-xs text-gray-400 py-6">{t.noTimelineEntries}</p>
           ) : (
             <div className="relative border-l-2 border-gray-100 dark:border-gray-700 ml-3 pl-5 space-y-4 pt-1">
               {timeline.map((entry) => (
@@ -421,7 +547,7 @@ export default function WorkoutPage() {
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 pl-14">
                     {entry._type === 'food'
                       ? `${(entry as FoodEntry).calories}kcal · P${(entry as FoodEntry).protein}g · F${(entry as FoodEntry).fat}g · C${(entry as FoodEntry).carbs}g`
-                      : `${(entry as WorkoutEntry).weight}kg × ${(entry as WorkoutEntry).reps}回 × ${(entry as WorkoutEntry).sets}set`}
+                      : `${(entry as WorkoutEntry).weight}kg × ${(entry as WorkoutEntry).reps}${lang === 'en' ? ' reps' : '回'} × ${(entry as WorkoutEntry).sets}set`}
                   </p>
                 </div>
               ))}
@@ -432,7 +558,7 @@ export default function WorkoutPage() {
         {/* 5 ── 実施済み ─────────────────── */}
         {workouts.length > 0 && (
           <section className="space-y-2">
-            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">実施済み</h3>
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">{t.completedSessions}</h3>
             {workouts.map((w) => (
               <div key={w.id} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-3 flex items-center justify-between shadow-[0_4px_12px_rgb(0,0,0,0.03)] hover:scale-[1.01] active:scale-[0.99] transition-all duration-200">
                 <div className="flex items-center gap-3">
@@ -441,7 +567,7 @@ export default function WorkoutPage() {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{w.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{w.weight}kg × {w.reps}回 × {w.sets}set</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{w.weight}kg × {w.reps}{lang === 'en' ? ' reps' : '回'} × {w.sets}set</p>
                   </div>
                 </div>
                 <button type="button" onClick={() => handleDelete(w.id)}
@@ -456,7 +582,7 @@ export default function WorkoutPage() {
         {/* 6 ── Badge shelf ─────────────── */}
         {allBadges.length > 0 && (
           <section className={cardCls}>
-            <BadgeShelf badges={allBadges} title={`🏆 獲得バッジ (${allBadges.length})`} />
+            <BadgeShelf badges={allBadges} title={`🏆 ${t.myBadges} (${allBadges.length})`} />
           </section>
         )}
       </div>
