@@ -23,6 +23,11 @@
 - Repo is the Master's research vehicle — see vault `ADR-001`.
 - `postcss` overridden to `^8.5.10` (CVE-2026-41305, MEDIUM) — same fix as
   price-commons.
+- CI workflows hardened against script injection (`cac19bf`, 2026-06-12):
+  `issue-route.yml` github-script steps take LLM classifier outputs via `env:`
+  (they derive from attacker-controlled issue text and ran with `issues: write`);
+  `pr-review.yml` checkout uses `persist-credentials: false` and `base_ref` via
+  env. Found during Layer-3 mega-prompt triage — see vault `ADR-003`.
 
 ## Last verified state
 - 2026-06-11: all 6 branches in-sync with `origin` (`git for-each-ref` — no
