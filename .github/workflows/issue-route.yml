@@ -100,14 +100,20 @@ jobs:
       - name: Apply labels
         if: steps.check.outputs.skip == 'false' && steps.classify.outputs.skip == 'false'
         uses: actions/github-script@v7
+        env:
+          # Classifier outputs derive from attacker-controlled issue text; pass
+          # via env so they are data, never JS source (script injection guard)
+          TYPE_LABEL: ${{ steps.classify.outputs.type_label }}
+          AREA_LABEL: ${{ steps.classify.outputs.area_label }}
+          SEVERITY_LABEL: ${{ steps.classify.outputs.severity_label }}
         with:
           script: |
             const labels = [
-              '${{ steps.classify.outputs.type_label }}',
-              '${{ steps.classify.outputs.area_label }}',
-              '${{ steps.classify.outputs.severity_label }}',
+              process.env.TYPE_LABEL,
+              process.env.AREA_LABEL,
+              process.env.SEVERITY_LABEL,
               'auto-generated',
-            ].filter(l => l.length > 0 && l !== "''");
+            ].filter(l => l && l.length > 0);
 
             // Remove needs-triage if present, replace with classified labels
             try {
@@ -129,14 +135,22 @@ jobs:
       - name: Post routing comment
         if: steps.check.outputs.skip == 'false' && steps.classify.outputs.skip == 'false'
         uses: actions/github-script@v7
+        env:
+          # Same injection guard as "Apply labels": LLM outputs stay data-only
+          ROUTING: ${{ steps.classify.outputs.routing }}
+          ROUTING_REASON: ${{ steps.classify.outputs.routing_reason }}
+          SUMMARY: ${{ steps.classify.outputs.summary }}
+          TYPE_LABEL: ${{ steps.classify.outputs.type_label }}
+          AREA_LABEL: ${{ steps.classify.outputs.area_label }}
+          SEVERITY_LABEL: ${{ steps.classify.outputs.severity_label }}
         with:
           script: |
-            const routing   = '${{ steps.classify.outputs.routing }}';
-            const reason    = '${{ steps.classify.outputs.routing_reason }}';
-            const summary   = '${{ steps.classify.outputs.summary }}';
-            const type      = '${{ steps.classify.outputs.type_label }}';
-            const area      = '${{ steps.classify.outputs.area_label }}';
-            const severity  = '${{ steps.classify.outputs.severity_label }}';
+            const routing   = process.env.ROUTING;
+            const reason    = process.env.ROUTING_REASON;
+            const summary   = process.env.SUMMARY;
+            const type      = process.env.TYPE_LABEL;
+            const area      = process.env.AREA_LABEL;
+            const severity  = process.env.SEVERITY_LABEL;
 
             const severityPart = severity ? '  Severity: `' + severity + '`' : '';
 
