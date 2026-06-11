@@ -21,8 +21,15 @@
 - Semantic token design system + WCAG-AA (use tokens, not `gray-*`).
 - Pre-existing `plan/page.tsx` lint error left as-is (documented, not ours).
 - Repo is the Master's research vehicle — see vault `ADR-001`.
+- `postcss` overridden to `^8.5.10` (CVE-2026-41305, MEDIUM) — same fix as
+  price-commons.
 
 ## Last verified state
 - 2026-06-11: all 6 branches in-sync with `origin` (`git for-each-ref` — no
   ahead/behind, no missing upstreams).
-- 2026-06-03: Phase A tests 19 ✓ (`npm test`); lint/build green at `84ba7dd`.
+- 2026-06-11: `npm test` 58 ✓ · lint ✓ · trivy (lockfile) clean · gitleaks
+  history scan: 9 findings, all triaged false positives (placeholder JWT
+  headers + `...` in `.env.local.example` / CI yml — no real credentials).
+- 2026-06-11: `npm run build` ✓ at HEAD (isolated worktree). NOTE: the
+  working tree itself does NOT build mid-Phase-B — WIP `lib/types.ts` changed
+  under committed `lib/export.ts:145`; expected until Phase B lands.
