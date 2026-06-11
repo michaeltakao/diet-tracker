@@ -84,6 +84,7 @@ export interface AppData {
   waterByDate: Record<string, number>; // date -> ml consumed
   badges: Badge[];
   personalRecords: Record<string, PersonalRecord>; // exercise name -> best PR
+  recommendationFeedback: RecommendationFeedback[]; // Phase B: preference signals
 }
 
 // ── Health Profile (stored in localStorage + profiles table) ──
@@ -156,6 +157,27 @@ export interface Recommendation {
   adjustedMacros:   DailyGoals | null;   // clamped to condition caps (e.g. CKD protein ≤ 0.8 g/kg)
   macroCapsApplied?: string[];           // human-readable record of any caps applied during clamping
   generatedAt:      string;              // ISO
+}
+
+// ── Recommendation feedback (Phase B: preference model) ───────
+
+/** Explicit user reaction to a recommended item. */
+export type FeedbackKind = 'accept' | 'reject' | 'favorite';
+
+/**
+ * A single accept/reject/♡ event on a recommended food or exercise. Used by
+ * `lib/recommend-preference.ts` to learn a content-based affinity model and
+ * re-rank future (safety-filtered) recommendations. At most one event is kept per
+ * (itemType, itemName) — latest wins.
+ */
+export interface RecommendationFeedback {
+  id:              string;              // uid
+  itemType:        'food' | 'exercise';
+  itemName:        string;
+  kind:            FeedbackKind;
+  macroHighlight?: string;              // food only — for macro content features
+  category?:       string;              // exercise only — for category content features
+  createdAt:       string;              // ISO timestamp
 }
 
 // ── Weekly Report (AI-generated, cached in DB) ────────────────

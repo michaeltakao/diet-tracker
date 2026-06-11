@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles, RefreshCw, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
-import { getAppData, getHealthProfile, getWaterForDate, getStreak, getLatestWeightEntry } from '@/lib/data';
+import { Sparkles, RefreshCw, AlertTriangle, ChevronDown, ChevronUp, Heart, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { getAppData, getHealthProfile, getWaterForDate, getStreak, getLatestWeightEntry, getRecommendationFeedback, addRecommendationFeedback } from '@/lib/data';
 import { postJson } from '@/lib/httpClient';
+import { buildAffinityModel, rankRecommendation } from '@/lib/recommend-preference';
 import { useProfile } from '@/contexts/ProfileContext';
-import type { Recommendation } from '@/lib/types';
+import type { Recommendation, FeedbackKind } from '@/lib/types';
 
 function getTodayDate(): string {
   return new Date().toISOString().split('T')[0];
@@ -40,11 +41,70 @@ const CATEGORY_ICONS: Record<string, string> = {
 
 const CARD = 'bg-card rounded-3xl shadow-card border border-line';
 
+type ItemType = 'food' | 'exercise';
+
+function feedbackKey(itemType: ItemType, name: string): string {
+  return `${itemType}:${name}`;
+}
+
+/** Snapshot stored feedback as a key→kind map for quick highlight lookup. */
+function loadFeedbackMap(): Record<string, FeedbackKind> {
+  const map: Record<string, FeedbackKind> = {};
+  for (const f of getRecommendationFeedback()) {
+    map[feedbackKey(f.itemType, f.itemName)] = f.kind;
+  }
+  return map;
+}
+
+/** Accept / reject / ♡ controls for a single recommended item (Phase B). */
+function FeedbackButtons({
+  active,
+  onReact,
+}: {
+  active?: FeedbackKind;
+  onReact: (kind: FeedbackKind) => void;
+}) {
+  const base =
+    'p-1 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]';
+  return (
+    <div className="flex items-center gap-1 mt-1.5" role="group" aria-label="この推薦へのフィードバック">
+      <button
+        type="button"
+        onClick={() => onReact('favorite')}
+        aria-pressed={active === 'favorite'}
+        aria-label="お気に入り"
+        className={`${base} ${active === 'favorite' ? 'text-pink-500' : 'text-faint hover:text-pink-400'}`}
+      >
+        <Heart size={12} className={active === 'favorite' ? 'fill-current' : undefined} aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={() => onReact('accept')}
+        aria-pressed={active === 'accept'}
+        aria-label="役に立った"
+        className={`${base} ${active === 'accept' ? 'text-emerald-500' : 'text-faint hover:text-emerald-400'}`}
+      >
+        <ThumbsUp size={12} aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={() => onReact('reject')}
+        aria-pressed={active === 'reject'}
+        aria-label="興味なし"
+        className={`${base} ${active === 'reject' ? 'text-red-500' : 'text-faint hover:text-red-400'}`}
+      >
+        <ThumbsDown size={12} aria-hidden />
+      </button>
+    </div>
+  );
+}
+
 export default function RecommendationCard() {
   const [rec,      setRec]      = useState<Recommendation | null>(null);
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [feedback, setFeedback] = useState<Record<string, FeedbackKind>>({});
 
   const { isAuthenticated } = useProfile();
 
@@ -90,12 +150,37 @@ export default function RecommendationCard() {
         streak,
         weightKg:         getLatestWeightEntry()?.weight ?? null,
       });
-      setRec(data);
+
+      // Phase B: re-rank the (already safety-filtered) items by learned preference.
+      const model = buildAffinityModel({
+        foodHistory:    appData.foodEntries.map(e => e.name),
+        workoutHistory: appData.workoutEntries.map(e => ({ name: e.name, category: e.category })),
+        feedback:       getRecommendationFeedback(),
+      });
+      setRec(rankRecommendation(data, model));
+      setFeedback(loadFeedbackMap());
     } catch (err) {
       setError(err instanceof Error ? err.message : '推薦の生成に失敗しました');
     } finally {
       setLoading(false);
     }
+  };
+
+  const react = (
+    itemType: ItemType,
+    name: string,
+    kind: FeedbackKind,
+    extra: { macroHighlight?: string; category?: string },
+  ): void => {
+    addRecommendationFeedback({
+      id:        crypto.randomUUID(),
+      itemType,
+      itemName:  name,
+      kind,
+      createdAt: new Date().toISOString(),
+      ...extra,
+    });
+    setFeedback(prev => ({ ...prev, [feedbackKey(itemType, name)]: kind }));
   };
 
   if (!isAuthenticated) {
@@ -268,6 +353,10 @@ export default function RecommendationCard() {
                         ))}
                       </div>
                     )}
+                    <FeedbackButtons
+                      active={feedback[feedbackKey('food', food.name)]}
+                      onReact={(kind) => react('food', food.name, kind, { macroHighlight: food.macroHighlight })}
+                    />
                   </div>
                 </div>
               ))}
@@ -300,6 +389,10 @@ export default function RecommendationCard() {
                     <p className="text-[10px] text-faint leading-relaxed">
                       {ex.reason}
                     </p>
+                    <FeedbackButtons
+                      active={feedback[feedbackKey('exercise', ex.name)]}
+                      onReact={(kind) => react('exercise', ex.name, kind, { category: ex.category })}
+                    />
                   </div>
                 </div>
               ))}

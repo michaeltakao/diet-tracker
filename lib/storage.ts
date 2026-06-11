@@ -1,4 +1,4 @@
-import { AppData, Badge, BadgeType, DailyGoals, FoodEntry, PersonalRecord, WeightEntry, WorkoutEntry } from './types';
+import { AppData, Badge, BadgeType, DailyGoals, FoodEntry, PersonalRecord, RecommendationFeedback, WeightEntry, WorkoutEntry } from './types';
 
 const STORAGE_KEY = 'diet-tracker-v1';
 
@@ -18,6 +18,7 @@ const DEFAULT_DATA: AppData = {
   waterByDate: {},
   badges: [],
   personalRecords: {},
+  recommendationFeedback: [],
 };
 
 export function getAppData(): AppData {
@@ -34,6 +35,7 @@ export function getAppData(): AppData {
       waterByDate: parsed.waterByDate ?? {},
       badges: parsed.badges ?? [],
       personalRecords: parsed.personalRecords ?? {},
+      recommendationFeedback: parsed.recommendationFeedback ?? [],
     };
   } catch {
     return { ...DEFAULT_DATA, goals: { ...DEFAULT_GOALS } };
@@ -43,6 +45,35 @@ export function getAppData(): AppData {
 export function saveAppData(data: AppData): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+// ── Recommendation feedback (Phase B: preference signals) ──
+
+/** All stored recommendation feedback events. */
+export function getRecommendationFeedback(): RecommendationFeedback[] {
+  return getAppData().recommendationFeedback;
+}
+
+/**
+ * Record an accept/reject/favorite reaction. At most one event is kept per
+ * (itemType, itemName): a new reaction replaces any prior one (latest wins).
+ */
+export function addRecommendationFeedback(feedback: RecommendationFeedback): void {
+  const data = getAppData();
+  data.recommendationFeedback = [
+    ...data.recommendationFeedback.filter(
+      (f) => !(f.itemType === feedback.itemType && f.itemName === feedback.itemName),
+    ),
+    feedback,
+  ];
+  saveAppData(data);
+}
+
+/** Clear all recommendation feedback (e.g. on reset / sign-out). */
+export function clearRecommendationFeedback(): void {
+  const data = getAppData();
+  data.recommendationFeedback = [];
+  saveAppData(data);
 }
 
 // ── Food ────────────────────────────────────────────────

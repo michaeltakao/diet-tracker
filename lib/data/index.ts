@@ -18,3 +18,4 @@ export * from './profile';
 // STEP 7 change: replace with Supabase read after migration
 export * from './app';
 export * from './health-profile';
+export * from './recommendation-feedback';
