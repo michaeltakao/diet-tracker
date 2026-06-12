@@ -1,0 +1,42 @@
+# gitleaks configuration — diet-tracker
+#
+# EXTENDS gitleaks' default ruleset (does NOT replace it) and adds narrowly
+# scoped allowlists for triaged, non-secret false positives identified in the
+# secscan baseline (2026-06-12). No detection rule is disabled; real secrets are
+# still detected. Do NOT allowlist files that can hold real secrets — in
+# particular `.env.local` is deliberately left un-allowlisted (it is gitignored).
+#
+# Triaged false positives this config suppresses:
+#   1. .env.local.example — documented placeholder template. Flagged values are
+#      the standard JWT header base64('{"alg":"HS256","typ":"JWT"}')
+#      = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9 (present in EVERY JWT), shown
+#      truncated with "...". By repo convention this file never holds real secrets.
+#   2. CI workflow stubs (.github/workflows/{ci,release}.yml) — the literal
+#      token "<jwt-header>.placeholder", used so build/lint succeed without real
+#      Supabase credentials. A real key can never contain the substring
+#      ".placeholder", so this regex cannot mask a real secret.
+#   3. Generated/vendored trees (.next/, node_modules/, .secscan/) — build
+#      output, third-party packages, and secscan's own SARIF reports (which
+#      quote detected patterns); all gitignored and never a source of committed
+#      secrets. .secscan/ is excluded so gitleaks does not re-scan its own output.
+#
+# Verified after writing (see commit/triage notes): the real secret in
+# .env.local is STILL detected, history scan drops to 0, working-tree scan
+# drops to only the (expected, gitignored) .env.local hit.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "diet-tracker triaged false positives (see header)"
+# OR semantics: a finding is allowlisted if it matches ANY path OR regex below.
+paths = [
+  '''(^|/)\.env\.local\.example$''',
+  '''(^|/)\.next/''',
+  '''(^|/)node_modules/''',
+  '''(^|/)\.secscan/''',
+]
+regexes = [
+  # deliberate CI placeholder token: JWT header followed by literal ".placeholder"
+  '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.placeholder''',
+]
