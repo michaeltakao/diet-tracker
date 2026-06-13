@@ -119,9 +119,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json(parsed);
   } catch (error) {
     console.error('Error analyzing food with Gemini:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: `Analysis failed: ${message}` },
+      { error: 'Food analysis failed. Please try again.' },
       { status: 500 }
     );
   }

@@ -5,6 +5,7 @@ import { guardAiRoute } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildHealthContextPrompt } from '@/lib/medication-rules';
 import { runParallelAgents } from '@/lib/parallel-agents';
+import { WeeklyReportSchema } from '@/lib/api-schemas';
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -53,7 +54,11 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const body = await request.json() as WeeklyReportRequest;
+    const rawBody: unknown = await request.json();
+    if (!WeeklyReportSchema.safeParse(rawBody).success) {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+    const body = rawBody as WeeklyReportRequest;
 
     // Cap array length to prevent oversized prompts
     const nutrition7 = (Array.isArray(body.dailyNutrition) ? body.dailyNutrition : []).slice(0, 7);
@@ -199,7 +204,6 @@ ${resultMap['goal'] ?? '（提案なし）'}
 
   } catch (error) {
     console.error('[WEEKLY_REPORT_ERROR]', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: `Weekly report failed: ${message}` }, { status: 500 });
+    return NextResponse.json({ error: 'Weekly report failed. Please try again.' }, { status: 500 });
   }
 }

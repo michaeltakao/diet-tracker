@@ -253,7 +253,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({ error: 'Failed to parse AI response', raw }, { status: 500 });
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Suggestion request failed';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[SUGGEST_WORKOUT_ERROR]', err);
+    return NextResponse.json({ error: 'Workout suggestion failed. Please try again.' }, { status: 500 });
   }
 }

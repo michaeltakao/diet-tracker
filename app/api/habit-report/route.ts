@@ -3,6 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 import { generateWithRetry } from '@/lib/gemini';
 import { guardAiRoute } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { HabitSchema } from '@/lib/api-schemas';
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -64,7 +65,11 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const body = await request.json() as HabitRequest;
+    const rawBody: unknown = await request.json();
+    if (!HabitSchema.safeParse(rawBody).success) {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+    const body = rawBody as HabitRequest;
 
     if (body.daysWithData < 3) {
       return NextResponse.json({ error: 'insufficient_data' }, { status: 422 });
@@ -113,7 +118,6 @@ ${body.dailySummary.map((d) => {
     return NextResponse.json(parsed);
   } catch (error) {
     console.error('Habit report API error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: `Habit report failed: ${message}` }, { status: 500 });
+    return NextResponse.json({ error: 'Habit report failed. Please try again.' }, { status: 500 });
   }
 }
