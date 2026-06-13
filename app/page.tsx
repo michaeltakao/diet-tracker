@@ -16,6 +16,7 @@ import WaterTracker from '@/components/WaterTracker';
 import BadgeShelf from '@/components/BadgeShelf';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import RecommendationCard from '@/components/RecommendationCard';
+import OnboardingNudge from '@/components/OnboardingNudge';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -183,6 +184,9 @@ export default function HomePage() {
           </Link>
         </div>
       </div>
+
+      {/* ── First-run onboarding nudge ─────────────── */}
+      <OnboardingNudge />
 
       {/* ── Hero calorie card ──────────────────────── */}
       <div className={`
