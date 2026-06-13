@@ -4,6 +4,7 @@ import { generateWithRetry } from '@/lib/gemini';
 import { guardAiRoute } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildHealthContextPrompt } from '@/lib/medication-rules';
+import { CoachSchema } from '@/lib/api-schemas';
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -65,7 +66,11 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const body = await request.json() as CoachRequest;
+    const rawBody: unknown = await request.json();
+    if (!CoachSchema.safeParse(rawBody).success) {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+    const body = rawBody as CoachRequest;
 
     const healthCtx = buildHealthContextPrompt(
       body.healthConditions ?? [],
@@ -123,7 +128,7 @@ ${body.recentWorkoutLog.length === 0
     return NextResponse.json(parsed);
   } catch (error) {
     console.error('Coach API error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: `Coach failed: ${message}` }, { status: 500 });
+    console.error('[COACH_API_ERROR]', error);
+    return NextResponse.json({ error: 'Coach request failed. Please try again.' }, { status: 500 });
   }
 }

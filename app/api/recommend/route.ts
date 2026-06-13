@@ -4,6 +4,7 @@ import { generateWithRetry } from '@/lib/gemini';
 import { guardAiRoute } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildSafetyReport, filterRecommendation } from '@/lib/recommend-safety';
+import { RecommendSchema } from '@/lib/api-schemas';
 import type { UserHealthProfile, DailyGoals, Recommendation } from '@/lib/types';
 
 const apiKey = process.env.GEMINI_API_KEY;
@@ -97,7 +98,11 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const body = await request.json() as RecommendRequest;
+    const rawBody: unknown = await request.json();
+    if (!RecommendSchema.safeParse(rawBody).success) {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+    const body = rawBody as RecommendRequest;
     const { profile, goals, today } = body;
     const weightKg = body.weightKg ?? null;
 
@@ -176,7 +181,6 @@ ${body.recentWorkoutLog.length > 0
 
   } catch (error) {
     console.error('[RECOMMEND_API_ERROR]', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: `Recommend failed: ${message}` }, { status: 500 });
+    return NextResponse.json({ error: 'Recommendation failed. Please try again.' }, { status: 500 });
   }
 }
