@@ -16,9 +16,8 @@ type Tab = 'photo' | 'manual' | 'recent';
 
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
-function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0];
-}
+import { todayLocal } from '@/lib/format-date';
+import { CARD } from '@/lib/ui';
 
 function getCurrentTime(): string {
   const now = new Date();
@@ -127,7 +126,7 @@ export default function AddPage() {
     if (!validate()) return;
     const entry: FoodEntry = {
       id: crypto.randomUUID(),
-      date: getTodayDate(),
+      date: todayLocal(),
       mealType: form.mealType,
       name: form.name.trim(),
       calories: Math.round(Number(form.calories)),
@@ -135,7 +134,7 @@ export default function AddPage() {
       fat:      Math.round(Number(form.fat)     * 10) / 10,
       carbs:    Math.round(Number(form.carbs)   * 10) / 10,
       photoDataUrl,
-      addedAt: buildTimestamp(getTodayDate(), logTime),
+      addedAt: buildTimestamp(todayLocal(), logTime),
     };
     void addFoodEntry(entry);
     if (speedMode) {
@@ -152,10 +151,10 @@ export default function AddPage() {
     void addFoodEntry({
       ...recent,
       id: crypto.randomUUID(),
-      date: getTodayDate(),
+      date: todayLocal(),
       mealType: guessMealType(),
       photoDataUrl: undefined,
-      addedAt: buildTimestamp(getTodayDate(), getCurrentTime()),
+      addedAt: buildTimestamp(todayLocal(), getCurrentTime()),
     });
     setRecentFoods(getRecentFoods(6));
     setQuickAddToast(true);
@@ -307,7 +306,7 @@ export default function AddPage() {
 
       {/* ── Recent tab ──────────────────────────── */}
       {tab === 'recent' && (
-        <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-4">
+        <div className={`${CARD} p-4 mb-4`}>
           <h2 className="text-sm font-bold text-muted mb-3">{t.recentFoods}</h2>
           {recentFoods.length === 0 ? (
             <p className="text-sm text-faint text-center py-4">{t.noRecentFoods}</p>
@@ -344,14 +343,14 @@ export default function AddPage() {
 
       {/* ── Photo tab ───────────────────────────── */}
       {tab === 'photo' && (
-        <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-4">
+        <div className={`${CARD} p-4 mb-4`}>
           <PhotoUpload onAnalysisComplete={handleAnalysisComplete} />
         </div>
       )}
 
       {/* ── Entry form ──────────────────────────── */}
       {showForm && (
-        <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-4 space-y-4">
+        <div className={`${CARD} p-4 mb-4 space-y-4`}>
           {tab === 'photo' && (
             <h2 className="text-sm font-bold text-muted">{t.confirmAdd}</h2>
           )}

@@ -71,7 +71,7 @@ interface CoachAdvice {
   motivationMessage: string;
 }
 
-function getTodayDate() { return new Date().toISOString().split('T')[0]; }
+import { todayLocal } from '@/lib/format-date';
 
 function getCurrentTime(): string {
   const now = new Date();
@@ -136,7 +136,7 @@ function CoachSkeleton() {
 }
 
 export default function WorkoutPage() {
-  const today = getTodayDate();
+  const today = todayLocal();
   const { t, lang } = useLanguage();
   const { unit } = useWeightUnit();
   /** Parse the weight input (shown in the display unit) back into kg for storage. */

@@ -3,6 +3,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useMounted } from '@/lib/use-mounted';
+import { MACRO_COLORS as COLORS } from '@/lib/chart-theme';
 
 interface PFCDonutProps {
   protein: number;
@@ -12,13 +13,6 @@ interface PFCDonutProps {
   goalFat: number;
   goalCarbs: number;
 }
-
-const COLORS = {
-  protein: '#22c55e',
-  fat:     '#f59e0b',
-  carbs:   '#3b82f6',
-  empty:   '#e2e8f0',
-};
 
 export default function PFCDonut({ protein, fat, carbs, goalProtein, goalFat, goalCarbs }: PFCDonutProps) {
   const { t } = useLanguage();

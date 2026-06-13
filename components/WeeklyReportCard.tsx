@@ -5,6 +5,8 @@ import { CalendarDays, RefreshCw, Trophy, TrendingDown, TrendingUp } from 'lucid
 import { getAppData, getStreak, getWeightEntries, getHealthProfile } from '@/lib/data';
 import { postJson, HttpError } from '@/lib/httpClient';
 import { useProfile } from '@/contexts/ProfileContext';
+import { toLocalDateStr } from '@/lib/format-date';
+import { CARD } from '@/lib/ui';
 
 interface WeeklyReport {
   weekScore:         number;
@@ -26,7 +28,7 @@ function get7Days(): { startDate: string; endDate: string; dates: string[] } {
   for (let i = 6; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    dates.push(d.toISOString().split('T')[0]);
+    dates.push(toLocalDateStr(d));
   }
   return { startDate: dates[0], endDate: dates[6], dates };
 }
@@ -37,8 +39,6 @@ function scoreLabel(s: number): { grade: string; color: string; bg: string } {
   if (s >= 40) return { grade: 'C', color: 'text-warning',  bg: 'bg-amber-100 dark:bg-amber-900/30' };
   return             { grade: 'D', color: 'text-red-500 dark:text-red-400',       bg: 'bg-red-100 dark:bg-red-900/30' };
 }
-
-const CARD = 'bg-card rounded-3xl shadow-card border border-line';
 
 export default function WeeklyReportCard() {
   const { isAuthenticated, goals } = useProfile();
@@ -193,7 +193,7 @@ export default function WeeklyReportCard() {
                 <span className={`font-black ml-1 ${
                   report.weightChange < 0 ? 'text-emerald-600 dark:text-emerald-400'
                   : report.weightChange > 0 ? 'text-red-500 dark:text-red-400'
-                  : 'text-gray-600'}`}>
+                  : 'text-muted'}`}>
                   {report.weightChange > 0 ? '+' : ''}{report.weightChange} kg
                 </span>
               </span>

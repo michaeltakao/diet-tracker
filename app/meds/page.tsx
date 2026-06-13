@@ -8,7 +8,8 @@ import { getTodayMedLog, markMedTaken, markMedNotTaken, getMedLogHistory } from 
 import { getMedicationRules, getConditionRules } from '@/lib/medication-rules';
 import type { MedicationRule } from '@/lib/medication-rules';
 import BottomNav from '@/components/BottomNav';
-import { fmtMonthDayDowShortJa, todayStr as getTodayStr } from '@/lib/format-date';
+import { fmtMonthDayDowShortJa, todayLocal as getTodayStr } from '@/lib/format-date';
+import { CARD } from '@/lib/ui';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function MedsPage() {
@@ -45,7 +46,7 @@ export default function MedsPage() {
   const allTaken = medications.length > 0 && medications.every(m => takenToday.includes(m));
   const todayStr = fmtMonthDayDowShortJa(getTodayStr());
 
-  const cardCls = 'bg-card rounded-3xl shadow-card border border-line p-4';
+  const cardCls = `${CARD} p-4`;
 
   if (medications.length === 0) {
     return (

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { getAppData } from '@/lib/data';
+import { todayLocal } from '@/lib/format-date';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 // Pages that already show a full calorie breakdown
@@ -21,7 +22,7 @@ const ZERO: Snapshot = { calories: 0, protein: 0, fat: 0, carbs: 0, goal: 2000 }
 function readSnapshot(): Snapshot {
   try {
     const data = getAppData();
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocal();
     const entries = data.foodEntries.filter((e) => e.date === today);
     const agg = entries.reduce(
       (acc, e) => ({

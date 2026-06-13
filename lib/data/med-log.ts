@@ -5,22 +5,19 @@
  */
 
 import type { MedLogEntry } from '@/lib/types';
+import { safeParse } from '@/lib/json';
+import { todayLocal } from '@/lib/format-date';
 
 const MED_LOG_KEY = 'diet-tracker-med-log';
 const MAX_DAYS = 30;
 
 function todayStr(): string {
-  return new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD in local time
+  return todayLocal();
 }
 
 function loadAll(): MedLogEntry[] {
   if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(MED_LOG_KEY);
-    return raw ? (JSON.parse(raw) as MedLogEntry[]) : [];
-  } catch {
-    return [];
-  }
+  return safeParse<MedLogEntry[]>(localStorage.getItem(MED_LOG_KEY), []);
 }
 
 function saveAll(entries: MedLogEntry[]): void {

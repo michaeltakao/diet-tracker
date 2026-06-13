@@ -10,8 +10,6 @@ import WeeklyReportCard from '@/components/WeeklyReportCard';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-function getTodayDate(): string { return new Date().toISOString().split('T')[0]; }
-
 function getWeekDates(anchor: Date): string[] {
   const day = anchor.getDay();
   const monday = new Date(anchor);
@@ -19,11 +17,12 @@ function getWeekDates(anchor: Date): string[] {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    return d.toISOString().split('T')[0];
+    return toLocalDateStr(d);
   });
 }
 
-import { fmtCalendarCell, fmtMonthDayDowLongJa, fmtLongEn } from '@/lib/format-date';
+import { fmtCalendarCell, fmtMonthDayDowLongJa, fmtLongEn, todayLocal, toLocalDateStr } from '@/lib/format-date';
+import { CARD } from '@/lib/ui';
 import { postJson, HttpError } from '@/lib/httpClient';
 
 function formatShort(dateStr: string, locale: string): { day: string; num: string } {
@@ -69,7 +68,7 @@ function buildHabitMatrix(allFood: FoodEntry[], allWorkouts: { date: string; add
   for (let i = 6; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    const date = d.toISOString().split('T')[0];
+    const date = toLocalDateStr(d);
 
     const meals = allFood.filter((e) => e.date === date);
     const workouts = allWorkouts.filter((w) => w.date === date);
@@ -124,7 +123,7 @@ function HabitSkeleton() {
   return (
     <div className="space-y-3 animate-pulse">
       {['full', '4/5', '3/4'].map((w, i) => (
-        <div key={i} className="rounded-2xl p-4 bg-gray-100 dark:bg-gray-700">
+        <div key={i} className="rounded-2xl p-4 bg-surface-2">
           <div className="h-3 skeleton rounded w-1/4 mb-2.5" />
           {[w, '2/3'].map((ww, j) => (
             <div key={j} className={`h-3.5 skeleton rounded w-${ww} mb-1.5`} />
@@ -144,7 +143,7 @@ interface HabitReport {
 export default function LogPage() {
   const { t, lang } = useLanguage();
   const locale = lang === 'ja' ? 'ja-JP' : 'en-US';
-  const [selectedDate, setSelectedDate] = useState(getTodayDate());
+  const [selectedDate, setSelectedDate] = useState(todayLocal());
   const [weekOffset, setWeekOffset]     = useState(0);
   const [allEntries, setAllEntries]     = useState<FoodEntry[]>([]);
   const [goals, setGoals]               = useState<DailyGoals>({ calories: 2000, protein: 150, fat: 60, carbs: 200, water: 2000 });
@@ -186,7 +185,7 @@ export default function LogPage() {
     {} as Record<string, FoodEntry[]>
   );
 
-  const today = getTodayDate();
+  const today = todayLocal();
 
   const MEAL_LABELS: Record<string, string> = {
     breakfast: `🌅 ${t.breakfast}`,
@@ -235,7 +234,7 @@ export default function LogPage() {
     }
   };
 
-  const cardCls = 'bg-card rounded-3xl shadow-card border border-line';
+  const cardCls = CARD;
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">

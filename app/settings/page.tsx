@@ -11,6 +11,7 @@ import {
 } from '@/lib/export';
 import BottomNav from '@/components/BottomNav';
 import AccountSection from '@/components/AccountSection';
+import { CARD } from '@/lib/ui';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useWeightUnit } from '@/lib/units';
 
@@ -163,7 +164,7 @@ export default function SettingsPage() {
     setSaved(false);
   };
 
-  const cardCls = 'bg-card rounded-3xl shadow-card border border-line p-4';
+  const cardCls = `${CARD} p-4`;
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
