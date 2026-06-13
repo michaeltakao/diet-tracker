@@ -8,6 +8,7 @@
 
 import { AppData } from './types';
 import { getAppData, saveAppData } from './storage';
+import { todayLocal } from './format-date';
 
 const STORAGE_KEY = 'diet-tracker-v1';
 
@@ -69,7 +70,7 @@ export function exportDataAsJSON(): void {
   const blob = new Blob([json], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
 
-  const dateStr = new Date().toISOString().split('T')[0];
+  const dateStr = todayLocal();
   const a = document.createElement('a');
   a.href = url;
   a.download = `diet-tracker-backup-${dateStr}.json`;
@@ -104,7 +105,7 @@ export function exportDataAsCSV(): void {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
 
-  const dateStr = new Date().toISOString().split('T')[0];
+  const dateStr = todayLocal();
   const a = document.createElement('a');
   a.href = url;
   a.download = `diet-tracker-export-${dateStr}.csv`;

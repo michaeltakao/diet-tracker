@@ -4,6 +4,7 @@
  */
 
 import type { TrainingProgram, TrainingSession, PlannedExercise } from '@/lib/types';
+import { safeParse } from '@/lib/json';
 import { getWriteContext } from './_write';
 
 const KEY = 'diet-tracker-training-plans';
@@ -16,12 +17,7 @@ function uid(): string {
 
 export function getPrograms(): TrainingProgram[] {
   if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as TrainingProgram[]) : [];
-  } catch {
-    return [];
-  }
+  return safeParse<TrainingProgram[]>(localStorage.getItem(KEY), []);
 }
 
 function save(programs: TrainingProgram[]): void {

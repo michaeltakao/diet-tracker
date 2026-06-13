@@ -5,6 +5,7 @@
  */
 
 import type { UserHealthProfile } from '@/lib/types';
+import { safeParse } from '@/lib/json';
 import { getWriteContext } from './_write';
 
 const HEALTH_PROFILE_KEY = 'diet-tracker-health-profile';
@@ -20,13 +21,8 @@ export const DEFAULT_HEALTH_PROFILE: UserHealthProfile = {
 
 export function getHealthProfile(): UserHealthProfile {
   if (typeof window === 'undefined') return { ...DEFAULT_HEALTH_PROFILE };
-  try {
-    const raw = localStorage.getItem(HEALTH_PROFILE_KEY);
-    if (!raw) return { ...DEFAULT_HEALTH_PROFILE };
-    return { ...DEFAULT_HEALTH_PROFILE, ...JSON.parse(raw) } as UserHealthProfile;
-  } catch {
-    return { ...DEFAULT_HEALTH_PROFILE };
-  }
+  const stored = safeParse<Partial<UserHealthProfile>>(localStorage.getItem(HEALTH_PROFILE_KEY), {});
+  return { ...DEFAULT_HEALTH_PROFILE, ...stored };
 }
 
 export function updateHealthProfile(profile: UserHealthProfile): void {

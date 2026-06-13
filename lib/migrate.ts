@@ -21,6 +21,7 @@
  */
 
 import { getAppData } from '@/lib/storage';
+import { safeParse } from '@/lib/json';
 import { createClient } from '@/lib/supabase';
 import type {
   FoodLogInsert,
@@ -37,18 +38,14 @@ import type { DailyCheckIn, TrainingProgram } from '@/lib/types';
 
 function readCheckIns(): DailyCheckIn[] {
   if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem('diet-tracker-checkins');
-    return raw ? Object.values(JSON.parse(raw) as Record<string, DailyCheckIn>) : [];
-  } catch { return []; }
+  return Object.values(
+    safeParse<Record<string, DailyCheckIn>>(localStorage.getItem('diet-tracker-checkins'), {}),
+  );
 }
 
 function readTrainingPrograms(): TrainingProgram[] {
   if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem('diet-tracker-training-plans');
-    return raw ? (JSON.parse(raw) as TrainingProgram[]) : [];
-  } catch { return []; }
+  return safeParse<TrainingProgram[]>(localStorage.getItem('diet-tracker-training-plans'), []);
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────

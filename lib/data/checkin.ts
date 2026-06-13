@@ -4,18 +4,15 @@
  */
 
 import type { DailyCheckIn } from '@/lib/types';
+import { safeParse } from '@/lib/json';
+import { todayLocal } from '@/lib/format-date';
 import { getWriteContext } from './_write';
 
 const KEY = 'diet-tracker-checkins';
 
 function getAll(): Record<string, DailyCheckIn> {
   if (typeof window === 'undefined') return {};
-  try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Record<string, DailyCheckIn>) : {};
-  } catch {
-    return {};
-  }
+  return safeParse<Record<string, DailyCheckIn>>(localStorage.getItem(KEY), {});
 }
 
 function saveAll(data: Record<string, DailyCheckIn>): void {
@@ -61,7 +58,7 @@ export function getRecentCheckIns(days = 7): DailyCheckIn[] {
     .slice(0, days);
 }
 
+/** Today's local-time `YYYY-MM-DD`. Thin alias over the shared helper. */
 export function todayDate(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return todayLocal();
 }

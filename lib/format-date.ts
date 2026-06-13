@@ -40,8 +40,21 @@ export function fmtLongEn(dateStr: string): string {
   return `${DOW_LONG_EN[d.getDay()]}, ${MON_LONG_EN[d.getMonth()]} ${d.getDate()}`;
 }
 
-/** Today's YYYY-MM-DD, safe for both SSR and client */
-export function todayStr(): string {
-  const d = new Date();
+/**
+ * Format a Date as a local-time `YYYY-MM-DD` string.
+ *
+ * Uses the local getFullYear/getMonth/getDate accessors rather than
+ * `toISOString()`, which serialises in UTC and therefore returns the
+ * *previous* calendar day for any local time before the UTC offset
+ * (e.g. 00:00–09:00 JST). Use this for every date *key* that is compared
+ * against, or stored in, an entry's `date` field so generation stays
+ * consistent across the app.
+ */
+export function toLocalDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Today's local-time `YYYY-MM-DD`. Safe for both SSR and client. */
+export function todayLocal(): string {
+  return toLocalDateStr(new Date());
 }

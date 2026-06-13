@@ -21,11 +21,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
-function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
-import { fmtMonthDayDowShortJa } from '@/lib/format-date';
+import { fmtMonthDayDowShortJa, todayLocal, toLocalDateStr } from '@/lib/format-date';
+import { CARD } from '@/lib/ui';
 
 function formatDate(dateStr: string): string {
   return fmtMonthDayDowShortJa(dateStr);
@@ -37,7 +34,7 @@ export default function HomePage() {
   const [goals, setGoals]       = useState<DailyGoals>({ calories: 2000, protein: 150, fat: 60, carbs: 200, water: 2000 });
   const [water, setWater]       = useState(0);
   const [streak, setStreak]     = useState(0);
-  const [today]                 = useState(getTodayDate());
+  const [today]                 = useState(todayLocal());
   const [celebrationBadges, setCelebrationBadges] = useState<Badge[]>([]);
   const [earnedBadges, setEarnedBadges]           = useState<Badge[]>([]);
   const [collapsedMeals, setCollapsedMeals]       = useState<Set<string>>(new Set());
@@ -55,7 +52,7 @@ export default function HomePage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
     loadData();
-    void checkAndAwardBadges(getTodayDate()).then(newBadges => {
+    void checkAndAwardBadges(todayLocal()).then(newBadges => {
       if (newBadges.length > 0) setCelebrationBadges(newBadges);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -74,7 +71,7 @@ export default function HomePage() {
   const handleCopyYesterday = async () => {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayStr = toLocalDateStr(yesterday);
     const data = getAppData();
     const yesterdayEntries = data.foodEntries.filter((e) => e.date === yesterdayStr);
     if (yesterdayEntries.length === 0) {
@@ -210,12 +207,12 @@ export default function HomePage() {
       </div>
 
       {/* ── Calorie bar ─────────────────────────────── */}
-      <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
+      <div className={`${CARD} p-4 mb-3`}>
         <CalorieBar current={totals.calories} goal={goals.calories} />
       </div>
 
       {/* ── PFC Donut ───────────────────────────────── */}
-      <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
+      <div className={`${CARD} p-4 mb-3`}>
         <h2 className="text-sm font-bold text-muted mb-2">{t.macroBreakdown}</h2>
         <PFCDonut
           protein={totals.protein} fat={totals.fat} carbs={totals.carbs}
@@ -224,7 +221,7 @@ export default function HomePage() {
       </div>
 
       {/* ── Macro bars ──────────────────────────────── */}
-      <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
+      <div className={`${CARD} p-4 mb-3`}>
         <h2 className="text-sm font-bold text-muted mb-3">{t.macros}</h2>
         <MacroBar
           protein={totals.protein} fat={totals.fat} carbs={totals.carbs}
@@ -236,13 +233,13 @@ export default function HomePage() {
       <RecommendationCard />
 
       {/* ── Water Tracker ───────────────────────────── */}
-      <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
+      <div className={`${CARD} p-4 mb-3`}>
         <WaterTracker current={water} goal={goals.water ?? 2000} onAdd={handleAddWater} />
       </div>
 
       {/* ── Badge shelf ─────────────────────────────── */}
       {earnedBadges.length > 0 && (
-        <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
+        <div className={`${CARD} p-4 mb-3`}>
           <BadgeShelf badges={earnedBadges} title="🏅 獲得バッジ" />
         </div>
       )}
@@ -251,7 +248,7 @@ export default function HomePage() {
       <h2 className="text-sm font-bold text-muted mb-3 mt-1">{t.todayMeals}</h2>
 
       {entries.length === 0 ? (
-        <div className="bg-card rounded-3xl shadow-card border border-line p-10 text-center">
+        <div className={`${CARD} p-10 text-center`}>
           <p className="text-4xl mb-3" aria-hidden="true">🍽️</p>
           <p className="text-sm font-semibold text-muted">{t.noMeals}</p>
           <p className="text-xs text-faint mt-1">{t.noMealsSub}</p>
@@ -264,7 +261,7 @@ export default function HomePage() {
             const sectionCals = typeEntries.reduce((s, e) => s + e.calories, 0);
             const collapsed = collapsedMeals.has(type);
             return (
-              <div key={type} className="bg-card rounded-3xl shadow-card border border-line overflow-hidden">
+              <div key={type} className={`${CARD} overflow-hidden`}>
                 <button
                   onClick={() => toggleMeal(type)}
                   aria-expanded={!collapsed}

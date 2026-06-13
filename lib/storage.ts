@@ -1,4 +1,5 @@
 import { AppData, Badge, BadgeType, DailyGoals, FoodEntry, PersonalRecord, RecommendationFeedback, WeightEntry, WorkoutEntry } from './types';
+import { toLocalDateStr } from './format-date';
 
 const STORAGE_KEY = 'diet-tracker-v1';
 
@@ -279,7 +280,7 @@ export function checkAndAwardBadges(today: string): Badge[] {
   weekAgo.setDate(weekAgo.getDate() - 7);
   const workoutDays = new Set(
     data.workoutEntries
-      .filter((w) => w.date >= weekAgo.toISOString().split('T')[0])
+      .filter((w) => w.date >= toLocalDateStr(weekAgo))
       .map((w) => w.date)
   );
   if (workoutDays.size >= 5) {
@@ -298,7 +299,7 @@ export function getStreak(): number {
   for (let i = 0; i < 365; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    const key = d.toISOString().split('T')[0];
+    const key = toLocalDateStr(d);
     if (logged.has(key)) {
       streak++;
     } else if (i > 0) {

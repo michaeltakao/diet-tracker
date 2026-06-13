@@ -11,9 +11,8 @@ import WeightChart from '@/components/WeightChart';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-function getTodayDate() { return new Date().toISOString().split('T')[0]; }
-
-import { fmtShortJa } from '@/lib/format-date';
+import { fmtShortJa, todayLocal } from '@/lib/format-date';
+import { CARD } from '@/lib/ui';
 
 function formatDateShort(dateStr: string) {
   return fmtShortJa(dateStr);
@@ -40,7 +39,7 @@ export default function WeightPage() {
     if (isNaN(val) || val <= 0 || val > 300) return;
     addWeightEntry({
       id: crypto.randomUUID(),
-      date: getTodayDate(),
+      date: todayLocal(),
       weight: Math.round(val * 10) / 10,
       addedAt: new Date().toISOString(),
     });
@@ -51,7 +50,7 @@ export default function WeightPage() {
 
   const handleDelete = (id: string) => { removeWeightEntry(id); load(); };
 
-  const todayEntry = entries.find((e) => e.date === getTodayDate());
+  const todayEntry = entries.find((e) => e.date === todayLocal());
   const latest     = entries.at(-1);
   const previous   = entries.at(-2);
   const diff       = latest && previous ? +(latest.weight - previous.weight).toFixed(1) : null;
@@ -59,7 +58,7 @@ export default function WeightPage() {
   const goalAchieved = toGoal !== null && Math.abs(toGoal) < 0.05;
   const goalRemaining = toGoal !== null && !goalAchieved ? +Math.abs(toGoal).toFixed(1) : null;
 
-  const cardCls = 'bg-card rounded-3xl shadow-card border border-line';
+  const cardCls = CARD;
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
@@ -259,7 +258,7 @@ export default function WeightPage() {
           {[...entries].reverse().map((entry, idx) => {
             const prev = [...entries].reverse()[idx + 1];
             const d = prev ? +(entry.weight - prev.weight).toFixed(1) : null;
-            const isToday = entry.date === getTodayDate();
+            const isToday = entry.date === todayLocal();
             return (
               <div
                 key={entry.id}

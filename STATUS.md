@@ -1,12 +1,20 @@
 # STATUS — diet-tracker
 
 ## Now
-- Phase B (preference/feedback) of the safe-recommender roadmap, in progress on
+- UX/structural refactor pass shipped on `refactor/ux-structural-pass`
+  (stacked on `feature/safe-explainable-recommender`), **PR #6 open**
+  (commit `e05ebe8`, 2026-06-13). Additive/behaviour-invariant: local-date
+  helpers + JST early-morning UTC fix, `safeParse` consolidation, shared
+  `CARD`/chart-theme constants, regression tests (58→69). Build/lint/tsc green.
+- Phase B (preference/feedback) of the safe-recommender roadmap on
   `feature/safe-explainable-recommender`: `lib/recommend-preference.ts`,
-  feedback data layer, migration `005_recommendation_feedback.sql` + tests
-  (8 uncommitted files as of 2026-06-11).
+  feedback data layer, migration `005_recommendation_feedback.sql` + tests.
 
 ## Next
+- Review/merge **PR #6**; after the feature branch lands, retarget (or rebase)
+  the refactor onto `main` for independence from Phase B.
+- Optional follow-up PR: deferred Track C dark-mode hover tokenization
+  (`plan/page.tsx`), verified with a browser two-mode contrast pass.
 - Finish Phase B; commit + push with tests.
 - Phase C: telemetry/retention layer (field-study instrumentation).
 - Land the `feature/step6-dual-write` → `feature/step7-migration` storage
@@ -30,6 +38,12 @@
   env. Found during Layer-3 mega-prompt triage — see vault `ADR-003`.
 
 ## Last verified state
+- 2026-06-13 (`refactor/ux-structural-pass` @ `e05ebe8`): `npm test` **69 ✓**
+  (58 prior + 11 new) · `npx tsc --noEmit` clean · `npm run lint` **exit 0,
+  zero warnings** (the documented `plan/page.tsx` lint error did not trigger
+  on the current eslint CLI config) · `npm run build` ✓ (21/21 pages). The
+  working tree builds cleanly here — the 2026-06-11 "does not build mid-Phase-B"
+  note below reflected uncommitted WIP that is no longer present.
 - 2026-06-11: all 6 branches in-sync with `origin` (`git for-each-ref` — no
   ahead/behind, no missing upstreams).
 - 2026-06-11: `npm test` 58 ✓ · lint ✓ · trivy (lockfile) clean · gitleaks

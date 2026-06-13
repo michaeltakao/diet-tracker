@@ -8,9 +8,8 @@ import { buildAffinityModel, rankRecommendation } from '@/lib/recommend-preferen
 import { useProfile } from '@/contexts/ProfileContext';
 import type { Recommendation, FeedbackKind } from '@/lib/types';
 
-function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0];
-}
+import { todayLocal } from '@/lib/format-date';
+import { CARD } from '@/lib/ui';
 
 const MACRO_ICONS: Array<[string, string]> = [
   ['高タンパク', '💪'],
@@ -38,8 +37,6 @@ const CATEGORY_ICONS: Record<string, string> = {
   flexibility: '🧘',
   other:       '⚡',
 };
-
-const CARD = 'bg-card rounded-3xl shadow-card border border-line';
 
 type ItemType = 'food' | 'exercise';
 
@@ -114,7 +111,7 @@ export default function RecommendationCard() {
     setExpanded(true);
 
     try {
-      const today   = getTodayDate();
+      const today   = todayLocal();
       const appData = getAppData();
       const profile = getHealthProfile();
       const water   = getWaterForDate(today);

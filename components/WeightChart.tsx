@@ -1,6 +1,7 @@
 'use client';
 
 import { WeightEntry } from '@/lib/types';
+import { WEIGHT_CHART } from '@/lib/chart-theme';
 
 interface WeightChartProps {
   entries: WeightEntry[];
@@ -67,8 +68,8 @@ export default function WeightChart({ entries, goalWeight }: WeightChartProps) {
       >
         <defs>
           <linearGradient id="wGradFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#6366f1" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+            <stop offset="0%"   stopColor={WEIGHT_CHART.line} stopOpacity="0.25" />
+            <stop offset="100%" stopColor={WEIGHT_CHART.line} stopOpacity="0" />
           </linearGradient>
           {/* Clipping so area fill doesn't exceed chart bounds */}
           <clipPath id="chartClip">
@@ -81,7 +82,7 @@ export default function WeightChart({ entries, goalWeight }: WeightChartProps) {
           <line
             x1={PAD} y1={toY(goalWeight).toFixed(1)}
             x2={W - PAD} y2={toY(goalWeight).toFixed(1)}
-            stroke="#86efac"
+            stroke={WEIGHT_CHART.goalLine}
             strokeWidth="1.5"
             strokeDasharray="5 3"
             opacity="0.8"
@@ -102,7 +103,7 @@ export default function WeightChart({ entries, goalWeight }: WeightChartProps) {
           <path
             d={pathD}
             fill="none"
-            stroke="#6366f1"
+            stroke={WEIGHT_CHART.line}
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -113,15 +114,15 @@ export default function WeightChart({ entries, goalWeight }: WeightChartProps) {
         {entries.map((e, i) => (
           <g key={e.id}>
             <circle cx={toX(i).toFixed(1)} cy={toY(e.weight).toFixed(1)} r="5" fill="white" />
-            <circle cx={toX(i).toFixed(1)} cy={toY(e.weight).toFixed(1)} r="3" fill="#6366f1" />
+            <circle cx={toX(i).toFixed(1)} cy={toY(e.weight).toFixed(1)} r="3" fill={WEIGHT_CHART.line} />
           </g>
         ))}
 
         {/* Date labels: first + last */}
         {entries.length > 1 && (
           <>
-            <text x={PAD} y={H - 1} fontSize="9" fill="#9ca3af">{entries[0].date.slice(5)}</text>
-            <text x={W - PAD} y={H - 1} fontSize="9" fill="#9ca3af" textAnchor="end">
+            <text x={PAD} y={H - 1} fontSize="9" fill={WEIGHT_CHART.axisLabel}>{entries[0].date.slice(5)}</text>
+            <text x={W - PAD} y={H - 1} fontSize="9" fill={WEIGHT_CHART.axisLabel} textAnchor="end">
               {entries.at(-1)!.date.slice(5)}
             </text>
           </>
@@ -133,7 +134,7 @@ export default function WeightChart({ entries, goalWeight }: WeightChartProps) {
             x={toX(0).toFixed(1)}
             y={(toY(entries[0].weight) - 8).toFixed(1)}
             fontSize="10"
-            fill="#6366f1"
+            fill={WEIGHT_CHART.line}
             textAnchor="middle"
             fontWeight="bold"
           >
