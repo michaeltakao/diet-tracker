@@ -1,8 +1,12 @@
 name: Issue Auto-Route
 
+# Auto-trigger DISABLED 2026-06-15 (Claude billing-change audit): this job calls
+# the Anthropic API (Haiku) and must not fire automatically on every new issue.
+# Manual dispatch only. To restore auto-routing, uncomment the `issues:` block.
 on:
-  issues:
-    types: [opened]
+  workflow_dispatch:
+  # issues:
+  #   types: [opened]
 
 permissions:
   issues: write
