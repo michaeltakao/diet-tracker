@@ -1,6 +1,16 @@
 # STATUS — diet-tracker
 
 ## Now
+- **Workout logging UX** on `feat/workout-quick-log` (stacked on
+  `enhance/usability`), **PR #8 open** (commits `2dc7c98` + `8d4e029`,
+  2026-06-15). (1) Tap-to-log quick logger: muscle-part → exercise → inline
+  ∓-stepper editor prefilled from last session (progressive overload).
+  (2) Program-driven session logging: `/workout` surfaces the active program's
+  session (today by default, any session selectable), tap a planned exercise →
+  editor prefilled from the plan target, log → ✓ + `N/total` + 🎉 at completion.
+  Pull model (localStorage), guest-safe, no new API, `/plan` unchanged.
+  `SetEditor` extracted to module scope (reused by both surfaces);
+  `lib/session-progress.ts` pure helpers + 10 tests. Build/lint/tsc green.
 - UX/structural refactor pass shipped on `refactor/ux-structural-pass`
   (stacked on `feature/safe-explainable-recommender`), **PR #6 open**
   (commit `e05ebe8`, 2026-06-13). Additive/behaviour-invariant: local-date
@@ -11,6 +21,9 @@
   feedback data layer, migration `005_recommendation_feedback.sql` + tests.
 
 ## Next
+- Review/merge the stack bottom-up: **PR #5 → #6 → #7 → #8**. PR #8
+  (`feat/workout-quick-log`) sits on top of `enhance/usability` (PR #7);
+  it retargets to `main` (or rebases) once the lower branches land.
 - Review/merge **PR #6**; after the feature branch lands, retarget (or rebase)
   the refactor onto `main` for independence from Phase B.
 - Optional follow-up PR: deferred Track C dark-mode hover tokenization

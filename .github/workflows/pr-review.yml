@@ -1,9 +1,13 @@
 name: Agent PR Review
 
+# Auto-trigger DISABLED 2026-06-15 (Claude billing-change audit): this job calls
+# the Anthropic API (Sonnet) and must not fire automatically on every PR. Manual
+# dispatch only. To restore PR-time review, uncomment the `pull_request:` block.
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [main]
+  workflow_dispatch:
+  # pull_request:
+  #   types: [opened, synchronize, reopened]
+  #   branches: [main]
 
 permissions:
   pull-requests: write

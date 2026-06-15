@@ -156,6 +156,14 @@ export const translations = {
     activityTimelineDesc: '食事と筋トレを時間軸で確認して生活習慣を改善しましょう',
     noTimelineEntries: '今日の記録はまだありません',
     completedSessions: '実施済み',
+    // Program-driven session card
+    todaySessionTitle: '今日のセッション',
+    restDayToday: '今日は休養日です',
+    pickSession: 'セッションを選択',
+    doneLabel: '完了',
+    sessionComplete: '🎉 セッション完了！',
+    targetLabel: '目標',
+    noActiveProgramHint: 'プログラム未選択 — 計画から開始',
     defaultCoachTip: 'メニューを選択すると、ここにパーソナルアドバイスが表示されます。',
     prNewRecord: 'PR達成！',
     // Meds page
@@ -226,6 +234,11 @@ export const translations = {
     // Meal section
     collapseAll: 'すべて折りたたむ',
     expandAll: 'すべて展開する',
+    // Workout quick-log
+    exerciseOther: 'その他（手入力）',
+    stepWeight: '重量',
+    stepReps: '回数',
+    stepSets: 'セット数',
   },
   en: {
     appName: 'Diet Tracker 🥗',
@@ -382,6 +395,14 @@ export const translations = {
     activityTimelineDesc: 'Review meals & workouts on a timeline to improve your habits',
     noTimelineEntries: 'No entries yet today',
     completedSessions: 'Completed',
+    // Program-driven session card
+    todaySessionTitle: "Today's Session",
+    restDayToday: 'Rest day today',
+    pickSession: 'Select a session',
+    doneLabel: 'done',
+    sessionComplete: '🎉 Session complete!',
+    targetLabel: 'Target',
+    noActiveProgramHint: 'No active program — start one in Plan',
     defaultCoachTip: 'Select an exercise to see personalized advice here.',
     prNewRecord: 'New PR!',
     // Meds page
@@ -452,6 +473,11 @@ export const translations = {
     // Meal section
     collapseAll: 'Collapse all',
     expandAll: 'Expand all',
+    // Workout quick-log
+    exerciseOther: 'Other (manual)',
+    stepWeight: 'Weight',
+    stepReps: 'Reps',
+    stepSets: 'Sets',
   },
 } as const;
 
