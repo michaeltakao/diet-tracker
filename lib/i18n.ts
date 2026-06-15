@@ -226,6 +226,11 @@ export const translations = {
     // Meal section
     collapseAll: 'すべて折りたたむ',
     expandAll: 'すべて展開する',
+    // Workout quick-log
+    exerciseOther: 'その他（手入力）',
+    stepWeight: '重量',
+    stepReps: '回数',
+    stepSets: 'セット数',
   },
   en: {
     appName: 'Diet Tracker 🥗',
@@ -452,6 +457,11 @@ export const translations = {
     // Meal section
     collapseAll: 'Collapse all',
     expandAll: 'Expand all',
+    // Workout quick-log
+    exerciseOther: 'Other (manual)',
+    stepWeight: 'Weight',
+    stepReps: 'Reps',
+    stepSets: 'Sets',
   },
 } as const;
 
