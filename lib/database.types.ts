@@ -1,368 +1,640 @@
 /**
- * Hand-crafted Supabase database types.
+ * Auto-generated Supabase database types.
+ * Generated 2026-06-22 via `supabase gen types typescript` (project chkkpucuiyjdeqgyyszt).
+ * DO NOT hand-edit the Database type below — regenerate with:
+ *   npx supabase gen types typescript --project-id chkkpucuiyjdeqgyyszt > lib/database.types.ts
  *
- * These mirror the SQL schema in supabase/migrations/001_initial_schema.sql.
- *
- * IMPORTANT: Once the Supabase project is connected, replace this file with
- * the auto-generated version by running:
- *   npx supabase gen types typescript --project-id <project-id> > lib/database.types.ts
- *
- * Do NOT hand-edit after that point.
+ * Named aliases at the bottom of this file provide backward-compatible exports
+ * for existing imports across the codebase.
  */
 
-// ── Enums ──────────────────────────────────────────────────────
-
-export type MealTypeEnum     = 'breakfast' | 'lunch' | 'dinner' | 'snack';
-export type WorkoutCatEnum   = 'strength' | 'cardio' | 'flexibility' | 'other';
-export type MusclePartEnum   = 'chest' | 'back' | 'legs' | 'shoulders' | 'arms' | 'abs';
-export type BadgeTypeEnum    =
-  | 'streak3' | 'streak7' | 'streak30'
-  | 'water_goal' | 'calorie_goal'
-  | 'workout_master' | 'pr_achieved';
-export type FitnessGoalEnum  =
-  | 'weight_loss' | 'muscle_gain' | 'maintenance' | 'endurance' | 'flexibility';
-export type ActivityLevelEnum =
-  | 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extra_active';
-
-// ── Row types (what Supabase SELECT returns) ───────────────────
-
-export type ProfileRole = 'participant' | 'researcher';
-
-export type ProfileRow = {
-  id:              string;
-  display_name:    string | null;
-  avatar_url:      string | null;
-  lang:            'ja' | 'en';
-  goal_calories:   number;
-  goal_protein_g:  number;
-  goal_fat_g:      number;
-  goal_carbs_g:    number;
-  goal_water_ml:   number;
-  goal_weight_kg:       number | null;
-  migrated_at:          string | null;
-  age:                  number | null;
-  health_conditions:    string[];
-  dietary_restrictions: string[];
-  medications:          string[];
-  fitness_goal:         FitnessGoalEnum;
-  activity_level:       ActivityLevelEnum;
-  // migration 007
-  role:             ProfileRole;
-  consented_at:     string | null;
-  study_cohort:     string | null;
-  created_at:       string;
-  updated_at:       string;
-}
-
-// migration 005
-export type RecommendationFeedbackRow = {
-  id:             string;
-  user_id:        string;
-  client_id:      string;
-  item_type:      'food' | 'exercise';
-  item_name:      string;
-  kind:           'accept' | 'reject' | 'favorite';
-  macro_highlight: string | null;
-  category:       string | null;
-  created_at:     string;
-}
-
-export type RecommendationFeedbackInsert = Omit<RecommendationFeedbackRow, 'id' | 'created_at'> & {
-  id?: string;
-  created_at?: string;
-};
-
-// migration 006
-export type TdeeEstimateRow = {
-  id:           string;
-  user_id:      string;
-  estimated_at: string;   // YYYY-MM-DD
-  tdee_kcal:    number;
-  window_days:  number;
-  r_squared:    number | null;
-  data_points:  number;
-  created_at:   string;
-}
-
-export type TdeeEstimateInsert = Omit<TdeeEstimateRow, 'id' | 'created_at'> & {
-  id?: string;
-  created_at?: string;
-};
-
-export type FoodLogRow = {
-  id:          string;
-  user_id:     string;
-  logged_date: string;              // YYYY-MM-DD
-  meal_type:   MealTypeEnum;
-  name:        string;
-  calories:    number;
-  protein_g:   number;
-  fat_g:       number;
-  carbs_g:     number;
-  photo_url:   string | null;
-  logged_at:   string;              // ISO (when the meal was eaten)
-  created_at:  string;
-}
-
-export type WorkoutLogRow = {
-  id:           string;
-  user_id:      string;
-  logged_date:  string;
-  name:         string;
-  category:     WorkoutCatEnum;
-  muscle_part:  MusclePartEnum | null;
-  sets:         number | null;
-  reps:         number | null;
-  weight_kg:    number | null;
-  duration_min: number | null;
-  notes:        string | null;
-  logged_at:    string;
-  created_at:   string;
-}
-
-export type WeightLogRow = {
-  id:          string;
-  user_id:     string;
-  logged_date: string;
-  weight_kg:   number;
-  logged_at:   string;
-  created_at:  string;
-}
-
-export type WaterLogRow = {
-  id:          string;
-  user_id:     string;
-  logged_date: string;
-  total_ml:    number;
-  updated_at:  string;
-}
-
-export type BadgeRow = {
-  id:          string;
-  user_id:     string;
-  type:        BadgeTypeEnum;
-  name:        string;
-  description: string;
-  icon:        string;
-  earned_at:   string;
-  created_at:  string;
-}
-
-export type PersonalRecordRow = {
-  id:             string;
-  user_id:        string;
-  exercise_name:  string;
-  max_weight_kg:  number;
-  achieved_date:  string;
-  achieved_at:    string;
-  created_at:     string;
-}
-
-export type CheckinRow = {
-  id:             string;
-  user_id:        string;
-  logged_date:    string;    // YYYY-MM-DD
-  mood:           number;    // 1-5
-  energy:         number;    // 1-5
-  sleep_hours:    number;
-  soreness_areas: string[];
-  notes:          string | null;
-  created_at:     string;
-}
-
-export type TrainingProgramRow = {
-  id:         string;
-  user_id:    string;
-  client_id:  string;        // matches TrainingProgram.id in localStorage
-  data:       unknown;       // JSONB — full TrainingProgram object
-  is_active:  boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export type WeeklyReportRow = {
-  id:               string;
-  user_id:          string;
-  week_start:       string;          // YYYY-MM-DD (Monday)
-  strengths:        string[];
-  frictions:        string[];
-  next_week_target: string;
-  weight_delta:     number | null;
-  avg_calories:     number | null;
-  protein_pct:      number | null;
-  workout_days:     number | null;
-  hydration_score:  number | null;
-  generated_at:     string;
-}
-
-// ── Insert types (what you pass to Supabase INSERT) ────────────
-
-export type FoodLogInsert = Omit<FoodLogRow, 'id' | 'created_at'> & {
-  id?: string;
-  created_at?: string;
-};
-
-export type WorkoutLogInsert = Omit<WorkoutLogRow, 'id' | 'created_at'> & {
-  id?: string;
-  created_at?: string;
-};
-
-export type WeightLogInsert = Omit<WeightLogRow, 'id' | 'created_at'> & {
-  id?: string;
-  created_at?: string;
-};
-
-// water_logs.updated_at has DEFAULT NOW() — optional on insert
-export type WaterLogInsert = Omit<WaterLogRow, 'id' | 'updated_at'> & {
-  id?:         string;
-  updated_at?: string;
-};
-
-export type BadgeInsert = Omit<BadgeRow, 'id' | 'created_at'> & {
-  id?:         string;
-  created_at?: string;
-};
-
-// personal_records.achieved_at has DEFAULT NOW() — optional on insert
-export type PersonalRecordInsert = Omit<PersonalRecordRow, 'id' | 'created_at' | 'achieved_at'> & {
-  id?:          string;
-  created_at?:  string;
-  achieved_at?: string;
-};
-
-export type WeeklyReportInsert = Omit<WeeklyReportRow, 'id'> & {
-  id?: string;
-};
-
-export type CheckinInsert = Omit<CheckinRow, 'id' | 'created_at'> & {
-  id?: string;
-  created_at?: string;
-};
-
-export type TrainingProgramInsert = Omit<TrainingProgramRow, 'id' | 'created_at' | 'updated_at'> & {
-  id?: string;
-  created_at?: string;
-  updated_at?: string;
-};
-
-export type ProfileUpdate = Partial<
-  Pick<ProfileRow,
-    | 'display_name'
-    | 'avatar_url'
-    | 'lang'
-    | 'goal_calories'
-    | 'goal_protein_g'
-    | 'goal_fat_g'
-    | 'goal_carbs_g'
-    | 'goal_water_ml'
-    | 'goal_weight_kg'
-    | 'migrated_at'
-    | 'age'
-    | 'health_conditions'
-    | 'dietary_restrictions'
-    | 'medications'
-    | 'fitness_goal'
-    | 'activity_level'
-    | 'consented_at'
-    | 'study_cohort'
-  >
->;
-
-// ── Database schema type (for createClient<Database>()) ────────
-//
-// Each table MUST include `Relationships: []` to satisfy the `GenericTable`
-// constraint in @supabase/supabase-js, otherwise table Insert types resolve
-// to `never` and all write operations fail at the type level.
-//
-// The schema MUST include `Views: {}` and `Functions: {}` to satisfy
-// the `GenericSchema` constraint.
-//
-// Once the real Supabase project is connected, replace this entire file with:
-//   npx supabase gen types typescript --project-id <id> > lib/database.types.ts
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
-      profiles: {
-        Row:           ProfileRow;
-        Insert:        Omit<ProfileRow, 'created_at' | 'updated_at' | 'lang' | 'goal_calories' | 'goal_protein_g' | 'goal_fat_g' | 'goal_carbs_g' | 'goal_water_ml'> & { id: string };
-        Update:        ProfileUpdate;
-        Relationships: [];
-      };
-      food_logs: {
-        Row:           FoodLogRow;
-        Insert:        FoodLogInsert;
-        Update:        Partial<FoodLogInsert>;
-        Relationships: [];
-      };
-      workout_logs: {
-        Row:           WorkoutLogRow;
-        Insert:        WorkoutLogInsert;
-        Update:        Partial<WorkoutLogInsert>;
-        Relationships: [];
-      };
-      weight_logs: {
-        Row:           WeightLogRow;
-        Insert:        WeightLogInsert;
-        Update:        Partial<WeightLogInsert>;
-        Relationships: [];
-      };
-      water_logs: {
-        Row:           WaterLogRow;
-        Insert:        WaterLogInsert;
-        Update:        Partial<WaterLogInsert>;
-        Relationships: [];
-      };
       badges: {
-        Row:           BadgeRow;
-        Insert:        BadgeInsert;
-        Update:        Partial<BadgeInsert>;
-        Relationships: [];
-      };
-      personal_records: {
-        Row:           PersonalRecordRow;
-        Insert:        PersonalRecordInsert;
-        Update:        Partial<PersonalRecordInsert>;
-        Relationships: [];
-      };
-      weekly_reports: {
-        Row:           WeeklyReportRow;
-        Insert:        WeeklyReportInsert;
-        Update:        Partial<WeeklyReportInsert>;
-        Relationships: [];
-      };
+        Row: {
+          created_at: string
+          description: string
+          earned_at: string
+          icon: string
+          id: string
+          name: string
+          type: Database["public"]["Enums"]["badge_type"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          earned_at?: string
+          icon: string
+          id?: string
+          name: string
+          type: Database["public"]["Enums"]["badge_type"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          earned_at?: string
+          icon?: string
+          id?: string
+          name?: string
+          type?: Database["public"]["Enums"]["badge_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "badges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checkins: {
-        Row:           CheckinRow;
-        Insert:        CheckinInsert;
-        Update:        Partial<CheckinInsert>;
-        Relationships: [];
-      };
-      training_programs: {
-        Row:           TrainingProgramRow;
-        Insert:        TrainingProgramInsert;
-        Update:        Partial<TrainingProgramInsert>;
-        Relationships: [];
-      };
+        Row: {
+          created_at: string
+          energy: number
+          id: string
+          logged_date: string
+          mood: number
+          notes: string | null
+          sleep_hours: number
+          soreness_areas: string[]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          energy: number
+          id?: string
+          logged_date: string
+          mood: number
+          notes?: string | null
+          sleep_hours: number
+          soreness_areas?: string[]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          energy?: number
+          id?: string
+          logged_date?: string
+          mood?: number
+          notes?: string | null
+          sleep_hours?: number
+          soreness_areas?: string[]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkins_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      food_logs: {
+        Row: {
+          calories: number
+          carbs_g: number
+          created_at: string
+          fat_g: number
+          id: string
+          logged_at: string
+          logged_date: string
+          meal_type: Database["public"]["Enums"]["meal_type"]
+          name: string
+          photo_url: string | null
+          protein_g: number
+          user_id: string
+        }
+        Insert: {
+          calories: number
+          carbs_g?: number
+          created_at?: string
+          fat_g?: number
+          id?: string
+          logged_at?: string
+          logged_date: string
+          meal_type: Database["public"]["Enums"]["meal_type"]
+          name: string
+          photo_url?: string | null
+          protein_g?: number
+          user_id: string
+        }
+        Update: {
+          calories?: number
+          carbs_g?: number
+          created_at?: string
+          fat_g?: number
+          id?: string
+          logged_at?: string
+          logged_date?: string
+          meal_type?: Database["public"]["Enums"]["meal_type"]
+          name?: string
+          photo_url?: string | null
+          protein_g?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "food_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personal_records: {
+        Row: {
+          achieved_at: string
+          achieved_date: string
+          created_at: string
+          exercise_name: string
+          id: string
+          max_weight_kg: number
+          user_id: string
+        }
+        Insert: {
+          achieved_at?: string
+          achieved_date: string
+          created_at?: string
+          exercise_name: string
+          id?: string
+          max_weight_kg: number
+          user_id: string
+        }
+        Update: {
+          achieved_at?: string
+          achieved_date?: string
+          created_at?: string
+          exercise_name?: string
+          id?: string
+          max_weight_kg?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_records_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          activity_level: string
+          age: number | null
+          avatar_url: string | null
+          consented_at: string | null
+          created_at: string
+          dietary_restrictions: string[]
+          display_name: string | null
+          fitness_goal: string
+          goal_calories: number
+          goal_carbs_g: number
+          goal_fat_g: number
+          goal_protein_g: number
+          goal_water_ml: number
+          goal_weight_kg: number | null
+          health_conditions: string[]
+          id: string
+          lang: string
+          medications: string[]
+          migrated_at: string | null
+          role: string
+          study_cohort: string | null
+          updated_at: string
+        }
+        Insert: {
+          activity_level?: string
+          age?: number | null
+          avatar_url?: string | null
+          consented_at?: string | null
+          created_at?: string
+          dietary_restrictions?: string[]
+          display_name?: string | null
+          fitness_goal?: string
+          goal_calories?: number
+          goal_carbs_g?: number
+          goal_fat_g?: number
+          goal_protein_g?: number
+          goal_water_ml?: number
+          goal_weight_kg?: number | null
+          health_conditions?: string[]
+          id: string
+          lang?: string
+          medications?: string[]
+          migrated_at?: string | null
+          role?: string
+          study_cohort?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activity_level?: string
+          age?: number | null
+          avatar_url?: string | null
+          consented_at?: string | null
+          created_at?: string
+          dietary_restrictions?: string[]
+          display_name?: string | null
+          fitness_goal?: string
+          goal_calories?: number
+          goal_carbs_g?: number
+          goal_fat_g?: number
+          goal_protein_g?: number
+          goal_water_ml?: number
+          goal_weight_kg?: number | null
+          health_conditions?: string[]
+          id?: string
+          lang?: string
+          medications?: string[]
+          migrated_at?: string | null
+          role?: string
+          study_cohort?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       recommendation_feedback: {
-        Row:           RecommendationFeedbackRow;
-        Insert:        RecommendationFeedbackInsert;
-        Update:        Partial<RecommendationFeedbackInsert>;
-        Relationships: [];
-      };
+        Row: {
+          category: string | null
+          client_id: string
+          created_at: string
+          id: string
+          item_name: string
+          item_type: string
+          kind: string
+          macro_highlight: string | null
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          client_id: string
+          created_at?: string
+          id?: string
+          item_name: string
+          item_type: string
+          kind: string
+          macro_highlight?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          client_id?: string
+          created_at?: string
+          id?: string
+          item_name?: string
+          item_type?: string
+          kind?: string
+          macro_highlight?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_feedback_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tdee_estimates: {
-        Row:           TdeeEstimateRow;
-        Insert:        TdeeEstimateInsert;
-        Update:        Partial<TdeeEstimateInsert>;
-        Relationships: [];
-      };
-    };
-    Views:     Record<string, never>;
-    Functions: Record<string, never>;
+        Row: {
+          created_at: string
+          data_points: number
+          estimated_at: string
+          id: string
+          r_squared: number | null
+          tdee_kcal: number
+          user_id: string
+          window_days: number
+        }
+        Insert: {
+          created_at?: string
+          data_points: number
+          estimated_at: string
+          id?: string
+          r_squared?: number | null
+          tdee_kcal: number
+          user_id: string
+          window_days?: number
+        }
+        Update: {
+          created_at?: string
+          data_points?: number
+          estimated_at?: string
+          id?: string
+          r_squared?: number | null
+          tdee_kcal?: number
+          user_id?: string
+          window_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tdee_estimates_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_programs: {
+        Row: {
+          client_id: string
+          created_at: string
+          data: Json
+          id: string
+          is_active: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          data: Json
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          data?: Json
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_programs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      water_logs: {
+        Row: {
+          id: string
+          logged_date: string
+          total_ml: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          logged_date: string
+          total_ml?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          logged_date?: string
+          total_ml?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "water_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekly_reports: {
+        Row: {
+          avg_calories: number | null
+          frictions: string[]
+          generated_at: string
+          hydration_score: number | null
+          id: string
+          next_week_target: string
+          protein_pct: number | null
+          strengths: string[]
+          user_id: string
+          week_start: string
+          weight_delta: number | null
+          workout_days: number | null
+        }
+        Insert: {
+          avg_calories?: number | null
+          frictions?: string[]
+          generated_at?: string
+          hydration_score?: number | null
+          id?: string
+          next_week_target?: string
+          protein_pct?: number | null
+          strengths?: string[]
+          user_id: string
+          week_start: string
+          weight_delta?: number | null
+          workout_days?: number | null
+        }
+        Update: {
+          avg_calories?: number | null
+          frictions?: string[]
+          generated_at?: string
+          hydration_score?: number | null
+          id?: string
+          next_week_target?: string
+          protein_pct?: number | null
+          strengths?: string[]
+          user_id?: string
+          week_start?: string
+          weight_delta?: number | null
+          workout_days?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_reports_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weight_logs: {
+        Row: {
+          created_at: string
+          id: string
+          logged_at: string
+          logged_date: string
+          user_id: string
+          weight_kg: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          logged_at?: string
+          logged_date: string
+          user_id: string
+          weight_kg: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          logged_at?: string
+          logged_date?: string
+          user_id?: string
+          weight_kg?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weight_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workout_logs: {
+        Row: {
+          category: Database["public"]["Enums"]["workout_category"]
+          created_at: string
+          duration_min: number | null
+          id: string
+          logged_at: string
+          logged_date: string
+          muscle_part: Database["public"]["Enums"]["muscle_part"] | null
+          name: string
+          notes: string | null
+          reps: number | null
+          sets: number | null
+          user_id: string
+          weight_kg: number | null
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["workout_category"]
+          created_at?: string
+          duration_min?: number | null
+          id?: string
+          logged_at?: string
+          logged_date: string
+          muscle_part?: Database["public"]["Enums"]["muscle_part"] | null
+          name: string
+          notes?: string | null
+          reps?: number | null
+          sets?: number | null
+          user_id: string
+          weight_kg?: number | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["workout_category"]
+          created_at?: string
+          duration_min?: number | null
+          id?: string
+          logged_at?: string
+          logged_date?: string
+          muscle_part?: Database["public"]["Enums"]["muscle_part"] | null
+          name?: string
+          notes?: string | null
+          reps?: number | null
+          sets?: number | null
+          user_id?: string
+          weight_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
     Enums: {
-      meal_type:        MealTypeEnum;
-      workout_category: WorkoutCatEnum;
-      muscle_part:      MusclePartEnum;
-      badge_type:       BadgeTypeEnum;
-    };
-  };
-};
+      badge_type:
+        | "streak3"
+        | "streak7"
+        | "streak30"
+        | "water_goal"
+        | "calorie_goal"
+        | "workout_master"
+        | "pr_achieved"
+      meal_type: "breakfast" | "lunch" | "dinner" | "snack"
+      muscle_part: "chest" | "back" | "legs" | "shoulders" | "arms" | "abs"
+      workout_category: "strength" | "cardio" | "flexibility" | "other"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+// ── Backward-compatible named type aliases ──────────────────────────────────
+// Existing codebase imports these by name; keep them in sync with the
+// generated Database type above.
+
+export type MealTypeEnum      = Database["public"]["Enums"]["meal_type"]
+export type WorkoutCatEnum    = Database["public"]["Enums"]["workout_category"]
+export type MusclePartEnum    = Database["public"]["Enums"]["muscle_part"]
+export type BadgeTypeEnum     = Database["public"]["Enums"]["badge_type"]
+export type FitnessGoalEnum   = "weight_loss" | "muscle_gain" | "maintenance" | "endurance" | "flexibility"
+export type ActivityLevelEnum = "sedentary" | "lightly_active" | "moderately_active" | "very_active" | "extra_active"
+export type ProfileRole       = "participant" | "researcher"
+
+export type ProfileRow           = Database["public"]["Tables"]["profiles"]["Row"]
+export type FoodLogRow           = Database["public"]["Tables"]["food_logs"]["Row"]
+export type WorkoutLogRow        = Database["public"]["Tables"]["workout_logs"]["Row"]
+export type WeightLogRow         = Database["public"]["Tables"]["weight_logs"]["Row"]
+export type WaterLogRow          = Database["public"]["Tables"]["water_logs"]["Row"]
+export type BadgeRow             = Database["public"]["Tables"]["badges"]["Row"]
+export type PersonalRecordRow    = Database["public"]["Tables"]["personal_records"]["Row"]
+export type CheckinRow           = Database["public"]["Tables"]["checkins"]["Row"]
+export type TrainingProgramRow   = Database["public"]["Tables"]["training_programs"]["Row"]
+export type WeeklyReportRow      = Database["public"]["Tables"]["weekly_reports"]["Row"]
+export type TdeeEstimateRow      = Database["public"]["Tables"]["tdee_estimates"]["Row"]
+export type RecommendationFeedbackRow = Database["public"]["Tables"]["recommendation_feedback"]["Row"]
+
+export type FoodLogInsert           = Database["public"]["Tables"]["food_logs"]["Insert"]
+export type WorkoutLogInsert        = Database["public"]["Tables"]["workout_logs"]["Insert"]
+export type WeightLogInsert         = Database["public"]["Tables"]["weight_logs"]["Insert"]
+export type WaterLogInsert          = Database["public"]["Tables"]["water_logs"]["Insert"]
+export type BadgeInsert             = Database["public"]["Tables"]["badges"]["Insert"]
+export type PersonalRecordInsert    = Database["public"]["Tables"]["personal_records"]["Insert"]
+export type CheckinInsert           = Database["public"]["Tables"]["checkins"]["Insert"]
+export type TrainingProgramInsert   = Database["public"]["Tables"]["training_programs"]["Insert"]
+export type WeeklyReportInsert      = Database["public"]["Tables"]["weekly_reports"]["Insert"]
+export type TdeeEstimateInsert      = Database["public"]["Tables"]["tdee_estimates"]["Insert"]
+export type RecommendationFeedbackInsert = Database["public"]["Tables"]["recommendation_feedback"]["Insert"]
+
+export type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"]

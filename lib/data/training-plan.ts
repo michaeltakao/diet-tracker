@@ -4,6 +4,7 @@
  */
 
 import type { TrainingProgram, TrainingSession, PlannedExercise } from '@/lib/types';
+import type { Json } from '@/lib/database.types';
 import { getWriteContext } from './_write';
 
 const KEY = 'diet-tracker-training-plans';
@@ -44,7 +45,7 @@ export async function saveProgram(program: TrainingProgram): Promise<void> {
       {
         user_id:   ctx.userId,
         client_id: program.id,
-        data:      program as unknown,
+        data:      program as unknown as Json,
         is_active: program.isActive,
       },
       { onConflict: 'user_id,client_id' },

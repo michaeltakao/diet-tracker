@@ -32,7 +32,7 @@ import type {
   CheckinInsert,
   TrainingProgramInsert,
 } from '@/lib/database.types';
-import type { MealTypeEnum, WorkoutCatEnum, MusclePartEnum, BadgeTypeEnum } from '@/lib/database.types';
+import type { MealTypeEnum, WorkoutCatEnum, MusclePartEnum, BadgeTypeEnum, Json } from '@/lib/database.types';
 import type { DailyCheckIn, TrainingProgram } from '@/lib/types';
 
 function readCheckIns(): DailyCheckIn[] {
@@ -679,7 +679,7 @@ export async function executeMigration(
     const rows: TrainingProgramInsert[] = programs.map(p => ({
       user_id:   userId,
       client_id: p.id,
-      data:      p as unknown,
+      data:      p as unknown as Json,
       is_active: p.isActive,
     }));
     console.info(`[MIGRATION] training_programs: ${rows.length} valid records`);
