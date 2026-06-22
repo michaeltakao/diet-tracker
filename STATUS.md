@@ -1,16 +1,21 @@
 # STATUS — diet-tracker
 
 ## Now
-- Phase B (preference/feedback) of the safe-recommender roadmap, in progress on
-  `feature/safe-explainable-recommender`: `lib/recommend-preference.ts`,
-  feedback data layer, migration `005_recommendation_feedback.sql` + tests
-  (8 uncommitted files as of 2026-06-11).
+- `feature/research-platform` branched from `feature/safe-explainable-recommender`,
+  committed `bef03c4` and pushed 2026-06-22. All P0 features implemented:
+  - XAI "なぜこれ？" drawer per recommendation item
+  - Adaptive TDEE engine (14-day OLS regression) + dashboard card
+  - Consent/enrollment flow (/consent page + proxy redirect)
+  - Researcher dashboard (/research, role-gated)
+  - Researcher data export API (/api/research/export, JSON + CSV)
+  - DB migrations 006 (tdee_estimates) + 007 (profiles: role/consented_at)
 
 ## Next
-- Finish Phase B; commit + push with tests.
-- Phase C: telemetry/retention layer (field-study instrumentation).
-- Land the `feature/step6-dual-write` → `feature/step7-migration` storage
-  sequence; then `feature/personalized-recommendations`.
+- Apply migrations 006+007 to Supabase project via MCP or dashboard.
+- Set `profiles.role = 'researcher'` for researcher accounts in Supabase.
+- Write unit tests: lib/tdee.test.ts + lib/recommend-explain.test.ts.
+- P1 features: adherence prediction, habit phenotyping, TDEE-triggered goal adaptation.
+- Merge feature/research-platform → main after field-study setup.
 
 ## Blockers
 - None.
