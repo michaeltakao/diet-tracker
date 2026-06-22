@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Sparkles, RefreshCw, AlertTriangle, ChevronDown, ChevronUp, Heart, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { getAppData, getHealthProfile, getWaterForDate, getStreak, getLatestWeightEntry, getRecommendationFeedback, addRecommendationFeedback } from '@/lib/data';
 import { postJson } from '@/lib/httpClient';
-import { buildAffinityModel, rankRecommendation } from '@/lib/recommend-preference';
+import { buildAffinityModel, rankRecommendation, type AffinityModel } from '@/lib/recommend-preference';
+import { explainFood, explainExercise, type ExplanationFactor } from '@/lib/recommend-explain';
 import { useProfile } from '@/contexts/ProfileContext';
 import type { Recommendation, FeedbackKind } from '@/lib/types';
 
@@ -99,12 +100,51 @@ function FeedbackButtons({
   );
 }
 
+/** Horizontal bar chart for XAI explanation factors. */
+function XaiBar({ factors }: { factors: ExplanationFactor[] }) {
+  if (factors.length === 0) {
+    return (
+      <p className="text-[9px] text-faint italic py-1">
+        まだ十分なデータがありません。食事・運動を記録するほど精度が上がります。
+      </p>
+    );
+  }
+  const maxAbs = Math.max(...factors.map(f => Math.abs(f.weight)), 0.01);
+  return (
+    <div className="space-y-1 pt-0.5">
+      {factors.map(f => (
+        <div key={f.label} className="flex items-center gap-1.5">
+          <span className="text-[9px] text-faint w-28 flex-shrink-0 truncate">{f.label}</span>
+          <div className="flex-1 h-1.5 rounded-full bg-surface-2 overflow-hidden">
+            <div
+              className={`h-full rounded-full ${f.direction === 'positive' ? 'bg-violet-400' : 'bg-red-400'}`}
+              style={{ width: `${(Math.abs(f.weight) / maxAbs) * 100}%` }}
+            />
+          </div>
+          <span className="text-[9px] tabular-nums text-faint w-6 text-right">
+            {f.weight > 0 ? '+' : ''}{f.weight.toFixed(1)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function RecommendationCard() {
-  const [rec,      setRec]      = useState<Recommendation | null>(null);
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(false);
-  const [feedback, setFeedback] = useState<Record<string, FeedbackKind>>({});
+  const [rec,          setRec]          = useState<Recommendation | null>(null);
+  const [model,        setModel]        = useState<AffinityModel | null>(null);
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState<string | null>(null);
+  const [expanded,     setExpanded]     = useState(false);
+  const [openDrawers,  setOpenDrawers]  = useState<Set<string>>(new Set());
+  const [feedback,     setFeedback]     = useState<Record<string, FeedbackKind>>({});
+
+  const toggleDrawer = (key: string) =>
+    setOpenDrawers(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) { next.delete(key); } else { next.add(key); }
+      return next;
+    });
 
   const { isAuthenticated } = useProfile();
 
@@ -158,6 +198,8 @@ export default function RecommendationCard() {
         feedback:       getRecommendationFeedback(),
       });
       setRec(rankRecommendation(data, model));
+      setModel(model);
+      setOpenDrawers(new Set());
       setFeedback(loadFeedbackMap());
     } catch (err) {
       setError(err instanceof Error ? err.message : '推薦の生成に失敗しました');
@@ -357,6 +399,21 @@ export default function RecommendationCard() {
                       active={feedback[feedbackKey('food', food.name)]}
                       onReact={(kind) => react('food', food.name, kind, { macroHighlight: food.macroHighlight })}
                     />
+                    {/* XAI drawer */}
+                    <div className="mt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => toggleDrawer(`food:${food.name}`)}
+                        className="flex items-center gap-1 text-[9px] text-violet-500 hover:text-violet-700 dark:hover:text-violet-300 transition-colors"
+                        aria-expanded={openDrawers.has(`food:${food.name}`)}
+                      >
+                        {openDrawers.has(`food:${food.name}`) ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
+                        なぜこれ？
+                      </button>
+                      {openDrawers.has(`food:${food.name}`) && (
+                        <XaiBar factors={model ? explainFood(food.name, food.macroHighlight, model) : []} />
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -393,6 +450,21 @@ export default function RecommendationCard() {
                       active={feedback[feedbackKey('exercise', ex.name)]}
                       onReact={(kind) => react('exercise', ex.name, kind, { category: ex.category })}
                     />
+                    {/* XAI drawer */}
+                    <div className="mt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => toggleDrawer(`ex:${ex.name}`)}
+                        className="flex items-center gap-1 text-[9px] text-violet-500 hover:text-violet-700 dark:hover:text-violet-300 transition-colors"
+                        aria-expanded={openDrawers.has(`ex:${ex.name}`)}
+                      >
+                        {openDrawers.has(`ex:${ex.name}`) ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
+                        なぜこれ？
+                      </button>
+                      {openDrawers.has(`ex:${ex.name}`) && (
+                        <XaiBar factors={model ? explainExercise(ex.name, ex.category, model) : []} />
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

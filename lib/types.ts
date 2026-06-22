@@ -117,6 +117,18 @@ export interface MedLogEntry {
   takenMeds: string[];  // medication names taken today
 }
 
+// ── XAI Explanation ───────────────────────────────────────────
+
+/**
+ * A single factor contributing to an item's affinity score.
+ * Computed client-side by lib/recommend-explain.ts — not stored server-side.
+ */
+export interface ExplanationFactor {
+  label:     string;
+  weight:    number;
+  direction: 'positive' | 'negative';
+}
+
 // ── Personalized Recommendations (LLM output) ─────────────────
 
 /**

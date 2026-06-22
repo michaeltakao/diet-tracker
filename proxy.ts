@@ -79,6 +79,8 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isLoginPage   = pathname === '/login';
   const isAuthRoute   = pathname.startsWith('/auth/');
+  const isConsentPage = pathname === '/consent';
+  const isApiRoute    = pathname.startsWith('/api/');
 
   // Unauthenticated → /login
   if (!user && !isLoginPage && !isAuthRoute) {
@@ -92,6 +94,21 @@ export async function proxy(request: NextRequest) {
   // Authenticated + already on /login → dashboard
   if (user && isLoginPage) {
     return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  // Authenticated but not yet consented → /consent
+  // Skip redirect for the consent page itself, API routes, and auth routes.
+  if (user && !isConsentPage && !isApiRoute && !isAuthRoute && !isLoginPage) {
+    const profile = await supabase
+      .from('profiles')
+      .select('consented_at')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (profile.data && profile.data.consented_at === null) {
+      const consentUrl = request.nextUrl.clone();
+      consentUrl.pathname = '/consent';
+      return NextResponse.redirect(consentUrl);
+    }
   }
 
   return response;

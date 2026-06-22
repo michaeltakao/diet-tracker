@@ -26,6 +26,8 @@ export type ActivityLevelEnum =
 
 // ── Row types (what Supabase SELECT returns) ───────────────────
 
+export type ProfileRole = 'participant' | 'researcher';
+
 export type ProfileRow = {
   id:              string;
   display_name:    string | null;
@@ -44,9 +46,48 @@ export type ProfileRow = {
   medications:          string[];
   fitness_goal:         FitnessGoalEnum;
   activity_level:       ActivityLevelEnum;
-  created_at:           string;
-  updated_at:           string;
+  // migration 007
+  role:             ProfileRole;
+  consented_at:     string | null;
+  study_cohort:     string | null;
+  created_at:       string;
+  updated_at:       string;
 }
+
+// migration 005
+export type RecommendationFeedbackRow = {
+  id:             string;
+  user_id:        string;
+  client_id:      string;
+  item_type:      'food' | 'exercise';
+  item_name:      string;
+  kind:           'accept' | 'reject' | 'favorite';
+  macro_highlight: string | null;
+  category:       string | null;
+  created_at:     string;
+}
+
+export type RecommendationFeedbackInsert = Omit<RecommendationFeedbackRow, 'id' | 'created_at'> & {
+  id?: string;
+  created_at?: string;
+};
+
+// migration 006
+export type TdeeEstimateRow = {
+  id:           string;
+  user_id:      string;
+  estimated_at: string;   // YYYY-MM-DD
+  tdee_kcal:    number;
+  window_days:  number;
+  r_squared:    number | null;
+  data_points:  number;
+  created_at:   string;
+}
+
+export type TdeeEstimateInsert = Omit<TdeeEstimateRow, 'id' | 'created_at'> & {
+  id?: string;
+  created_at?: string;
+};
 
 export type FoodLogRow = {
   id:          string;
@@ -222,6 +263,8 @@ export type ProfileUpdate = Partial<
     | 'medications'
     | 'fitness_goal'
     | 'activity_level'
+    | 'consented_at'
+    | 'study_cohort'
   >
 >;
 
@@ -298,6 +341,18 @@ export type Database = {
         Row:           TrainingProgramRow;
         Insert:        TrainingProgramInsert;
         Update:        Partial<TrainingProgramInsert>;
+        Relationships: [];
+      };
+      recommendation_feedback: {
+        Row:           RecommendationFeedbackRow;
+        Insert:        RecommendationFeedbackInsert;
+        Update:        Partial<RecommendationFeedbackInsert>;
+        Relationships: [];
+      };
+      tdee_estimates: {
+        Row:           TdeeEstimateRow;
+        Insert:        TdeeEstimateInsert;
+        Update:        Partial<TdeeEstimateInsert>;
         Relationships: [];
       };
     };

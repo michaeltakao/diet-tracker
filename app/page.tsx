@@ -16,6 +16,7 @@ import WaterTracker from '@/components/WaterTracker';
 import BadgeShelf from '@/components/BadgeShelf';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import RecommendationCard from '@/components/RecommendationCard';
+import TdeeCard from '@/components/TdeeCard';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -234,6 +235,9 @@ export default function HomePage() {
 
       {/* ── Personalized Recommendation ─────────────── */}
       <RecommendationCard />
+
+      {/* ── Adaptive TDEE ───────────────────────────── */}
+      <TdeeCard />
 
       {/* ── Water Tracker ───────────────────────────── */}
       <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
