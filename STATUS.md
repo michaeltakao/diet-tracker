@@ -1,19 +1,20 @@
 # STATUS — diet-tracker
 
 ## Now
-- `feature/research-platform` branched from `feature/safe-explainable-recommender`,
-  committed `bef03c4` and pushed 2026-06-22. All P0 features implemented:
+- `feature/research-platform` fully verified and pushed (`35b2ee3`, 2026-06-22).
+  P0 complete:
   - XAI "なぜこれ？" drawer per recommendation item
   - Adaptive TDEE engine (14-day OLS regression) + dashboard card
   - Consent/enrollment flow (/consent page + proxy redirect)
   - Researcher dashboard (/research, role-gated)
   - Researcher data export API (/api/research/export, JSON + CSV)
   - DB migrations 006 (tdee_estimates) + 007 (profiles: role/consented_at)
+  - lib/__tests__/tdee.test.ts (16 tests) + lib/__tests__/recommend-explain.test.ts (12 tests)
+  - database.types.ts regenerated from live Supabase schema
 
 ## Next
-- Apply migrations 006+007 to Supabase project via MCP or dashboard.
+- Apply migrations 006+007 to Supabase project via MCP or dashboard (not yet applied).
 - Set `profiles.role = 'researcher'` for researcher accounts in Supabase.
-- Write unit tests: lib/tdee.test.ts + lib/recommend-explain.test.ts.
 - P1 features: adherence prediction, habit phenotyping, TDEE-triggered goal adaptation.
 - Merge feature/research-platform → main after field-study setup.
 
@@ -35,11 +36,7 @@
   env. Found during Layer-3 mega-prompt triage — see vault `ADR-003`.
 
 ## Last verified state
-- 2026-06-11: all 6 branches in-sync with `origin` (`git for-each-ref` — no
-  ahead/behind, no missing upstreams).
-- 2026-06-11: `npm test` 58 ✓ · lint ✓ · trivy (lockfile) clean · gitleaks
-  history scan: 9 findings, all triaged false positives (placeholder JWT
-  headers + `...` in `.env.local.example` / CI yml — no real credentials).
-- 2026-06-11: `npm run build` ✓ at HEAD (isolated worktree). NOTE: the
-  working tree itself does NOT build mid-Phase-B — WIP `lib/types.ts` changed
-  under committed `lib/export.ts:145`; expected until Phase B lands.
+- 2026-06-22: `feature/research-platform` @ `35b2ee3` — `npm run build` ✓,
+  `npm test` 86/86 ✓. All P0 routes compile and appear in build manifest.
+- 2026-06-11: trivy (lockfile) clean · gitleaks history scan: 9 findings,
+  all triaged false positives.
