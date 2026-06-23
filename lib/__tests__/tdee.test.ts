@@ -76,8 +76,27 @@ describe('estimateTdee', () => {
     expect(result.tdeeKcal).not.toBeNull();
     expect(result.isFallback).toBe(true);
     // Mifflin BMR for 70kg/175cm/25yr male = 10×70 + 6.25×175 - 5×25 + 5
-    //   = 700 + 1093.75 - 125 + 5 = 1673.75 → ×1.55 ≈ 2594.3
+    //   = 700 + 1093.75 - 125 + 5 = 1673.75 → ×1.55 (moderately_active default) ≈ 2594.3
     expect(result.tdeeKcal!).toBeCloseTo(2594.3, 0);
+  });
+
+  it('applies correct PAL multiplier from activityLevel in Mifflin fallback', () => {
+    const { weightLogs, calorieLogs } = syntheticData(3, 2000, 70, 0);
+    // sedentary multiplier = 1.2; BMR = 1673.75 → TDEE = 1673.75 × 1.2 = 2008.5
+    const sedentary = estimateTdee({
+      weightLogs, calorieLogs, prevTdee: null,
+      weightKg: 70, heightCm: 175, age: 25, sex: 'male',
+      activityLevel: 'sedentary',
+    });
+    expect(sedentary.tdeeKcal!).toBeCloseTo(2008.5, 0);
+
+    // very_active multiplier = 1.725; BMR = 1673.75 → TDEE = 1673.75 × 1.725 ≈ 2887.2
+    const veryActive = estimateTdee({
+      weightLogs, calorieLogs, prevTdee: null,
+      weightKg: 70, heightCm: 175, age: 25, sex: 'male',
+      activityLevel: 'very_active',
+    });
+    expect(veryActive.tdeeKcal!).toBeCloseTo(2887.2, 0);
   });
 
   it('estimates TDEE correctly for a user in caloric deficit (losing weight)', () => {

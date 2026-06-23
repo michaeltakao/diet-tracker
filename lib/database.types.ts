@@ -638,3 +638,13 @@ export type TdeeEstimateInsert      = Database["public"]["Tables"]["tdee_estimat
 export type RecommendationFeedbackInsert = Database["public"]["Tables"]["recommendation_feedback"]["Insert"]
 
 export type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"]
+
+// Manually maintained type for migration 008 table — regenerate from live DB
+// after applying 008_research_hardening.sql to replace this with the auto-gen version.
+export interface ResearcherAccessLogInsert {
+  researcher_id:  string;
+  endpoint:       string;
+  accessed_at?:   string;
+  filter_user_id?: string | null;
+  table_name?:    string | null;
+}

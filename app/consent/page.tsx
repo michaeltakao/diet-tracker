@@ -82,8 +82,20 @@ export default function ConsentPage() {
               <li>収集したデータは研究目的にのみ使用します</li>
               <li>氏名等の個人を特定できる情報は論文に記載しません</li>
               <li>データはSupabase（暗号化・RLSで保護）に保存されます</li>
-              <li>研究終了後、希望があればデータを削除します</li>
+              <li>研究終了後、いつでもデータの削除を請求できます（個人情報保護法第35条）</li>
             </ul>
+          </section>
+
+          <section>
+            <h2 className="font-bold text-fg mb-1">第三者サービスへのデータ送信</h2>
+            <p>
+              食事写真からカロリーを推定するため、アップロードした画像を
+              Google Gemini API（Google LLC）に送信します。
+              Google のAPIデータ処理ポリシーにより、APIリクエストの入力は
+              モデルの学習に使用されません。詳細は
+              Google の「生成AIの補足利用規約」をご確認ください。
+              画像以外の個人データ（体重・食事ログ等）はGoogleに送信されません。
+            </p>
           </section>
 
           <section>

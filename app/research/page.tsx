@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { FlaskConical, Download, Users, TrendingUp, RefreshCw, ChevronLeft } from 'lucide-react';
 import type { ParticipantSummary } from '@/app/api/research/participants/route';
+import { getJson } from '@/lib/httpClient';
 
 const CARD = 'bg-card rounded-3xl shadow-card border border-line';
 
@@ -32,10 +33,8 @@ export default function ResearchPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/research/participants');
-      if (res.status === 403) { setError('権限がありません（researcher ロールが必要です）'); return; }
-      if (!res.ok)            { setError(`エラー: ${res.status}`); return; }
-      setParticipants(await res.json() as ParticipantSummary[]);
+      const data = await getJson<ParticipantSummary[]>('/api/research/participants');
+      setParticipants(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : '読み込みに失敗しました');
     } finally {

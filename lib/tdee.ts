@@ -51,6 +51,8 @@ export interface TdeeInput {
   age?:        number | null;
   /** Optional: user's sex for Mifflin-St Jeor fallback ('male'|'female'). */
   sex?:        'male' | 'female' | null;
+  /** Optional: activity level for Mifflin-St Jeor PAL multiplier. */
+  activityLevel?: string | null;
 }
 
 export interface TdeeResult {
@@ -102,26 +104,38 @@ function ols(
   return { slope, intercept, rSquared: Math.max(0, Math.min(1, rSquared)) };
 }
 
+/** PAL (Physical Activity Level) multipliers per activity_level enum value. */
+const ACTIVITY_MULTIPLIERS: Record<string, number> = {
+  sedentary:        1.2,
+  lightly_active:   1.375,
+  moderately_active: 1.55,
+  very_active:      1.725,
+  extra_active:     1.9,
+};
+
 /**
  * Mifflin-St Jeor BMR → TDEE static fallback.
  *
  * Used when regression data is insufficient or degenerate.
- * Activity multiplier 1.55 (moderately active) is applied.
+ * Activity multiplier is derived from `activityLevel`; defaults to 1.55
+ * (moderately_active) when the parameter is absent or unrecognised.
  *
- * Returns null if required parameters are missing.
+ * Returns null if required anthropometric parameters are missing.
  */
 function mifflinStJeorTdee(
-  weightKg: number | null | undefined,
-  heightCm: number | null | undefined,
-  age:      number | null | undefined,
-  sex:      'male' | 'female' | null | undefined,
+  weightKg:      number | null | undefined,
+  heightCm:      number | null | undefined,
+  age:           number | null | undefined,
+  sex:           'male' | 'female' | null | undefined,
+  activityLevel: string | null | undefined,
 ): number | null {
   if (!weightKg || !heightCm || !age || !sex) return null;
   const bmr =
     sex === 'male'
       ? 10 * weightKg + 6.25 * heightCm - 5 * age + 5
       : 10 * weightKg + 6.25 * heightCm - 5 * age - 161;
-  return Math.round(bmr * 1.55 * 10) / 10;
+  const pal: number = ACTIVITY_MULTIPLIERS[activityLevel ?? ''] ?? 1.55;
+  return Math.round(bmr * pal * 10) / 10;
 }
 
 /**
@@ -171,7 +185,7 @@ export function estimateTdee(input: TdeeInput): TdeeResult {
 
   if (dataPoints < MIN_DATA_POINTS) {
     // Insufficient data — try static fallback
-    const fallback = mifflinStJeorTdee(input.weightKg, input.heightCm, input.age, input.sex);
+    const fallback = mifflinStJeorTdee(input.weightKg, input.heightCm, input.age, input.sex, input.activityLevel);
     return { tdeeKcal: fallback, rSquared: null, dataPoints, isFallback: fallback != null };
   }
 
@@ -185,9 +199,11 @@ export function estimateTdee(input: TdeeInput): TdeeResult {
   // Positive slope means weight gain → surplus → TDEE < intake
   const rawTdee = avgCalories - slope * KCAL_PER_KG;
 
-  // Guard: degenerate regression (plateau) → fall back
-  if (rSquared < 0.01 && Math.abs(slope) < 1e-4) {
-    const fallback = mifflinStJeorTdee(input.weightKg, input.heightCm, input.age, input.sex)
+  // Guard: low-confidence regression (plateau or noisy-flat) → fall back.
+  // OR logic: either condition alone is sufficient to indicate unreliable data.
+  // Threshold 0.05 catches noisy-flat trajectories (R²=0.03) that && missed.
+  if (rSquared < 0.05 || Math.abs(slope) < 1e-4) {
+    const fallback = mifflinStJeorTdee(input.weightKg, input.heightCm, input.age, input.sex, input.activityLevel)
       ?? rawTdee;
     return { tdeeKcal: Math.round(fallback * 10) / 10, rSquared, dataPoints, isFallback: true };
   }

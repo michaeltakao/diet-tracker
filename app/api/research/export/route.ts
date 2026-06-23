@@ -17,7 +17,8 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getServerUser, createServerSupabase } from '@/lib/supabase-server';
+import { getServerUser, createServerSupabase, createServiceSupabase } from '@/lib/supabase-server';
+import type { ResearcherAccessLogInsert } from '@/lib/database.types';
 
 type SupportedTable = 'food_logs' | 'weight_logs' | 'workout_logs' | 'recommendation_feedback';
 
@@ -75,11 +76,24 @@ export async function GET(request: Request): Promise<NextResponse> {
     );
   }
 
+  // Service client bypasses RLS for cross-user reads.
+  const svc = await createServiceSupabase();
+
+  // IRB audit log
+  const logEntry: ResearcherAccessLogInsert = {
+    researcher_id:  user.id,
+    endpoint:       '/api/research/export',
+    filter_user_id: userId ?? null,
+    table_name:     tableName ?? null,
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (svc as any).from('researcher_access_log').insert(logEntry).then(() => {});
+
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
   // ── Single-table export ─────────────────────────────────────────────────────
   if (tableName) {
-    let q = supabase.from(tableName).select('*');
+    let q = svc.from(tableName).select('*');
     if (userId) q = q.eq('user_id', userId);
 
     const { data, error } = await q;
@@ -107,7 +121,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   // ── Full multi-table export (JSON only) ─────────────────────────────────────
   const buildQuery = (table: SupportedTable) => {
-    let q = supabase.from(table).select('*');
+    let q = svc.from(table).select('*');
     if (userId) q = q.eq('user_id', userId);
     return q;
   };

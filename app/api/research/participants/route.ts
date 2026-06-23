@@ -12,7 +12,8 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getServerUser, createServerSupabase } from '@/lib/supabase-server';
+import { getServerUser, createServerSupabase, createServiceSupabase } from '@/lib/supabase-server';
+import type { ResearcherAccessLogInsert } from '@/lib/database.types';
 
 export interface ParticipantSummary {
   id:                string;
@@ -46,8 +47,20 @@ export async function GET(): Promise<NextResponse> {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  // Service client bypasses RLS for cross-user reads (researcher dashboard).
+  // All access is logged to researcher_access_log for IRB compliance.
+  const svc = await createServiceSupabase();
+
+  // IRB audit log (fire-and-forget; failure does not block the response)
+  const logEntry: ResearcherAccessLogInsert = {
+    researcher_id: user.id,
+    endpoint: '/api/research/participants',
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (svc as any).from('researcher_access_log').insert(logEntry).then(() => {});
+
   // Fetch all consented participants
-  const { data: profiles, error: pErr } = await supabase
+  const { data: profiles, error: pErr } = await svc
     .from('profiles')
     .select('id, display_name, consented_at, study_cohort, role')
     .eq('role', 'participant')
@@ -64,17 +77,17 @@ export async function GET(): Promise<NextResponse> {
 
   const userIds = profiles.map(p => p.id);
 
-  // Parallel fetch engagement data
+  // Parallel fetch engagement data (service client — cross-user reads)
   const [foodRes, weightRes, fbRes] = await Promise.all([
-    supabase
+    svc
       .from('food_logs')
       .select('user_id, logged_date')
       .in('user_id', userIds),
-    supabase
+    svc
       .from('weight_logs')
       .select('user_id')
       .in('user_id', userIds),
-    supabase
+    svc
       .from('recommendation_feedback')
       .select('user_id, kind')
       .in('user_id', userIds),
