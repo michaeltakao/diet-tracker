@@ -83,7 +83,7 @@ function FeedbackButtons({
         onClick={() => onReact('accept')}
         aria-pressed={active === 'accept'}
         aria-label="役に立った"
-        className={`${base} ${active === 'accept' ? 'text-emerald-500' : 'text-faint hover:text-emerald-400'}`}
+        className={`${base} ${active === 'accept' ? 'text-success' : 'text-faint hover:text-success'}`}
       >
         <ThumbsUp size={12} aria-hidden />
       </button>
@@ -92,7 +92,7 @@ function FeedbackButtons({
         onClick={() => onReact('reject')}
         aria-pressed={active === 'reject'}
         aria-label="興味なし"
-        className={`${base} ${active === 'reject' ? 'text-red-500' : 'text-faint hover:text-red-400'}`}
+        className={`${base} ${active === 'reject' ? 'text-danger' : 'text-faint hover:text-danger'}`}
       >
         <ThumbsDown size={12} aria-hidden />
       </button>
@@ -104,7 +104,7 @@ function FeedbackButtons({
 function XaiBar({ factors }: { factors: ExplanationFactor[] }) {
   if (factors.length === 0) {
     return (
-      <p className="text-[9px] text-faint italic py-1">
+      <p className="text-xs text-faint italic py-1">
         まだ十分なデータがありません。食事・運動を記録するほど精度が上がります。
       </p>
     );
@@ -114,14 +114,14 @@ function XaiBar({ factors }: { factors: ExplanationFactor[] }) {
     <div className="space-y-1 pt-0.5">
       {factors.map(f => (
         <div key={f.label} className="flex items-center gap-1.5">
-          <span className="text-[9px] text-faint w-28 flex-shrink-0 truncate">{f.label}</span>
+          <span className="text-xs text-faint w-28 flex-shrink-0 truncate">{f.label}</span>
           <div className="flex-1 h-1.5 rounded-full bg-surface-2 overflow-hidden">
             <div
-              className={`h-full rounded-full ${f.direction === 'positive' ? 'bg-violet-400' : 'bg-red-400'}`}
+              className={`h-full rounded-full ${f.direction === 'positive' ? 'bg-ai' : 'bg-danger'}`}
               style={{ width: `${(Math.abs(f.weight) / maxAbs) * 100}%` }}
             />
           </div>
-          <span className="text-[9px] tabular-nums text-faint w-6 text-right">
+          <span className="text-xs tabular-nums text-faint w-6 text-right">
             {f.weight > 0 ? '+' : ''}{f.weight.toFixed(1)}
           </span>
         </div>
@@ -229,7 +229,7 @@ export default function RecommendationCard() {
     return (
       <div className={`${CARD} p-4 mb-3`}>
         <div className="flex items-center gap-2 mb-2">
-          <Sparkles size={15} className="text-violet-400" />
+          <Sparkles size={15} className="text-ai" />
           <span className="text-xs font-black text-faint uppercase tracking-widest">
             パーソナライズ推薦
           </span>
@@ -246,7 +246,7 @@ export default function RecommendationCard() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Sparkles size={15} className="text-violet-500" />
+          <Sparkles size={15} className="text-ai" />
           <span className="text-xs font-black text-faint uppercase tracking-widest">
             今日のパーソナライズ推薦
           </span>
@@ -272,7 +272,7 @@ export default function RecommendationCard() {
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
               ${loading
                 ? 'bg-surface-2 text-faint cursor-not-allowed'
-                : 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-900/50'}
+                : 'bg-ai-soft text-ai hover:opacity-80'}
             `}
           >
             <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
@@ -283,7 +283,7 @@ export default function RecommendationCard() {
 
       {/* ── Error ── */}
       {error && (
-        <div className="text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-2xl px-3 py-2.5 mb-3">
+        <div className="text-xs text-danger bg-danger-soft rounded-2xl px-3 py-2.5 mb-3">
           ⚠️ {error}
         </div>
       )}
@@ -320,15 +320,15 @@ export default function RecommendationCard() {
 
           {/* Warnings */}
           {rec.warnings.length > 0 && (
-            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-2xl px-3 py-2.5">
+            <div className="bg-warning-soft border border-warning/30 rounded-2xl px-3 py-2.5">
               <div className="flex items-center gap-1.5 mb-1.5">
                 <AlertTriangle size={11} className="text-warning flex-shrink-0" aria-hidden="true" />
-                <span className="text-[10px] font-black text-warning uppercase tracking-widest">
+                <span className="text-xs font-black text-warning uppercase tracking-widest">
                   健康注意事項
                 </span>
               </div>
               {rec.warnings.map((w, i) => (
-                <p key={i} className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+                <p key={i} className="text-xs text-warning leading-relaxed">
                   {w}
                 </p>
               ))}
@@ -337,12 +337,12 @@ export default function RecommendationCard() {
 
           {/* Macro caps applied (deterministic safety clamp) */}
           {rec.macroCapsApplied && rec.macroCapsApplied.length > 0 && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl px-3 py-2.5">
-              <p className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-widest mb-1">
+            <div className="bg-danger-soft border border-danger/30 rounded-2xl px-3 py-2.5">
+              <p className="text-xs font-black text-danger uppercase tracking-widest mb-1">
                 🛡️ 安全のため目標値を制限
               </p>
               {rec.macroCapsApplied.map((cap, i) => (
-                <p key={i} className="text-xs text-red-700 dark:text-red-300 leading-relaxed">
+                <p key={i} className="text-xs text-danger leading-relaxed">
                   {cap}
                 </p>
               ))}
@@ -351,7 +351,7 @@ export default function RecommendationCard() {
 
           {/* Foods */}
           <div>
-            <p className="text-[10px] font-black text-faint uppercase tracking-widest mb-2">
+            <p className="text-xs font-black text-faint uppercase tracking-widest mb-2">
               🍽️ おすすめの食事
             </p>
             <div className="space-y-2">
@@ -368,19 +368,19 @@ export default function RecommendationCard() {
                       <span className="text-xs font-bold text-fg truncate">
                         {food.name}
                       </span>
-                      <span className="text-[10px] font-semibold text-faint flex-shrink-0 tabular-nums">
+                      <span className="text-xs font-semibold text-faint flex-shrink-0 tabular-nums">
                         ~{food.calories}kcal
                       </span>
                     </div>
-                    <p className="text-[10px] text-faint leading-relaxed">
+                    <p className="text-xs text-faint leading-relaxed">
                       {food.reason}
                     </p>
                     <div className="flex flex-wrap items-center gap-1 mt-1">
-                      <span className="inline-block text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full">
+                      <span className="inline-block text-xs font-bold text-success bg-success-soft px-1.5 py-0.5 rounded-full">
                         {food.macroHighlight}
                       </span>
                       {food.macroFit && (
-                        <span className="inline-block text-[9px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded-full">
+                        <span className="inline-block text-xs font-bold text-info bg-info-soft px-1.5 py-0.5 rounded-full">
                           🎯 {food.macroFit}
                         </span>
                       )}
@@ -388,7 +388,7 @@ export default function RecommendationCard() {
                     {food.safetyNotes && food.safetyNotes.length > 0 && (
                       <div className="mt-1 space-y-0.5">
                         {food.safetyNotes.map((note, j) => (
-                          <p key={j} className="text-[9px] text-amber-700 dark:text-amber-300 leading-relaxed flex items-start gap-1">
+                          <p key={j} className="text-xs text-warning leading-relaxed flex items-start gap-1">
                             <AlertTriangle size={9} className="text-warning flex-shrink-0 mt-0.5" aria-hidden="true" />
                             <span>{note.message}</span>
                           </p>
@@ -404,7 +404,7 @@ export default function RecommendationCard() {
                       <button
                         type="button"
                         onClick={() => toggleDrawer(`food:${food.name}`)}
-                        className="flex items-center gap-1 text-[9px] text-violet-500 hover:text-violet-700 dark:hover:text-violet-300 transition-colors"
+                        className="flex items-center gap-1 text-xs text-ai hover:underline transition-colors"
                         aria-expanded={openDrawers.has(`food:${food.name}`)}
                       >
                         {openDrawers.has(`food:${food.name}`) ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
@@ -422,7 +422,7 @@ export default function RecommendationCard() {
 
           {/* Exercises */}
           <div>
-            <p className="text-[10px] font-black text-faint uppercase tracking-widest mb-2">
+            <p className="text-xs font-black text-faint uppercase tracking-widest mb-2">
               💪 おすすめの運動
             </p>
             <div className="space-y-2">
@@ -439,11 +439,11 @@ export default function RecommendationCard() {
                       <span className="text-xs font-bold text-fg truncate">
                         {ex.name}
                       </span>
-                      <span className="text-[10px] font-semibold text-violet-700 dark:text-violet-300 flex-shrink-0">
+                      <span className="text-xs font-semibold text-ai flex-shrink-0">
                         {ex.duration}
                       </span>
                     </div>
-                    <p className="text-[10px] text-faint leading-relaxed">
+                    <p className="text-xs text-faint leading-relaxed">
                       {ex.reason}
                     </p>
                     <FeedbackButtons
@@ -455,7 +455,7 @@ export default function RecommendationCard() {
                       <button
                         type="button"
                         onClick={() => toggleDrawer(`ex:${ex.name}`)}
-                        className="flex items-center gap-1 text-[9px] text-violet-500 hover:text-violet-700 dark:hover:text-violet-300 transition-colors"
+                        className="flex items-center gap-1 text-xs text-ai hover:underline transition-colors"
                         aria-expanded={openDrawers.has(`ex:${ex.name}`)}
                       >
                         {openDrawers.has(`ex:${ex.name}`) ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
@@ -473,8 +473,8 @@ export default function RecommendationCard() {
 
           {/* Adjusted macros proposal */}
           {rec.adjustedMacros && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-2xl px-3 py-2.5">
-              <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-2">
+            <div className="bg-info-soft border border-info/20 rounded-2xl px-3 py-2.5">
+              <p className="text-xs font-black text-info uppercase tracking-widest mb-2">
                 💡 AIが提案する最適化目標値
               </p>
               <div className="grid grid-cols-5 gap-1">
@@ -488,19 +488,19 @@ export default function RecommendationCard() {
                   ] as const
                 ).map(({ label, value, unit, color }) => (
                   <div key={label} className="text-center">
-                    <div className={`text-[10px] font-black tabular-nums ${color}`}>{value}</div>
-                    <div className="text-[8px] text-faint">{unit}</div>
-                    <div className="text-[8px] text-faint">{label}</div>
+                    <div className={`text-xs font-black tabular-nums ${color}`}>{value}</div>
+                    <div className="text-xs text-faint">{unit}</div>
+                    <div className="text-xs text-faint">{label}</div>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          <p className="text-[9px] text-faint leading-relaxed">
+          <p className="text-xs text-faint leading-relaxed">
             ※ 本推薦は情報提供であり、医療上の判断は主治医・薬剤師にご相談ください。
           </p>
-          <p className="text-[9px] text-faint text-right">
+          <p className="text-xs text-faint text-right">
             生成: {new Date(rec.generatedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>

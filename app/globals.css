@@ -49,6 +49,10 @@
   --info:         #2563eb;
   --info-soft:    #eff6ff;
 
+  /* AI-driven features (recommendations, coach, analysis) — violet family */
+  --ai:           #7c3aed;
+  --ai-soft:      #f5f3ff;
+
   /* Focus ring */
   --ring: #10b981;
 
@@ -86,6 +90,9 @@
     --danger-soft:  rgb(248 113 113 / 0.14);
     --info:         #60a5fa;
     --info-soft:    rgb(96 165 250 / 0.14);
+
+    --ai:           #a78bfa;
+    --ai-soft:      rgb(139 92 246 / 0.14);
 
     --ring: #34d399;
 
@@ -129,6 +136,9 @@
   --color-danger-soft:  var(--danger-soft);
   --color-info:         var(--info);
   --color-info-soft:    var(--info-soft);
+
+  --color-ai:           var(--ai);
+  --color-ai-soft:      var(--ai-soft);
 
   /* Back-compat */
   --color-background: var(--background);

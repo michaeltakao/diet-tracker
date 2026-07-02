@@ -104,7 +104,7 @@ function SessionCard({
     <div className="border border-line rounded-2xl overflow-hidden">
       <button
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center gap-3 p-3 hover:bg-surface-2 dark:hover:bg-gray-700/50 transition-colors"
+        className="w-full flex items-center gap-3 p-3 hover:bg-surface-2 transition-colors"
       >
         <Dumbbell size={14} className="text-faint shrink-0" />
         <div className="flex-1 text-left">
@@ -236,7 +236,7 @@ function CheckInWidget({
     <div className="bg-card rounded-3xl border border-line overflow-hidden shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
       <button
         onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-center gap-3 p-4 hover:bg-surface-2 dark:hover:bg-gray-700/30 transition-colors"
+        className="w-full flex items-center gap-3 p-4 hover:bg-surface-2 transition-colors"
       >
         <div className="w-9 h-9 rounded-2xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
           <Brain size={17} className="text-purple-500" />
@@ -311,7 +311,7 @@ function CheckInWidget({
             <div className="flex items-center gap-3">
               <button
                 onClick={() => set({ sleepHours: Math.max(0, value.sleepHours - 0.5) })}
-                className="w-9 h-9 rounded-xl border border-line-strong flex items-center justify-center text-faint hover:bg-surface-2 dark:hover:bg-gray-700 transition-colors font-bold text-lg"
+                className="w-9 h-9 rounded-xl border border-line-strong flex items-center justify-center text-faint hover:bg-surface-2 transition-colors font-bold text-lg"
               >−</button>
               <div className="flex-1 text-center">
                 <span className="text-2xl font-black text-fg tabular-nums">{value.sleepHours}</span>
@@ -319,7 +319,7 @@ function CheckInWidget({
               </div>
               <button
                 onClick={() => set({ sleepHours: Math.min(14, value.sleepHours + 0.5) })}
-                className="w-9 h-9 rounded-xl border border-line-strong flex items-center justify-center text-faint hover:bg-surface-2 dark:hover:bg-gray-700 transition-colors font-bold text-lg"
+                className="w-9 h-9 rounded-xl border border-line-strong flex items-center justify-center text-faint hover:bg-surface-2 transition-colors font-bold text-lg"
               >＋</button>
             </div>
           </div>
@@ -450,7 +450,7 @@ function SuggestionCard({
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-2xl bg-white/60 dark:bg-gray-800/60 flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-2xl bg-card/60 flex items-center justify-center shrink-0">
             <Zap size={17} className={style.text} />
           </div>
           <div>
@@ -460,7 +460,7 @@ function SuggestionCard({
         </div>
         <button
           onClick={onRefresh}
-          className="p-2 rounded-xl hover:bg-white/50 dark:hover:bg-gray-700/50 transition-colors"
+          className="p-2 rounded-xl hover:bg-card/50 transition-colors"
           title="再生成"
         >
           <RefreshCw size={14} className={style.text} />
@@ -471,7 +471,7 @@ function SuggestionCard({
       <p className={`text-sm font-bold ${style.text} mb-2`}>{suggestion.sessionName}</p>
 
       {/* Intensity note */}
-      <p className={`text-xs ${style.text} opacity-80 mb-3 bg-white/40 dark:bg-gray-800/40 px-3 py-2 rounded-xl`}>
+      <p className={`text-xs ${style.text} opacity-80 mb-3 bg-card/40 px-3 py-2 rounded-xl`}>
         {suggestion.intensityNote}
       </p>
 

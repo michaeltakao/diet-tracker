@@ -131,7 +131,7 @@ export default function HomePage() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 font-bold text-sm px-5 py-2.5 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap"
+          className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-fg text-surface font-bold text-sm px-5 py-2.5 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap"
         >
           {copyToast}
         </div>

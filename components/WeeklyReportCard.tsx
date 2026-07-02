@@ -32,10 +32,10 @@ function get7Days(): { startDate: string; endDate: string; dates: string[] } {
 }
 
 function scoreLabel(s: number): { grade: string; color: string; bg: string } {
-  if (s >= 80) return { grade: 'A', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' };
-  if (s >= 60) return { grade: 'B', color: 'text-blue-600 dark:text-blue-400',    bg: 'bg-blue-100 dark:bg-blue-900/30' };
-  if (s >= 40) return { grade: 'C', color: 'text-warning',  bg: 'bg-amber-100 dark:bg-amber-900/30' };
-  return             { grade: 'D', color: 'text-red-500 dark:text-red-400',       bg: 'bg-red-100 dark:bg-red-900/30' };
+  if (s >= 80) return { grade: 'A', color: 'text-success', bg: 'bg-success-soft' };
+  if (s >= 60) return { grade: 'B', color: 'text-info', bg: 'bg-info-soft' };
+  if (s >= 40) return { grade: 'C', color: 'text-warning', bg: 'bg-warning-soft' };
+  return             { grade: 'D', color: 'text-danger', bg: 'bg-danger-soft' };
 }
 
 const CARD = 'bg-card rounded-3xl shadow-card border border-line';
@@ -144,7 +144,7 @@ export default function WeeklyReportCard() {
       <p className="text-xs text-faint mb-4 pl-8">過去7日間のAI分析レポート（1時間に3回まで）</p>
 
       {error && (
-        <div className="text-xs text-warning bg-amber-50 dark:bg-amber-900/20 rounded-2xl px-3 py-2.5 mb-3">
+        <div className="text-xs text-warning bg-warning-soft rounded-2xl px-3 py-2.5 mb-3">
           ⚠️ {error}
         </div>
       )}
@@ -184,16 +184,16 @@ export default function WeeklyReportCard() {
           {report.weightChange !== null && (
             <div className="flex items-center gap-2 px-3 py-2 bg-surface-2 rounded-2xl">
               {report.weightChange < 0
-                ? <TrendingDown size={14} className="text-emerald-500 flex-shrink-0" />
+                ? <TrendingDown size={14} className="text-success flex-shrink-0" />
                 : report.weightChange > 0
-                ? <TrendingUp   size={14} className="text-red-400 flex-shrink-0" />
+                ? <TrendingUp   size={14} className="text-danger flex-shrink-0" />
                 : null}
               <span className="text-xs font-semibold text-muted">
                 今週の体重変化：
                 <span className={`font-black ml-1 ${
-                  report.weightChange < 0 ? 'text-emerald-600 dark:text-emerald-400'
-                  : report.weightChange > 0 ? 'text-red-500 dark:text-red-400'
-                  : 'text-gray-600'}`}>
+                  report.weightChange < 0 ? 'text-success'
+                  : report.weightChange > 0 ? 'text-danger'
+                  : 'text-muted'}`}>
                   {report.weightChange > 0 ? '+' : ''}{report.weightChange} kg
                 </span>
               </span>
@@ -207,14 +207,14 @@ export default function WeeklyReportCard() {
 
           {/* Highlight + Improvement */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-3 border border-emerald-100 dark:border-emerald-800">
+            <div className="bg-success-soft rounded-2xl p-3 border border-success/20">
               <div className="flex items-center gap-1 mb-1.5">
-                <Trophy size={10} className="text-emerald-500" />
-                <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">今週の成果</p>
+                <Trophy size={10} className="text-success" />
+                <p className="text-[10px] font-black text-success uppercase tracking-wide">今週の成果</p>
               </div>
               <p className="text-xs text-muted leading-relaxed">{report.highlight}</p>
             </div>
-            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-3 border border-amber-100 dark:border-amber-800">
+            <div className="bg-warning-soft rounded-2xl p-3 border border-warning/20">
               <p className="text-[10px] font-black text-warning uppercase tracking-wide mb-1.5">改善ポイント</p>
               <p className="text-xs text-muted leading-relaxed">{report.improvement}</p>
             </div>

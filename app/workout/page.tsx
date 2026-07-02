@@ -537,8 +537,8 @@ export default function WorkoutPage() {
                 <p className="text-sm text-muted leading-relaxed">{aiAdvice.habitInsight}</p>
               </div>
               {/* Tomorrow tip */}
-              <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-3 border border-emerald-100 dark:border-emerald-800">
-                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1.5">💡 {t.tomorrowAdviceLabel}</p>
+              <div className="bg-success-soft rounded-2xl p-3 border border-success/20">
+                <p className="text-xs font-bold text-success mb-1.5">💡 {t.tomorrowAdviceLabel}</p>
                 <p className="text-sm text-muted leading-relaxed">{aiAdvice.tomorrowTip}</p>
               </div>
               {/* Motivation */}
@@ -565,7 +565,7 @@ export default function WorkoutPage() {
             <div className="relative border-l-2 border-line ml-3 pl-5 space-y-4 pt-1">
               {timeline.map((entry) => (
                 <div key={entry.id} className="relative">
-                  <div className={`absolute -left-[27px] top-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-gray-800 shadow-sm ${entry._type === 'food' ? 'bg-orange-400' : 'bg-green-500'}`} />
+                  <div className={`absolute -left-[27px] top-1 w-3.5 h-3.5 rounded-full border-2 border-card shadow-sm ${entry._type === 'food' ? 'bg-orange-400' : 'bg-green-500'}`} />
                   <span className="text-xs font-bold text-faint bg-surface-2 px-1.5 py-0.5 rounded mr-1">
                     {formatTime(entry.addedAt)}
                   </span>

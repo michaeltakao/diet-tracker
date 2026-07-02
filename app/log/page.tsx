@@ -124,7 +124,7 @@ function HabitSkeleton() {
   return (
     <div className="space-y-3 animate-pulse">
       {['full', '4/5', '3/4'].map((w, i) => (
-        <div key={i} className="rounded-2xl p-4 bg-gray-100 dark:bg-gray-700">
+        <div key={i} className="rounded-2xl p-4 bg-surface-2">
           <div className="h-3 skeleton rounded w-1/4 mb-2.5" />
           {[w, '2/3'].map((ww, j) => (
             <div key={j} className={`h-3.5 skeleton rounded w-${ww} mb-1.5`} />
@@ -359,9 +359,9 @@ export default function LogPage() {
 
         {/* Insufficient data */}
         {habitInsuff && (
-          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 mb-3 text-center animate-fade-in">
+          <div className="bg-warning-soft border border-warning/30 rounded-2xl p-4 mb-3 text-center animate-fade-in">
             <p className="text-2xl mb-2">📊</p>
-            <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">{t.notEnoughData}</p>
+            <p className="text-sm font-semibold text-warning">{t.notEnoughData}</p>
           </div>
         )}
 
@@ -406,14 +406,14 @@ export default function LogPage() {
         {habitReport && (
           <div className="space-y-3 animate-fade-in">
             {/* Strengths */}
-            <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-4 border border-emerald-100 dark:border-emerald-800">
-              <p className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest mb-3">
+            <div className="bg-success-soft rounded-2xl p-4 border border-success/20">
+              <p className="text-xs font-black text-success uppercase tracking-widest mb-3">
                 {t.habitStrengths}
               </p>
               <ul className="space-y-2">
                 {habitReport.strengths.map((s, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-muted">
-                    <span className="text-emerald-500 font-black mt-0.5 flex-shrink-0">✓</span>
+                    <span className="text-success font-black mt-0.5 flex-shrink-0">✓</span>
                     <span className="leading-relaxed">{s}</span>
                   </li>
                 ))}
@@ -421,14 +421,14 @@ export default function LogPage() {
             </div>
 
             {/* Frictions */}
-            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-4 border border-amber-100 dark:border-amber-800">
-              <p className="text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest mb-3">
+            <div className="bg-warning-soft rounded-2xl p-4 border border-warning/20">
+              <p className="text-xs font-black text-warning uppercase tracking-widest mb-3">
                 {t.habitFrictions}
               </p>
               <ul className="space-y-2">
                 {habitReport.frictions.map((f, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-muted">
-                    <span className="text-amber-500 font-black mt-0.5 flex-shrink-0">!</span>
+                    <span className="text-warning font-black mt-0.5 flex-shrink-0">!</span>
                     <span className="leading-relaxed">{f}</span>
                   </li>
                 ))}

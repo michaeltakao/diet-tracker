@@ -215,11 +215,11 @@ export default function AddPage() {
               flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold
               transition-all duration-200
               ${speedMode
-                ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-700'
+                ? 'bg-ai-soft text-ai border border-ai/30'
                 : 'bg-surface-2 text-faint border border-line-strong'}
             `}
           >
-            <Zap size={11} className={speedMode ? 'text-violet-500' : ''} />
+            <Zap size={11} className={speedMode ? 'text-ai' : ''} />
             {t.speedMode}
           </button>
           <div className="flex items-center gap-1.5 text-xs text-faint font-medium">

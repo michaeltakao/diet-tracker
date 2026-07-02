@@ -96,9 +96,9 @@ export default function BadgeCelebration({ badges, onClose }: Props) {
       <div
         className="
           relative z-10 mx-6 max-w-xs w-full
-          bg-white/85 dark:bg-slate-800/85
+          bg-card/85
           backdrop-blur-md
-          border border-white/60 dark:border-slate-600/60
+          border border-line-strong
           rounded-3xl
           shadow-[0_24px_64px_rgb(0,0,0,0.20)]
           p-8 text-center
