@@ -1,14 +1,17 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Sparkles, BarChart3 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles, BarChart3, BookmarkPlus } from 'lucide-react';
 import { getAppData, removeFoodEntry, updateFoodEntry } from '@/lib/data';
-import { FoodEntry, DailyGoals } from '@/lib/types';
+import { saveMealTemplate } from '@/lib/data/meal-templates';
+import { FoodEntry, DailyGoals, MealTemplate } from '@/lib/types';
 import MealCard from '@/components/MealCard';
 import CalorieBar from '@/components/CalorieBar';
 import WeeklyReportCard from '@/components/WeeklyReportCard';
 import BottomNav from '@/components/BottomNav';
 import { TrendsPanel } from '@/components/TrendsPanel';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Toast } from '@/components/ui/Toast';
 import { recordEvent } from '@/lib/telemetry';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -161,6 +164,10 @@ export default function LogPage() {
   const [habitError, setHabitError]       = useState('');
   const [habitInsuff, setHabitInsuff]     = useState(false);
 
+  // "Save this meal" as a template
+  const [templateSource, setTemplateSource] = useState<FoodEntry['mealType'] | null>(null);
+  const [templateToast, setTemplateToast]   = useState(false);
+
   const loadData = useCallback(() => {
     const data = getAppData();
     setAllEntries(data.foodEntries);
@@ -196,6 +203,26 @@ export default function LogPage() {
 
   const handleDelete = (id: string) => { void removeFoodEntry(id); loadData(); };
   const handleEdit   = (updated: FoodEntry) => { void updateFoodEntry(updated); loadData(); };
+
+  const handleSaveTemplate = (name: string) => {
+    if (!templateSource) return;
+    const items = grouped[templateSource] ?? [];
+    if (items.length > 0) {
+      const tmpl: MealTemplate = {
+        id: crypto.randomUUID(),
+        name,
+        mealType: templateSource,
+        items: items.map((e) => ({
+          name: e.name, calories: e.calories, protein: e.protein, fat: e.fat, carbs: e.carbs,
+        })),
+        createdAt: new Date().toISOString(),
+      };
+      void saveMealTemplate(tmpl);
+      setTemplateToast(true);
+      setTimeout(() => setTemplateToast(false), 1500);
+    }
+    setTemplateSource(null);
+  };
 
   const totals = selectedEntries.reduce(
     (acc, e) => ({ calories: acc.calories + e.calories, protein: acc.protein + e.protein, fat: acc.fat + e.fat, carbs: acc.carbs + e.carbs }),
@@ -369,9 +396,19 @@ export default function LogPage() {
             if (typeEntries.length === 0) return null;
             return (
               <div key={type}>
-                <h3 className="text-xs font-black text-faint uppercase tracking-widest mb-2 ml-1">
-                  {MEAL_LABELS[type]}
-                </h3>
+                <div className="flex items-center justify-between mb-2 ml-1">
+                  <h3 className="text-xs font-black text-faint uppercase tracking-widest">
+                    {MEAL_LABELS[type]}
+                  </h3>
+                  <button
+                    onClick={() => setTemplateSource(type)}
+                    aria-label={`${MEAL_LABELS[type]}: ${t.saveMealTemplateLabel}`}
+                    className="flex items-center gap-1 text-xs font-bold text-faint hover:text-brand transition-colors rounded px-1.5 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                  >
+                    <BookmarkPlus size={12} aria-hidden />
+                    {t.saveMealTemplateLabel}
+                  </button>
+                </div>
                 <div className="space-y-2">
                   {typeEntries.map((entry) => (
                     <MealCard key={entry.id} entry={entry} onDelete={handleDelete} onEdit={handleEdit} />
@@ -496,6 +533,17 @@ export default function LogPage() {
       </section>
       </>
       )}
+
+      <ConfirmDialog
+        open={templateSource != null}
+        title={t.saveMealTemplateLabel}
+        confirmLabel={t.saveLabel}
+        cancelLabel={t.cancel}
+        input={{ label: t.templateNameLabel }}
+        onConfirm={handleSaveTemplate}
+        onCancel={() => setTemplateSource(null)}
+      />
+      <Toast message={templateToast ? `✓ ${t.templateSavedToast}` : null} />
 
       <BottomNav />
     </div>

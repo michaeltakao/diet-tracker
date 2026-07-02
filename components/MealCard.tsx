@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Trash2, Pencil, Check, X } from 'lucide-react';
+import { Trash2, Pencil, Check, X, Heart } from 'lucide-react';
 import { FoodEntry } from '@/lib/types';
+import { isFavoriteFood, toggleFavorite } from '@/lib/data/favorites';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface MealCardProps {
@@ -33,6 +34,25 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
   const badge = MEAL_BADGE[entry.mealType];
   const [editing, setEditing] = useState(false);
   const [draft, setDraft]     = useState(entry);
+  const [fav, setFav]         = useState(false);
+
+  // Favorite state lives in localStorage — read after mount (hydration-safe).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only localStorage read
+    setFav(isFavoriteFood(entry.name));
+  }, [entry.name]);
+
+  const handleToggleFavorite = async () => {
+    const next = await toggleFavorite({
+      name: entry.name,
+      calories: entry.calories,
+      protein: entry.protein,
+      fat: entry.fat,
+      carbs: entry.carbs,
+      sourceId: entry.sourceId,
+    });
+    setFav(next);
+  };
 
   const mealLabel: Record<FoodEntry['mealType'], string> = {
     breakfast: t.breakfast,
@@ -197,6 +217,19 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
           </div>
 
           <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={handleToggleFavorite}
+              aria-pressed={fav}
+              aria-label={`${entry.name}: ${fav ? t.removeFavoriteAria : t.addFavoriteAria}`}
+              className={`
+                p-2 rounded-lg
+                active:scale-95 transition-all duration-200
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                ${fav ? 'text-pink-500' : 'text-faint hover:text-pink-400'}
+              `}
+            >
+              <Heart size={14} className={fav ? 'fill-current' : undefined} aria-hidden="true" />
+            </button>
             {onEdit && (
               <button
                 onClick={() => { setDraft(entry); setEditing(true); }}

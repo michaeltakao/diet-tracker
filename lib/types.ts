@@ -1,8 +1,13 @@
+/** Where a food entry's nutrition values came from. */
+export type FoodSource = 'manual' | 'ai' | 'db' | 'barcode';
+
 export interface FoodEntry {
   id: string;
   date: string; // YYYY-MM-DD
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   name: string;
+  // kcal/P/F/C are always the FINAL consumed values (already portion-scaled),
+  // so TDEE, reports and streaks never need to know about servings.
   calories: number;
   protein: number; // grams
   fat: number;     // grams
@@ -10,6 +15,44 @@ export interface FoodEntry {
   photoDataUrl?: string; // base64 — localStorage legacy, kept for backward compat
   photo_url?: string;    // Supabase Storage URL — replaces photoDataUrl post-migration
   addedAt: string; // ISO
+  // ── Portion metadata (v2 logging; all optional for back-compat) ──
+  servings?: number;      // e.g. 1.5 — multiplier applied to the base portion
+  servingUnit?: string;   // e.g. '人前', '個', '100g'
+  amountG?: number;       // absolute grams when known
+  source?: FoodSource;    // provenance of the nutrition values
+  sourceId?: string;      // food-db id / barcode EAN when source is 'db'/'barcode'
+  sodiumMg?: number;      // future: medication-rules already reason about sodium
+  fiberG?: number;
+}
+
+/** A food the user explicitly favorited (♡) — Phase B preference signal. */
+export interface FavoriteFood {
+  id: string;
+  name: string;
+  calories: number; // per base portion
+  protein: number;
+  fat: number;
+  carbs: number;
+  macroHighlight: string; // derived, feeds foodFeatures() vocabulary
+  sourceId?: string;
+  createdAt: string; // ISO
+}
+
+export interface MealTemplateItem {
+  name: string;
+  calories: number;
+  protein: number;
+  fat: number;
+  carbs: number;
+}
+
+/** A saved meal ("save this meal" → one-tap re-log). */
+export interface MealTemplate {
+  id: string;
+  name: string;
+  mealType: FoodEntry['mealType'];
+  items: MealTemplateItem[];
+  createdAt: string; // ISO
 }
 
 export type MusclePart = 'chest' | 'back' | 'legs' | 'shoulders' | 'arms' | 'abs';
@@ -85,6 +128,8 @@ export interface AppData {
   badges: Badge[];
   personalRecords: Record<string, PersonalRecord>; // exercise name -> best PR
   recommendationFeedback: RecommendationFeedback[]; // Phase B: preference signals
+  favoriteFoods: FavoriteFood[];   // ♡ foods (Phase B signal + quick-add pills)
+  mealTemplates: MealTemplate[];   // saved meals for one-tap re-log
 }
 
 // ── Health Profile (stored in localStorage + profiles table) ──

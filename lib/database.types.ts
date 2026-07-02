@@ -1,6 +1,6 @@
 /**
  * Auto-generated Supabase database types.
- * Generated 2026-06-22 via `supabase gen types typescript` (project chkkpucuiyjdeqgyyszt).
+ * Generated 2026-07-03 via the Supabase MCP `generate_typescript_types` (project chkkpucuiyjdeqgyyszt).
  * DO NOT hand-edit the Database type below — regenerate with:
  *   npx supabase gen types typescript --project-id chkkpucuiyjdeqgyyszt > lib/database.types.ts
  *
@@ -109,33 +109,29 @@ export type Database = {
           },
         ]
       }
-      food_logs: {
+      favorite_foods: {
         Row: {
           calories: number
           carbs_g: number
           created_at: string
           fat_g: number
           id: string
-          logged_at: string
-          logged_date: string
-          meal_type: Database["public"]["Enums"]["meal_type"]
+          macro_highlight: string
           name: string
-          photo_url: string | null
           protein_g: number
+          source_id: string | null
           user_id: string
         }
         Insert: {
           calories: number
-          carbs_g?: number
+          carbs_g: number
           created_at?: string
-          fat_g?: number
+          fat_g: number
           id?: string
-          logged_at?: string
-          logged_date: string
-          meal_type: Database["public"]["Enums"]["meal_type"]
+          macro_highlight?: string
           name: string
-          photo_url?: string | null
-          protein_g?: number
+          protein_g: number
+          source_id?: string | null
           user_id: string
         }
         Update: {
@@ -144,17 +140,124 @@ export type Database = {
           created_at?: string
           fat_g?: number
           id?: string
+          macro_highlight?: string
+          name?: string
+          protein_g?: number
+          source_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorite_foods_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      food_logs: {
+        Row: {
+          amount_g: number | null
+          calories: number
+          carbs_g: number
+          created_at: string
+          fat_g: number
+          fiber_g: number | null
+          id: string
+          logged_at: string
+          logged_date: string
+          meal_type: Database["public"]["Enums"]["meal_type"]
+          name: string
+          photo_url: string | null
+          protein_g: number
+          serving_unit: string | null
+          servings: number | null
+          sodium_mg: number | null
+          source: string | null
+          source_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount_g?: number | null
+          calories: number
+          carbs_g?: number
+          created_at?: string
+          fat_g?: number
+          fiber_g?: number | null
+          id?: string
+          logged_at?: string
+          logged_date: string
+          meal_type: Database["public"]["Enums"]["meal_type"]
+          name: string
+          photo_url?: string | null
+          protein_g?: number
+          serving_unit?: string | null
+          servings?: number | null
+          sodium_mg?: number | null
+          source?: string | null
+          source_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount_g?: number | null
+          calories?: number
+          carbs_g?: number
+          created_at?: string
+          fat_g?: number
+          fiber_g?: number | null
+          id?: string
           logged_at?: string
           logged_date?: string
           meal_type?: Database["public"]["Enums"]["meal_type"]
           name?: string
           photo_url?: string | null
           protein_g?: number
+          serving_unit?: string | null
+          servings?: number | null
+          sodium_mg?: number | null
+          source?: string | null
+          source_id?: string | null
           user_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "food_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meal_templates: {
+        Row: {
+          created_at: string
+          id: string
+          items: Json
+          meal_type: Database["public"]["Enums"]["meal_type"]
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          items?: Json
+          meal_type: Database["public"]["Enums"]["meal_type"]
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          items?: Json
+          meal_type?: Database["public"]["Enums"]["meal_type"]
+          name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meal_templates_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -313,6 +416,41 @@ export type Database = {
           {
             foreignKeyName: "recommendation_feedback_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      researcher_access_log: {
+        Row: {
+          accessed_at: string
+          endpoint: string
+          filter_user_id: string | null
+          id: string
+          researcher_id: string
+          table_name: string | null
+        }
+        Insert: {
+          accessed_at?: string
+          endpoint: string
+          filter_user_id?: string | null
+          id?: string
+          researcher_id: string
+          table_name?: string | null
+        }
+        Update: {
+          accessed_at?: string
+          endpoint?: string
+          filter_user_id?: string | null
+          id?: string
+          researcher_id?: string
+          table_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "researcher_access_log_researcher_id_fkey"
+            columns: ["researcher_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -624,6 +762,8 @@ export type TrainingProgramRow   = Database["public"]["Tables"]["training_progra
 export type WeeklyReportRow      = Database["public"]["Tables"]["weekly_reports"]["Row"]
 export type TdeeEstimateRow      = Database["public"]["Tables"]["tdee_estimates"]["Row"]
 export type RecommendationFeedbackRow = Database["public"]["Tables"]["recommendation_feedback"]["Row"]
+export type FavoriteFoodRow      = Database["public"]["Tables"]["favorite_foods"]["Row"]
+export type MealTemplateRow      = Database["public"]["Tables"]["meal_templates"]["Row"]
 
 export type FoodLogInsert           = Database["public"]["Tables"]["food_logs"]["Insert"]
 export type WorkoutLogInsert        = Database["public"]["Tables"]["workout_logs"]["Insert"]
@@ -636,15 +776,11 @@ export type TrainingProgramInsert   = Database["public"]["Tables"]["training_pro
 export type WeeklyReportInsert      = Database["public"]["Tables"]["weekly_reports"]["Insert"]
 export type TdeeEstimateInsert      = Database["public"]["Tables"]["tdee_estimates"]["Insert"]
 export type RecommendationFeedbackInsert = Database["public"]["Tables"]["recommendation_feedback"]["Insert"]
+export type FavoriteFoodInsert      = Database["public"]["Tables"]["favorite_foods"]["Insert"]
+export type MealTemplateInsert      = Database["public"]["Tables"]["meal_templates"]["Insert"]
 
 export type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"]
 
-// Manually maintained type for migration 008 table — regenerate from live DB
-// after applying 008_research_hardening.sql to replace this with the auto-gen version.
-export interface ResearcherAccessLogInsert {
-  researcher_id:  string;
-  endpoint:       string;
-  accessed_at?:   string;
-  filter_user_id?: string | null;
-  table_name?:    string | null;
-}
+// Migration 008 table — now part of the generated Database type above.
+export type ResearcherAccessLogInsert =
+  Database["public"]["Tables"]["researcher_access_log"]["Insert"]

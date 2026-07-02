@@ -19,3 +19,5 @@ export * from './profile';
 export * from './app';
 export * from './health-profile';
 export * from './recommendation-feedback';
+export * from './favorites';
+export * from './meal-templates';

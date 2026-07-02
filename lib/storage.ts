@@ -1,4 +1,4 @@
-import { AppData, Badge, BadgeType, DailyGoals, FoodEntry, PersonalRecord, RecommendationFeedback, WeightEntry, WorkoutEntry } from './types';
+import { AppData, Badge, BadgeType, DailyGoals, FavoriteFood, FoodEntry, MealTemplate, PersonalRecord, RecommendationFeedback, WeightEntry, WorkoutEntry } from './types';
 
 const STORAGE_KEY = 'diet-tracker-v1';
 
@@ -19,6 +19,8 @@ const DEFAULT_DATA: AppData = {
   badges: [],
   personalRecords: {},
   recommendationFeedback: [],
+  favoriteFoods: [],
+  mealTemplates: [],
 };
 
 export function getAppData(): AppData {
@@ -36,6 +38,8 @@ export function getAppData(): AppData {
       badges: parsed.badges ?? [],
       personalRecords: parsed.personalRecords ?? {},
       recommendationFeedback: parsed.recommendationFeedback ?? [],
+      favoriteFoods: parsed.favoriteFoods ?? [],
+      mealTemplates: parsed.mealTemplates ?? [],
     };
   } catch {
     return { ...DEFAULT_DATA, goals: { ...DEFAULT_GOALS } };
@@ -118,6 +122,44 @@ export function getRecentFoods(limit = 5): FoodEntry[] {
     if (recent.length >= limit) break;
   }
   return recent;
+}
+
+// ── Favorite foods (Phase B signal + quick-add) ──────────
+export function getFavoriteFoods(): FavoriteFood[] {
+  return getAppData().favoriteFoods;
+}
+
+export function addFavoriteFood(fav: FavoriteFood): void {
+  const data = getAppData();
+  // one favorite per food name — replace any prior entry
+  data.favoriteFoods = [
+    ...data.favoriteFoods.filter((f) => f.name !== fav.name),
+    fav,
+  ];
+  saveAppData(data);
+}
+
+export function removeFavoriteFood(name: string): void {
+  const data = getAppData();
+  data.favoriteFoods = data.favoriteFoods.filter((f) => f.name !== name);
+  saveAppData(data);
+}
+
+// ── Meal templates ────────────────────────────────────────
+export function getMealTemplates(): MealTemplate[] {
+  return getAppData().mealTemplates;
+}
+
+export function addMealTemplate(tmpl: MealTemplate): void {
+  const data = getAppData();
+  data.mealTemplates.push(tmpl);
+  saveAppData(data);
+}
+
+export function removeMealTemplate(id: string): void {
+  const data = getAppData();
+  data.mealTemplates = data.mealTemplates.filter((t) => t.id !== id);
+  saveAppData(data);
 }
 
 // ── Workout ─────────────────────────────────────────────
