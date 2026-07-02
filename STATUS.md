@@ -36,6 +36,7 @@
   env. Found during Layer-3 mega-prompt triage — see vault `ADR-003`.
 
 ## Last verified state
+- 2026-07-02: sweep re-verify — `npm run lint` clean on branch `feature/research-platform`.
 - 2026-06-22: `feature/research-platform` @ `35b2ee3` — `npm run build` ✓,
   `npm test` 86/86 ✓. All P0 routes compile and appear in build manifest.
 - 2026-06-11: trivy (lockfile) clean · gitleaks history scan: 9 findings,
