@@ -8,6 +8,8 @@ import MealCard from '@/components/MealCard';
 import CalorieBar from '@/components/CalorieBar';
 import WeeklyReportCard from '@/components/WeeklyReportCard';
 import BottomNav from '@/components/BottomNav';
+import { TrendsPanel } from '@/components/TrendsPanel';
+import { recordEvent } from '@/lib/telemetry';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 function getTodayDate(): string { return new Date().toISOString().split('T')[0]; }
@@ -142,9 +144,12 @@ interface HabitReport {
   nextWeekTarget: string;
 }
 
+type LogView = 'weekly' | 'trends';
+
 export default function LogPage() {
   const { t, lang } = useLanguage();
   const locale = lang === 'ja' ? 'ja-JP' : 'en-US';
+  const [view, setView] = useState<LogView>('weekly');
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
   const [weekOffset, setWeekOffset]     = useState(0);
   const [allEntries, setAllEntries]     = useState<FoodEntry[]>([]);
@@ -164,6 +169,21 @@ export default function LogPage() {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
   useEffect(() => { loadData(); }, [loadData]);
+
+  // ?view=trends deep link (read on mount; keeps the page statically prerenderable)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot URL read on mount
+    if (new URLSearchParams(window.location.search).get('view') === 'trends') setView('trends');
+  }, []);
+
+  const switchView = (next: LogView) => {
+    setView(next);
+    const url = new URL(window.location.href);
+    if (next === 'trends') url.searchParams.set('view', 'trends');
+    else url.searchParams.delete('view');
+    window.history.replaceState(null, '', url);
+    if (next === 'weekly') recordEvent('weekly_view_viewed');
+  };
 
   const anchorDate = new Date();
   anchorDate.setDate(anchorDate.getDate() + weekOffset * 7);
@@ -240,12 +260,32 @@ export default function LogPage() {
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
       {/* ── Header ─────────────────────────────── */}
-      <div className="pt-6 pb-4">
+      <div className="pt-6 pb-4 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-black text-fg tracking-tight">
           {t.weeklyLog} 📅
         </h1>
+        {/* 週間 / トレンド segmented toggle */}
+        <div role="tablist" aria-label={t.weeklyLog} className="flex p-1 bg-surface-2 rounded-2xl">
+          {([['weekly', t.weeklyTab], ['trends', t.trendsTab]] as const).map(([v, label]) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => switchView(v)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
+                view === v ? 'bg-card text-fg shadow-card' : 'text-faint hover:text-muted'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
+      {view === 'trends' && <TrendsPanel />}
+
+      {view === 'weekly' && (
+      <>
       {/* ── Week navigation ─────────────────────── */}
       <div className={`${cardCls} p-3 mb-3`}>
         <div className="flex items-center justify-between mb-3">
@@ -454,6 +494,8 @@ export default function LogPage() {
           </div>
         )}
       </section>
+      </>
+      )}
 
       <BottomNav />
     </div>

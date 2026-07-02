@@ -32,7 +32,16 @@ export const MIN_DATA_POINTS = 7;
 const KCAL_PER_KG = 7700;
 
 /** Exponential smoothing factor for TDEE series (α). */
-const SMOOTH_ALPHA = 0.3;
+export const SMOOTH_ALPHA = 0.3;
+
+/**
+ * Single-step exponential smoothing: s = α·next + (1−α)·prev.
+ * With prev == null the raw value passes through (series start).
+ * Shared by the TDEE estimator and lib/trends.ts weight smoothing.
+ */
+export function expSmooth(prev: number | null, next: number, alpha: number = SMOOTH_ALPHA): number {
+  return prev == null ? next : alpha * next + (1 - alpha) * prev;
+}
 
 export interface TdeeInput {
   /** Array of (date, weightKg) pairs; date as YYYY-MM-DD string. */
@@ -75,7 +84,7 @@ export interface TdeeResult {
  * intercept : a
  * rSquared  : R² coefficient of determination (0–1)
  */
-function ols(
+export function ols(
   x: readonly number[],
   y: readonly number[],
 ): { slope: number; intercept: number; rSquared: number } {
@@ -209,10 +218,7 @@ export function estimateTdee(input: TdeeInput): TdeeResult {
   }
 
   // Exponential smoothing with previous estimate
-  const smoothed =
-    input.prevTdee != null
-      ? SMOOTH_ALPHA * rawTdee + (1 - SMOOTH_ALPHA) * input.prevTdee
-      : rawTdee;
+  const smoothed = expSmooth(input.prevTdee, rawTdee);
 
   // Physiological bounds: 800–6000 kcal/day
   const clamped = Math.max(800, Math.min(6000, smoothed));
