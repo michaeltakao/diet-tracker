@@ -46,6 +46,19 @@ export async function getJson<T>(url: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export async function deleteJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { method: 'DELETE', headers: buildHeaders() });
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const err = (await res.json()) as { error?: string };
+      if (err.error) message = err.error;
+    } catch {}
+    throw new HttpError(res.status, message);
+  }
+  return res.json() as Promise<T>;
+}
+
 export async function postJson<T>(url: string, body: unknown, _retried = false): Promise<T> {
   const res = await fetch(url, {
     method: 'POST',
