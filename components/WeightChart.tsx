@@ -38,10 +38,10 @@ export default function WeightChart({ entries, goalWeight }: WeightChartProps) {
       <div className="flex items-center justify-between mb-3">
         {latest && (
           <div>
-            <span className="text-3xl font-black text-gray-900 dark:text-white tabular-nums tracking-tight">
+            <span className="text-3xl font-black text-fg tabular-nums tracking-tight">
               {latest.weight}
             </span>
-            <span className="text-base text-gray-400 dark:text-gray-500 font-medium ml-1">kg</span>
+            <span className="text-base text-faint font-medium ml-1">kg</span>
           </div>
         )}
         {entries.length > 1 && (
@@ -51,7 +51,7 @@ export default function WeightChart({ entries, goalWeight }: WeightChartProps) {
               ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
               : diff > 0
               ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}
+              : 'bg-surface-2 text-faint'}
           `}>
             {diff > 0 ? '▲' : diff < 0 ? '▼' : '─'} {Math.abs(diff)} kg
           </span>
@@ -144,7 +144,7 @@ export default function WeightChart({ entries, goalWeight }: WeightChartProps) {
 
       {/* Trend note */}
       {entries.length > 2 && (
-        <p className={`text-[11px] font-semibold text-right mt-1 ${isImproving ? 'text-emerald-500' : 'text-rose-400'}`}>
+        <p className={`text-[11px] font-semibold text-right mt-1 ${isImproving ? 'text-success' : 'text-danger'}`}>
           {isImproving ? '📉 順調に減量中' : '📈 体重が増加傾向'}
         </p>
       )}

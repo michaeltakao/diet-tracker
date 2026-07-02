@@ -14,3 +14,8 @@ export * from './weight';
 export * from './water';
 export * from './badges';
 export * from './profile';
+// Compatibility shim: getAppData() for pages needing full AppData snapshot
+// STEP 7 change: replace with Supabase read after migration
+export * from './app';
+export * from './health-profile';
+export * from './recommendation-feedback';

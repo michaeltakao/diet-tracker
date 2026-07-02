@@ -2,15 +2,17 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Save, Check, Download, Upload, Trash2, Database, FileJson, FileSpreadsheet } from 'lucide-react';
-import { getAppData, updateGoals } from '@/lib/storage';
-import { DailyGoals } from '@/lib/types';
+import { ChevronLeft, Save, Check, Upload, Trash2, Database, FileJson, FileSpreadsheet, User, Pill, Plus, X } from 'lucide-react';
+import { getAppData, updateGoals, getHealthProfile, updateHealthProfile } from '@/lib/data';
+import { DailyGoals, UserHealthProfile, FitnessGoal, ActivityLevel } from '@/lib/types';
 import {
   getStorageStats, exportDataAsJSON, exportDataAsCSV,
   importFromFile, clearAllData, StorageStats,
 } from '@/lib/export';
 import BottomNav from '@/components/BottomNav';
+import AccountSection from '@/components/AccountSection';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useWeightUnit } from '@/lib/units';
 
 interface GoalForm {
   calories:   string;
@@ -21,13 +23,39 @@ interface GoalForm {
   goalWeight: string;
 }
 
+const HEALTH_CONDITIONS = [
+  '糖尿病', '高血圧', '高脂血症', '腎臓病', '心臓病',
+  '骨粗鬆症', '貧血', 'セリアック病', '痛風', '甲状腺疾患',
+] as const;
+
+const DIETARY_RESTRICTIONS = [
+  'ベジタリアン', 'ヴィーガン', 'グルテンフリー',
+  '乳製品除去', 'ナッツアレルギー', '低FODMAP', 'ハラール',
+] as const;
+
+const FITNESS_GOALS: Array<{ value: FitnessGoal; label: string; icon: string }> = [
+  { value: 'weight_loss',  label: '減量',         icon: '📉' },
+  { value: 'muscle_gain',  label: '筋肉増量',     icon: '💪' },
+  { value: 'maintenance',  label: '維持',         icon: '⚖️' },
+  { value: 'endurance',    label: '持久力向上',   icon: '🏃' },
+  { value: 'flexibility',  label: '柔軟性向上',   icon: '🧘' },
+];
+
+const ACTIVITY_LEVELS: Array<{ value: ActivityLevel; label: string }> = [
+  { value: 'sedentary',          label: '座り仕事中心' },
+  { value: 'lightly_active',     label: '軽い運動（週1-2回）' },
+  { value: 'moderately_active',  label: '適度な運動（週3-5回）' },
+  { value: 'very_active',        label: '活発な運動（週6-7回）' },
+  { value: 'extra_active',       label: '超激しい運動' },
+];
+
 const inputCls = `
   w-full px-3.5 py-3 rounded-2xl text-sm font-semibold
-  border border-gray-200 dark:border-gray-600
-  bg-white dark:bg-gray-700
-  text-gray-800 dark:text-gray-100
-  placeholder-gray-300 dark:placeholder-gray-600
-  focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent
+  border border-line-strong
+  bg-surface-2
+  text-fg
+  placeholder:text-faint
+  focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:border-transparent
   transition-all duration-200
   tabular-nums
 `;
@@ -35,6 +63,7 @@ const inputCls = `
 export default function SettingsPage() {
   const router = useRouter();
   const { t, lang, setLang } = useLanguage();
+  const { unit, setUnit } = useWeightUnit();
   const [form, setForm] = useState<GoalForm>({
     calories:   '2000',
     protein:    '150',
@@ -43,14 +72,20 @@ export default function SettingsPage() {
     water:      '2000',
     goalWeight: '',
   });
-  const [saved, setSaved] = useState(false);
-  const [stats, setStats] = useState<StorageStats | null>(null);
+  const [saved,        setSaved]        = useState(false);
+  const [stats,        setStats]        = useState<StorageStats | null>(null);
   const [clearConfirm, setClearConfirm] = useState(false);
-  const [importMsg, setImportMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [importMsg,    setImportMsg]    = useState<{ ok: boolean; text: string } | null>(null);
+  const [healthProfile, setHealthProfile] = useState<UserHealthProfile>({
+    age: null, healthConditions: [], dietaryRestrictions: [],
+    medications: [], fitnessGoal: 'maintenance', activityLevel: 'moderately_active',
+  });
+  const [medInput, setMedInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const data = getAppData();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
     setForm({
       calories:   String(data.goals.calories),
       protein:    String(data.goals.protein),
@@ -60,6 +95,7 @@ export default function SettingsPage() {
       goalWeight: data.goals.goalWeight ? String(data.goals.goalWeight) : '',
     });
     setStats(getStorageStats());
+    setHealthProfile(getHealthProfile());
   }, []);
 
   const refreshStats = () => setStats(getStorageStats());
@@ -97,8 +133,29 @@ export default function SettingsPage() {
       goalWeight: form.goalWeight ? Number(form.goalWeight) : undefined,
     };
     updateGoals(goals);
+    updateHealthProfile(healthProfile);
     setSaved(true);
     setTimeout(() => setSaved(false), 2400);
+  };
+
+  const toggleCondition = (item: string) => {
+    setHealthProfile(prev => ({
+      ...prev,
+      healthConditions: prev.healthConditions.includes(item)
+        ? prev.healthConditions.filter(c => c !== item)
+        : [...prev.healthConditions, item],
+    }));
+    setSaved(false);
+  };
+
+  const toggleRestriction = (item: string) => {
+    setHealthProfile(prev => ({
+      ...prev,
+      dietaryRestrictions: prev.dietaryRestrictions.includes(item)
+        ? prev.dietaryRestrictions.filter(r => r !== item)
+        : [...prev.dietaryRestrictions, item],
+    }));
+    setSaved(false);
   };
 
   const updateField = (field: keyof GoalForm, value: string) => {
@@ -106,36 +163,39 @@ export default function SettingsPage() {
     setSaved(false);
   };
 
-  const cardCls = 'bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-gray-50 dark:border-gray-700 p-4';
+  const cardCls = 'bg-card rounded-3xl shadow-card border border-line p-4';
 
   return (
-    <div className="max-w-md mx-auto pb-28 px-4 bg-[var(--background)] min-h-screen">
+    <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
       {/* ── Header ────────────────────────────── */}
       <div className="flex items-center gap-3 pt-6 pb-5">
         <button
           onClick={() => router.back()}
+          aria-label="戻る"
           className="
-            w-10 h-10 rounded-2xl
-            bg-white dark:bg-gray-800
-            shadow-[0_4px_12px_rgb(0,0,0,0.06)] dark:shadow-[0_4px_12px_rgb(0,0,0,0.25)]
-            border border-gray-100 dark:border-gray-700
+            w-11 h-11 rounded-2xl
+            bg-card shadow-card border border-line
             flex items-center justify-center
-            text-gray-500 dark:text-gray-400
-            hover:text-gray-800 dark:hover:text-gray-200
+            text-faint
+            hover:text-fg
             hover:scale-[1.04] active:scale-95
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
             transition-all duration-200
           "
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={20} aria-hidden="true" />
         </button>
-        <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+        <h1 className="text-2xl font-black text-fg tracking-tight">
           {t.settings} ⚙️
         </h1>
       </div>
 
+      {/* ── Account ───────────────────────────── */}
+      <AccountSection cardCls={cardCls} />
+
       {/* ── Language ──────────────────────────── */}
       <div className={`${cardCls} mb-3`}>
-        <label className="block text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">
+        <label className="block text-xs font-black text-faint uppercase tracking-widest mb-3">
           {t.language}
         </label>
         <div className="flex gap-2">
@@ -152,8 +212,8 @@ export default function SettingsPage() {
                 transition-all duration-200
                 hover:scale-[1.02] active:scale-95
                 ${lang === code
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-[0_4px_12px_rgba(34,197,94,0.35)]'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}
+                  ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                  : 'bg-surface-2 text-muted hover:bg-line'}
               `}
             >
               <span>{flag}</span>
@@ -163,9 +223,43 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* ── Weight unit ───────────────────────── */}
+      <div className={`${cardCls} mb-3`}>
+        <label className="block text-xs font-black text-faint uppercase tracking-widest mb-3">
+          {lang === 'en' ? 'Weight unit' : '重量の単位'}
+        </label>
+        <div className="flex gap-2">
+          {([
+            { code: 'kg' as const,  label: 'kg'  },
+            { code: 'lbs' as const, label: 'lbs' },
+          ]).map(({ code, label }) => (
+            <button
+              key={code}
+              onClick={() => setUnit(code)}
+              aria-pressed={unit === code}
+              className={`
+                flex-1 py-3 rounded-2xl text-sm font-bold
+                transition-all duration-200 hover:scale-[1.02] active:scale-95
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                ${unit === code
+                  ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                  : 'bg-surface-2 text-muted hover:bg-line'}
+              `}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-faint mt-2">
+          {lang === 'en'
+            ? 'Display only — data is always stored in kg.'
+            : '表示のみ切り替えます（データは常にkgで保存）。'}
+        </p>
+      </div>
+
       {/* ── Daily Goals ───────────────────────── */}
       <div className={`${cardCls} mb-3 space-y-4`}>
-        <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+        <p className="text-xs font-black text-faint uppercase tracking-widest">
           {t.dailyGoals}
         </p>
 
@@ -202,7 +296,7 @@ export default function SettingsPage() {
           },
         ] as const).map(({ field, label, icon, accent }) => (
           <div key={field}>
-            <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide mb-2">
               <span>{icon}</span>
               <span>{label}</span>
             </label>
@@ -219,7 +313,7 @@ export default function SettingsPage() {
 
       {/* ── Weight Goal ───────────────────────── */}
       <div className={`${cardCls} mb-5`}>
-        <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
+        <p className="text-xs font-black text-faint uppercase tracking-widest mb-4">
           ⚖️ {t.weightGoal}
         </p>
         <input
@@ -239,6 +333,229 @@ export default function SettingsPage() {
         )}
       </div>
 
+      {/* ── Health Profile ───────────────────── */}
+      <div className={`${cardCls} mt-3 mb-3 space-y-5`}>
+        <p className="text-xs font-black text-faint uppercase tracking-widest flex items-center gap-1.5">
+          <User size={13} />
+          健康プロフィール（パーソナライズ推薦に使用）
+        </p>
+
+        {/* Age */}
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide mb-2">
+            <span>🎂</span>
+            <span>年齢</span>
+          </label>
+          <input
+            type="number"
+            value={healthProfile.age ?? ''}
+            onChange={e => {
+              const v = e.target.value;
+              setHealthProfile(prev => ({ ...prev, age: v ? Number(v) : null }));
+              setSaved(false);
+            }}
+            placeholder="例: 25"
+            min="1"
+            max="120"
+            className={`${inputCls} focus:ring-rose-400`}
+          />
+        </div>
+
+        {/* Fitness goal */}
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide mb-2">
+            <span>🎯</span>
+            <span>フィットネス目標</span>
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {FITNESS_GOALS.map(({ value, label, icon }) => (
+              <button
+                key={value}
+                onClick={() => { setHealthProfile(prev => ({ ...prev, fitnessGoal: value })); setSaved(false); }}
+                className={`
+                  py-2.5 rounded-2xl text-xs font-bold
+                  flex flex-col items-center gap-1
+                  transition-all duration-200 hover:scale-[1.02] active:scale-95
+                  ${healthProfile.fitnessGoal === value
+                    ? 'bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-[0_4px_12px_rgba(139,92,246,0.35)]'
+                    : 'bg-surface-2 text-muted hover:bg-line'}
+                `}
+              >
+                <span>{icon}</span>
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Activity level */}
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide mb-2">
+            <span>⚡</span>
+            <span>活動レベル</span>
+          </label>
+          <div className="space-y-1.5">
+            {ACTIVITY_LEVELS.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => { setHealthProfile(prev => ({ ...prev, activityLevel: value })); setSaved(false); }}
+                className={`
+                  w-full py-2.5 px-3.5 rounded-2xl text-xs font-bold text-left
+                  transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]
+                  ${healthProfile.activityLevel === value
+                    ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-[0_4px_12px_rgba(139,92,246,0.3)]'
+                    : 'bg-surface-2 text-muted hover:bg-line'}
+                `}
+              >
+                {value === healthProfile.activityLevel ? '● ' : '○ '}{label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Health conditions */}
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide mb-2">
+            <span>🏥</span>
+            <span>健康状態・疾患（複数選択可）</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {HEALTH_CONDITIONS.map(item => {
+              const active = healthProfile.healthConditions.includes(item);
+              return (
+                <button
+                  key={item}
+                  onClick={() => toggleCondition(item)}
+                  className={`
+                    px-3 py-1.5 rounded-full text-xs font-bold
+                    transition-all duration-200 hover:scale-[1.04] active:scale-95
+                    ${active
+                      ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-700'
+                      : 'bg-surface-2 text-faint border border-line hover:bg-line'}
+                  `}
+                >
+                  {active ? '✓ ' : ''}{item}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Medications */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide">
+              <Pill size={12} />
+              <span>服薬中の薬（任意）</span>
+            </label>
+            <button
+              onClick={() => router.push('/meds')}
+              className="text-[10px] font-bold text-violet-500 dark:text-violet-400 hover:underline"
+            >
+              服薬管理を開く →
+            </button>
+          </div>
+          {/* Tag list */}
+          {(healthProfile.medications ?? []).length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {(healthProfile.medications ?? []).map(med => (
+                <span
+                  key={med}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-700"
+                >
+                  {med}
+                  <button
+                    onClick={() => {
+                      setHealthProfile(prev => ({
+                        ...prev,
+                        medications: (prev.medications ?? []).filter(m => m !== med),
+                      }));
+                      setSaved(false);
+                    }}
+                    aria-label={`${med}を削除`}
+                    className="rounded hover:text-danger transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
+                  >
+                    <X size={10} aria-hidden="true" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          {/* Input */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={medInput}
+              onChange={e => setMedInput(e.target.value)}
+              onKeyDown={e => {
+                if ((e.key === 'Enter' || e.key === ',') && medInput.trim()) {
+                  e.preventDefault();
+                  const name = medInput.trim().replace(/,$/, '');
+                  if (name && !(healthProfile.medications ?? []).includes(name)) {
+                    setHealthProfile(prev => ({
+                      ...prev,
+                      medications: [...(prev.medications ?? []), name],
+                    }));
+                    setSaved(false);
+                  }
+                  setMedInput('');
+                }
+              }}
+              placeholder="薬名を入力してEnter（例: メトホルミン）"
+              className={`${inputCls} flex-1 focus:ring-violet-400`}
+            />
+            <button
+              onClick={() => {
+                const name = medInput.trim();
+                if (name && !(healthProfile.medications ?? []).includes(name)) {
+                  setHealthProfile(prev => ({
+                    ...prev,
+                    medications: [...(prev.medications ?? []), name],
+                  }));
+                  setSaved(false);
+                }
+                setMedInput('');
+              }}
+              aria-label="薬を追加"
+              className="px-3 py-2 rounded-2xl bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 hover:bg-violet-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+            >
+              <Plus size={16} aria-hidden="true" />
+            </button>
+          </div>
+          <p className="text-[10px] text-faint mt-1.5">
+            AIコーチが服薬状況を考慮したアドバイスを行います
+          </p>
+        </div>
+
+        {/* Dietary restrictions */}
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide mb-2">
+            <span>🥗</span>
+            <span>食事制限（複数選択可）</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {DIETARY_RESTRICTIONS.map(item => {
+              const active = healthProfile.dietaryRestrictions.includes(item);
+              return (
+                <button
+                  key={item}
+                  onClick={() => toggleRestriction(item)}
+                  className={`
+                    px-3 py-1.5 rounded-full text-xs font-bold
+                    transition-all duration-200 hover:scale-[1.04] active:scale-95
+                    ${active
+                      ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700'
+                      : 'bg-surface-2 text-faint border border-line hover:bg-line'}
+                  `}
+                >
+                  {active ? '✓ ' : ''}{item}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* ── Save button ───────────────────────── */}
       <button
         onClick={handleSave}
@@ -249,8 +566,8 @@ export default function SettingsPage() {
           hover:scale-[1.01] active:scale-[0.98]
           text-sm
           ${saved
-            ? 'bg-emerald-500 text-white shadow-[0_4px_14px_rgba(34,197,94,0.4)]'
-            : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-[0_4px_14px_rgba(34,197,94,0.35)] hover:from-green-600 hover:to-emerald-700'}
+            ? 'bg-emerald-600 text-white shadow-[0_4px_14px_rgba(16,185,129,0.4)]'
+            : 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_14px_rgba(16,185,129,0.35)] hover:from-brand-600 hover:to-brand-700'}
         `}
       >
         {saved ? (
@@ -268,7 +585,7 @@ export default function SettingsPage() {
 
       {/* ── Data & Storage ────────────────────── */}
       <div className={`${cardCls} mt-5 mb-3`}>
-        <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+        <p className="text-xs font-black text-faint uppercase tracking-widest mb-4 flex items-center gap-1.5">
           <Database size={13} />
           データ管理
         </p>
@@ -283,13 +600,13 @@ export default function SettingsPage() {
             ].map(({ label, value, icon }) => (
               <div
                 key={label}
-                className="bg-gray-50 dark:bg-gray-700/60 rounded-2xl p-2.5 text-center"
+                className="bg-surface-2 rounded-2xl p-2.5 text-center"
               >
                 <div className="text-base">{icon}</div>
-                <div className="text-lg font-black text-gray-800 dark:text-gray-100 tabular-nums leading-tight">
+                <div className="text-lg font-black text-fg tabular-nums leading-tight">
                   {value}
                 </div>
-                <div className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 mt-0.5">
+                <div className="text-[10px] font-semibold text-faint mt-0.5">
                   {label}
                 </div>
               </div>
@@ -301,20 +618,20 @@ export default function SettingsPage() {
         {stats && (
           <div className="mb-4">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-semibold text-gray-400 dark:text-gray-500">
+              <span className="text-xs font-semibold text-faint">
                 使用容量
               </span>
-              <span className="text-xs font-black text-gray-600 dark:text-gray-300 tabular-nums">
+              <span className="text-xs font-black text-muted tabular-nums">
                 {stats.usedKB} KB
               </span>
             </div>
-            <div className="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-surface-2 rounded-full overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500"
+                className="h-full rounded-full bg-gradient-to-r from-brand-400 to-brand-500 transition-all duration-500"
                 style={{ width: `${Math.min((stats.usedBytes / (4 * 1024 * 1024)) * 100, 100)}%` }}
               />
             </div>
-            <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1 text-right">
+            <p className="text-[10px] text-faint mt-1 text-right">
               最大 4 MB
             </p>
           </div>

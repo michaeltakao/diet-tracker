@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, PenLine, Clock, Zap } from 'lucide-react';
-import { addFoodEntry, getRecentFoods } from '@/lib/storage';
+import { addFoodEntry, getRecentFoods, getHealthProfile } from '@/lib/data';
 import { FoodEntry } from '@/lib/types';
 import PhotoUpload from '@/components/PhotoUpload';
 import BottomNav from '@/components/BottomNav';
+import MedWarning from '@/components/MedWarning';
+import { getNutritionWarnings } from '@/lib/medication-rules';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 type MealType = FoodEntry['mealType'];
@@ -58,6 +60,8 @@ const EMPTY_FORM: FormData = {
   carbs: '',
 };
 
+const SPEED_MODE_KEY = 'diet-tracker:speed-mode';
+
 export default function AddPage() {
   const router = useRouter();
   const { t } = useLanguage();
@@ -67,10 +71,22 @@ export default function AddPage() {
   const [errors, setErrors]                 = useState<Partial<FormData>>({});
   const [logTime, setLogTime]               = useState(getCurrentTime());
   const [quickAddToast, setQuickAddToast]   = useState(false);
-  const recentFoods = getRecentFoods(6);
+  const [recentFoods, setRecentFoods]       = useState<FoodEntry[]>([]);
+  const [nutritionWarnings, setNutritionWarnings] = useState<string[]>([]);
+  const [speedMode, setSpeedMode]           = useState(false);
+  const [speedToast, setSpeedToast]         = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
+    setRecentFoods(getRecentFoods(6));
+    const profile = getHealthProfile();
+    setNutritionWarnings(getNutritionWarnings(profile.healthConditions, profile.medications ?? []));
+    setSpeedMode(localStorage.getItem(SPEED_MODE_KEY) === 'true');
+  }, []);
 
   // Auto-refresh time when tab changes to manual so it's fresh
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh the timestamp when the user switches to manual entry
     if (tab === 'manual') setLogTime(getCurrentTime());
   }, [tab]);
 
@@ -101,6 +117,12 @@ export default function AddPage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const toggleSpeedMode = () => {
+    const next = !speedMode;
+    setSpeedMode(next);
+    localStorage.setItem(SPEED_MODE_KEY, String(next));
+  };
+
   const handleSubmit = () => {
     if (!validate()) return;
     const entry: FoodEntry = {
@@ -115,12 +137,19 @@ export default function AddPage() {
       photoDataUrl,
       addedAt: buildTimestamp(getTodayDate(), logTime),
     };
-    addFoodEntry(entry);
-    router.push('/');
+    void addFoodEntry(entry);
+    if (speedMode) {
+      setForm({ ...EMPTY_FORM, mealType: form.mealType });
+      setPhotoDataUrl(undefined);
+      setSpeedToast(true);
+      setTimeout(() => setSpeedToast(false), 1500);
+    } else {
+      router.push('/');
+    }
   };
 
   const handleQuickAdd = (recent: FoodEntry) => {
-    addFoodEntry({
+    void addFoodEntry({
       ...recent,
       id: crypto.randomUUID(),
       date: getTodayDate(),
@@ -128,9 +157,13 @@ export default function AddPage() {
       photoDataUrl: undefined,
       addedAt: buildTimestamp(getTodayDate(), getCurrentTime()),
     });
-    // Show brief toast then go home
+    setRecentFoods(getRecentFoods(6));
     setQuickAddToast(true);
-    setTimeout(() => router.push('/'), 900);
+    if (!speedMode) {
+      setTimeout(() => router.push('/'), 900);
+    } else {
+      setTimeout(() => setQuickAddToast(false), 1200);
+    }
   };
 
   const updateField = (field: keyof FormData, value: string) => {
@@ -148,27 +181,58 @@ export default function AddPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto pb-28 px-4 bg-[var(--background)] min-h-screen">
+    <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
       {/* Quick-add success toast */}
       {quickAddToast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-500 text-white font-bold text-sm px-5 py-3 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap">
+        <div role="status" aria-live="polite" className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white font-bold text-sm px-5 py-3 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap">
           ✓ {t.quickAddSuccess}
         </div>
       )}
 
+      {/* Speed mode added toast */}
+      {speedToast && (
+        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white font-bold text-sm px-5 py-3 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap">
+          ✓ {t.quickAddSuccess}
+        </div>
+      )}
+
+      {/* ── Med / condition warnings ─────────────── */}
+      {nutritionWarnings.length > 0 && (
+        <div className="pt-4">
+          <MedWarning warnings={nutritionWarnings} type="food" collapseAfter={2} />
+        </div>
+      )}
+
       {/* ── Header ──────────────────────────────── */}
-      <div className="pt-6 pb-3 flex items-center justify-between">
-        <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{t.addMeal}</h1>
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 font-medium">
-          <Clock size={12} />
-          <span>{mealTypeLabels[guessMealType()]}</span>
+      <div className="pt-4 pb-3 flex items-center justify-between">
+        <h1 className="text-2xl font-black text-fg tracking-tight">{t.addMeal}</h1>
+        <div className="flex items-center gap-2">
+          {/* Speed Mode toggle */}
+          <button
+            onClick={toggleSpeedMode}
+            title={t.speedModeDesc}
+            className={`
+              flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold
+              transition-all duration-200
+              ${speedMode
+                ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-700'
+                : 'bg-surface-2 text-faint border border-line-strong'}
+            `}
+          >
+            <Zap size={11} className={speedMode ? 'text-violet-500' : ''} />
+            {t.speedMode}
+          </button>
+          <div className="flex items-center gap-1.5 text-xs text-faint font-medium">
+            <Clock size={12} />
+            <span>{mealTypeLabels[guessMealType()]}</span>
+          </div>
         </div>
       </div>
 
       {/* ── Frequently Logged pills (always visible) ── */}
       {recentFoods.length > 0 && (
         <div className="mb-4">
-          <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+          <p className="text-xs font-bold text-faint uppercase tracking-widest mb-2 flex items-center gap-1.5">
             <Zap size={11} className="text-yellow-500" />
             {t.frequentlyLogged}
           </p>
@@ -179,23 +243,24 @@ export default function AddPage() {
                 onClick={() => handleQuickAdd(food)}
                 className="
                   flex-shrink-0 flex items-center gap-2
-                  bg-white dark:bg-gray-800
-                  border border-gray-100 dark:border-gray-700
-                  hover:border-green-400 dark:hover:border-green-600
-                  hover:bg-green-50 dark:hover:bg-green-900/20
+                  bg-card
+                  border border-line
+                  hover:border-brand-400 dark:hover:border-brand-600
+                  hover:bg-brand-50 dark:hover:bg-brand-900/20
                   rounded-full px-3 py-2
-                  shadow-[0_2px_8px_rgb(0,0,0,0.05)]
+                  shadow-card
                   hover:scale-[1.03] active:scale-[0.97]
                   transition-all duration-200
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
                 "
               >
-                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 max-w-[80px] truncate">
+                <span className="text-xs font-semibold text-muted max-w-[80px] truncate">
                   {food.name}
                 </span>
-                <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                <span className="text-[10px] font-medium text-faint whitespace-nowrap">
                   {food.calories}kcal
                 </span>
-                <span className="text-xs font-black text-green-500 leading-none">＋</span>
+                <span className="text-xs font-black text-brand leading-none">＋</span>
               </button>
             ))}
           </div>
@@ -203,7 +268,7 @@ export default function AddPage() {
       )}
 
       {/* ── Tabs ────────────────────────────────── */}
-      <div className="flex bg-gray-100 dark:bg-gray-800 rounded-2xl p-1 mb-4">
+      <div role="tablist" className="flex bg-surface-2 rounded-2xl p-1 mb-4">
         {([
           { id: 'photo'  as Tab, label: t.tabPhoto,  icon: Camera },
           { id: 'manual' as Tab, label: t.tabManual, icon: PenLine },
@@ -215,8 +280,8 @@ export default function AddPage() {
               flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold
               transition-all duration-200
               ${tab === id
-                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}
+                ? 'bg-card text-fg shadow-sm'
+                : 'text-faint hover:text-fg'}
             `}
           >
             <Icon size={15} />
@@ -230,8 +295,8 @@ export default function AddPage() {
               flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold
               transition-all duration-200
               ${tab === 'recent'
-                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}
+                ? 'bg-card text-fg shadow-sm'
+                : 'text-faint hover:text-fg'}
             `}
           >
             <Clock size={15} />
@@ -242,10 +307,10 @@ export default function AddPage() {
 
       {/* ── Recent tab ──────────────────────────── */}
       {tab === 'recent' && (
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 mb-4">
-          <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">{t.recentFoods}</h2>
+        <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-4">
+          <h2 className="text-sm font-bold text-muted mb-3">{t.recentFoods}</h2>
           {recentFoods.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-4">{t.noRecentFoods}</p>
+            <p className="text-sm text-faint text-center py-4">{t.noRecentFoods}</p>
           ) : (
             <div className="space-y-2">
               {recentFoods.map((item) => (
@@ -254,21 +319,22 @@ export default function AddPage() {
                   onClick={() => handleQuickAdd(item)}
                   className="
                     w-full flex items-center justify-between p-3.5
-                    bg-gray-50 dark:bg-gray-700
-                    hover:bg-green-50 dark:hover:bg-green-900/20
+                    bg-surface-2
+                    hover:bg-brand-50 dark:hover:bg-brand-900/20
                     rounded-2xl transition-all duration-200
                     text-left
                     hover:scale-[1.01] active:scale-[0.99]
-                    border border-transparent hover:border-green-200 dark:hover:border-green-800
+                    border border-transparent hover:border-brand-200 dark:hover:border-brand-800
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
                   "
                 >
                   <div>
-                    <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{item.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    <p className="text-sm font-bold text-fg">{item.name}</p>
+                    <p className="text-xs text-faint mt-0.5">
                       {item.calories}kcal · P{item.protein}g · F{item.fat}g · C{item.carbs}g
                     </p>
                   </div>
-                  <span className="text-xl font-black text-green-500">＋</span>
+                  <span className="text-xl font-black text-brand">＋</span>
                 </button>
               ))}
             </div>
@@ -278,21 +344,21 @@ export default function AddPage() {
 
       {/* ── Photo tab ───────────────────────────── */}
       {tab === 'photo' && (
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 mb-4">
+        <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-4">
           <PhotoUpload onAnalysisComplete={handleAnalysisComplete} />
         </div>
       )}
 
       {/* ── Entry form ──────────────────────────── */}
       {showForm && (
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 mb-4 space-y-4">
+        <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-4 space-y-4">
           {tab === 'photo' && (
-            <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300">{t.confirmAdd}</h2>
+            <h2 className="text-sm font-bold text-muted">{t.confirmAdd}</h2>
           )}
 
           {/* Meal type */}
           <div>
-            <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-2">
+            <label className="text-xs font-bold text-faint uppercase tracking-widest block mb-2">
               {t.mealType}
             </label>
             <div className="flex gap-1.5">
@@ -305,8 +371,8 @@ export default function AddPage() {
                     transition-all duration-200
                     hover:scale-[1.02] active:scale-[0.97]
                     ${form.mealType === type
-                      ? 'bg-green-500 text-white shadow-[0_4px_12px_rgba(34,197,94,0.35)]'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}
+                      ? 'bg-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                      : 'bg-surface-2 text-muted hover:bg-line'}
                   `}
                 >
                   {mealTypeLabels[type]}
@@ -317,7 +383,7 @@ export default function AddPage() {
 
           {/* Log time */}
           <div>
-            <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-2">
+            <label className="text-xs font-bold text-faint uppercase tracking-widest block mb-2">
               {t.selectLogTime}
             </label>
             <input
@@ -326,9 +392,9 @@ export default function AddPage() {
               onChange={(e) => setLogTime(e.target.value)}
               className="
                 w-full px-3 py-2.5 rounded-xl
-                border border-gray-200 dark:border-gray-600
-                bg-white dark:bg-gray-700
-                text-sm text-gray-800 dark:text-gray-200
+                border border-line-strong
+                bg-surface-2
+                text-sm text-fg
                 focus:outline-none focus:ring-2 focus:ring-green-400
               "
             />
@@ -336,7 +402,7 @@ export default function AddPage() {
 
           {/* Name */}
           <div>
-            <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-2">
+            <label className="text-xs font-bold text-faint uppercase tracking-widest block mb-2">
               {t.foodName}
             </label>
             <input
@@ -347,19 +413,19 @@ export default function AddPage() {
               className={`
                 w-full px-3 py-2.5 rounded-xl
                 border text-sm
-                text-gray-800 dark:text-gray-200
-                placeholder-gray-300 dark:placeholder-gray-600
-                bg-white dark:bg-gray-700
+                text-fg
+                placeholder:text-faint
+                bg-surface-2
                 focus:outline-none focus:ring-2 focus:ring-green-400
-                ${errors.name ? 'border-red-400' : 'border-gray-200 dark:border-gray-600'}
+                ${errors.name ? 'border-red-400' : 'border-line-strong'}
               `}
             />
-            {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
+            {errors.name && <p className="text-xs text-danger mt-1">{errors.name}</p>}
           </div>
 
           {/* Calories */}
           <div>
-            <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-2">
+            <label className="text-xs font-bold text-faint uppercase tracking-widest block mb-2">
               {t.calories}
             </label>
             <input
@@ -370,14 +436,14 @@ export default function AddPage() {
               min="0"
               className={`
                 w-full px-3 py-2.5 rounded-xl border text-sm
-                text-gray-800 dark:text-gray-200
-                bg-white dark:bg-gray-700
-                placeholder-gray-300 dark:placeholder-gray-600
+                text-fg
+                bg-surface-2
+                placeholder:text-faint
                 focus:outline-none focus:ring-2 focus:ring-green-400
-                ${errors.calories ? 'border-red-400' : 'border-gray-200 dark:border-gray-600'}
+                ${errors.calories ? 'border-red-400' : 'border-line-strong'}
               `}
             />
-            {errors.calories && <p className="text-xs text-red-500 mt-1">{errors.calories}</p>}
+            {errors.calories && <p className="text-xs text-danger mt-1">{errors.calories}</p>}
           </div>
 
           {/* Macros row */}
@@ -390,7 +456,7 @@ export default function AddPage() {
               ]
             ).map(({ field, label, ring }) => (
               <div key={field}>
-                <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide block mb-1.5">
+                <label className="text-[10px] font-bold text-faint uppercase tracking-wide block mb-1.5">
                   {label}
                 </label>
                 <input
@@ -402,14 +468,14 @@ export default function AddPage() {
                   step="0.1"
                   className={`
                     w-full px-2.5 py-2.5 rounded-xl border text-sm text-center
-                    text-gray-800 dark:text-gray-200
-                    bg-white dark:bg-gray-700
-                    placeholder-gray-300 dark:placeholder-gray-600
+                    text-fg
+                    bg-surface-2
+                    placeholder:text-faint
                     focus:outline-none focus:ring-2 ${ring}
-                    ${errors[field] ? 'border-red-400' : 'border-gray-200 dark:border-gray-600'}
+                    ${errors[field] ? 'border-red-400' : 'border-line-strong'}
                   `}
                 />
-                {errors[field] && <p className="text-[10px] text-red-500 mt-0.5">{errors[field]}</p>}
+                {errors[field] && <p className="text-[10px] text-danger mt-0.5">{errors[field]}</p>}
               </div>
             ))}
           </div>
@@ -418,11 +484,12 @@ export default function AddPage() {
             onClick={handleSubmit}
             className="
               w-full py-3.5 rounded-2xl font-bold text-sm text-white
-              bg-gradient-to-r from-green-500 to-emerald-600
-              shadow-[0_4px_14px_rgba(34,197,94,0.4)]
-              hover:from-green-600 hover:to-emerald-700
+              bg-gradient-to-r from-brand-500 to-brand-600
+              shadow-[0_4px_14px_rgba(16,185,129,0.4)]
+              hover:from-brand-600 hover:to-brand-700
               hover:scale-[1.01] active:scale-[0.98]
               transition-all duration-200
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
             "
           >
             {t.addButton}

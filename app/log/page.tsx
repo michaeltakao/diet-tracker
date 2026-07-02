@@ -2,12 +2,12 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Sparkles, BarChart3 } from 'lucide-react';
-import { getAppData } from '@/lib/storage';
+import { getAppData, removeFoodEntry, updateFoodEntry } from '@/lib/data';
 import { FoodEntry, DailyGoals } from '@/lib/types';
 import MealCard from '@/components/MealCard';
 import CalorieBar from '@/components/CalorieBar';
+import WeeklyReportCard from '@/components/WeeklyReportCard';
 import BottomNav from '@/components/BottomNav';
-import { removeFoodEntry } from '@/lib/storage';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 function getTodayDate(): string { return new Date().toISOString().split('T')[0]; }
@@ -23,17 +23,19 @@ function getWeekDates(anchor: Date): string[] {
   });
 }
 
-function formatShort(dateStr: string): { day: string; num: string } {
-  const d = new Date(dateStr + 'T00:00:00');
-  return {
-    day: d.toLocaleDateString('en-US', { weekday: 'short' }),
-    num: String(d.getDate()),
-  };
+import { fmtCalendarCell, fmtMonthDayDowLongJa, fmtLongEn } from '@/lib/format-date';
+import { postJson, HttpError } from '@/lib/httpClient';
+
+function formatShort(dateStr: string, locale: string): { day: string; num: string } {
+  if (locale !== 'ja-JP') {
+    const d = new Date(dateStr + 'T00:00:00');
+    return { day: ['Su','Mo','Tu','We','Th','Fr','Sa'][d.getDay()], num: String(d.getDate()) };
+  }
+  return fmtCalendarCell(dateStr);
 }
 
-function formatFull(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+function formatFull(dateStr: string, locale: string): string {
+  return locale === 'ja-JP' ? fmtMonthDayDowLongJa(dateStr) : fmtLongEn(dateStr);
 }
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
@@ -140,7 +142,8 @@ interface HabitReport {
 }
 
 export default function LogPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = lang === 'ja' ? 'ja-JP' : 'en-US';
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
   const [weekOffset, setWeekOffset]     = useState(0);
   const [allEntries, setAllEntries]     = useState<FoodEntry[]>([]);
@@ -158,6 +161,7 @@ export default function LogPage() {
     setGoals(data.goals);
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
   useEffect(() => { loadData(); }, [loadData]);
 
   const anchorDate = new Date();
@@ -169,7 +173,8 @@ export default function LogPage() {
   const getCaloriesForDate = (date: string) =>
     allEntries.filter((e) => e.date === date).reduce((sum, e) => sum + e.calories, 0);
 
-  const handleDelete = (id: string) => { removeFoodEntry(id); loadData(); };
+  const handleDelete = (id: string) => { void removeFoodEntry(id); loadData(); };
+  const handleEdit   = (updated: FoodEntry) => { void updateFoodEntry(updated); loadData(); };
 
   const totals = selectedEntries.reduce(
     (acc, e) => ({ calories: acc.calories + e.calories, protein: acc.protein + e.protein, fat: acc.fat + e.fat, carbs: acc.carbs + e.carbs }),
@@ -205,44 +210,38 @@ export default function LogPage() {
         return;
       }
 
-      const res = await fetch('/api/habit-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          daysWithData,
-          totalDays: 7,
-          avgDailyCalories,
-          calorieGoal: data.goals.calories,
-          lateNightEatingDays,
-          noBreakfastDays,
-          avgBreakfastHour,
-          workoutDays,
-          missedPostWorkoutDays,
-          streak: 0, // could import getStreak() here if needed
-          dailySummary: matrix,
-        }),
+      const report = await postJson<HabitReport>('/api/habit-report', {
+        daysWithData,
+        totalDays: 7,
+        avgDailyCalories,
+        calorieGoal: data.goals.calories,
+        lateNightEatingDays,
+        noBreakfastDays,
+        avgBreakfastHour,
+        workoutDays,
+        missedPostWorkoutDays,
+        streak: 0, // could import getStreak() here if needed
+        dailySummary: matrix,
       });
-
-      if (res.status === 422) { setHabitInsuff(true); return; }
-      if (!res.ok) {
-        const err = await res.json() as { error: string };
-        throw new Error(err.error);
-      }
-      setHabitReport(await res.json() as HabitReport);
+      setHabitReport(report);
     } catch (err) {
+      if (err instanceof HttpError && err.status === 422) {
+        setHabitInsuff(true);
+        return;
+      }
       setHabitError(err instanceof Error ? err.message : 'エラーが発生しました');
     } finally {
       setHabitLoading(false);
     }
   };
 
-  const cardCls = 'bg-white dark:bg-gray-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-gray-50 dark:border-gray-700';
+  const cardCls = 'bg-card rounded-3xl shadow-card border border-line';
 
   return (
-    <div className="max-w-md mx-auto pb-28 px-4 bg-[var(--background)] min-h-screen">
+    <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
       {/* ── Header ─────────────────────────────── */}
       <div className="pt-6 pb-4">
-        <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+        <h1 className="text-2xl font-black text-fg tracking-tight">
           {t.weeklyLog} 📅
         </h1>
       </div>
@@ -252,24 +251,26 @@ export default function LogPage() {
         <div className="flex items-center justify-between mb-3">
           <button
             onClick={() => setWeekOffset((o) => o - 1)}
-            className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-90 transition-all duration-200"
+            aria-label="前の週"
+            className="p-2 rounded-xl text-faint hover:bg-surface-2 active:scale-90 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           >
-            <ChevronLeft size={20} className="text-gray-500 dark:text-gray-400" />
+            <ChevronLeft size={20} aria-hidden="true" />
           </button>
-          <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+          <span className="text-sm font-bold text-muted">
             {weekOffset === 0 ? 'This Week' : weekOffset === -1 ? 'Last Week' : `${weekOffset > 0 ? '+' : ''}${weekOffset}w`}
           </span>
           <button
             onClick={() => setWeekOffset((o) => o + 1)}
-            className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-90 transition-all duration-200"
+            aria-label="次の週"
+            className="p-2 rounded-xl text-faint hover:bg-surface-2 active:scale-90 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           >
-            <ChevronRight size={20} className="text-gray-500 dark:text-gray-400" />
+            <ChevronRight size={20} aria-hidden="true" />
           </button>
         </div>
 
         <div className="flex gap-1">
           {weekDates.map((date) => {
-            const { day, num } = formatShort(date);
+            const { day, num } = formatShort(date, locale);
             const isSelected = date === selectedDate;
             const isToday    = date === today;
             const cals = getCaloriesForDate(date);
@@ -279,21 +280,24 @@ export default function LogPage() {
               <button
                 key={date}
                 onClick={() => setSelectedDate(date)}
+                aria-pressed={isSelected}
+                aria-label={formatFull(date, locale)}
                 className={`
                   flex-1 flex flex-col items-center py-2.5 rounded-2xl
                   transition-all duration-200
                   hover:scale-[1.04] active:scale-95
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
                   ${isSelected
-                    ? 'bg-gradient-to-b from-green-500 to-emerald-600 text-white shadow-[0_4px_12px_rgba(34,197,94,0.35)]'
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}
+                    ? 'bg-gradient-to-b from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                    : 'hover:bg-surface-2 text-muted'}
                 `}
               >
                 <span className="text-[10px] font-bold">{day}</span>
-                <span className={`text-sm font-black mt-0.5 ${isToday && !isSelected ? 'text-green-500' : ''}`}>
+                <span className={`text-sm font-black mt-0.5 ${isToday && !isSelected ? 'text-brand' : ''}`}>
                   {num}
                 </span>
                 {hasData && (
-                  <div className={`w-1.5 h-1.5 rounded-full mt-1 ${isSelected ? 'bg-white/70' : 'bg-green-400'}`} />
+                  <div className={`w-1.5 h-1.5 rounded-full mt-1 ${isSelected ? 'bg-white/80' : 'bg-brand'}`} aria-hidden="true" />
                 )}
               </button>
             );
@@ -303,11 +307,11 @@ export default function LogPage() {
 
       {/* ── Selected day summary ─────────────────── */}
       <div className={`${cardCls} p-4 mb-3`}>
-        <p className="text-xs font-medium text-gray-400 dark:text-gray-500 mb-3">{formatFull(selectedDate)}</p>
+        <p className="text-xs font-medium text-faint mb-3">{formatFull(selectedDate, locale)}</p>
         <CalorieBar current={totals.calories} goal={goals.calories} />
         <div className="flex gap-3 mt-3 text-xs font-semibold">
           <span className="text-emerald-600 dark:text-emerald-400">P {totals.protein}g</span>
-          <span className="text-amber-600 dark:text-amber-400">F {totals.fat}g</span>
+          <span className="text-warning">F {totals.fat}g</span>
           <span className="text-blue-600 dark:text-blue-400">C {totals.carbs}g</span>
         </div>
       </div>
@@ -315,8 +319,8 @@ export default function LogPage() {
       {/* ── Daily entries ─────────────────────────── */}
       {selectedEntries.length === 0 ? (
         <div className={`${cardCls} p-10 text-center mb-4`}>
-          <p className="text-4xl mb-3">📋</p>
-          <p className="text-sm font-semibold text-gray-400 dark:text-gray-500">{t.noData}</p>
+          <p className="text-4xl mb-3" aria-hidden="true">📋</p>
+          <p className="text-sm font-semibold text-faint">{t.noData}</p>
         </div>
       ) : (
         <div className="space-y-4 mb-4">
@@ -325,12 +329,12 @@ export default function LogPage() {
             if (typeEntries.length === 0) return null;
             return (
               <div key={type}>
-                <h3 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">
+                <h3 className="text-xs font-black text-faint uppercase tracking-widest mb-2 ml-1">
                   {MEAL_LABELS[type]}
                 </h3>
                 <div className="space-y-2">
                   {typeEntries.map((entry) => (
-                    <MealCard key={entry.id} entry={entry} onDelete={handleDelete} />
+                    <MealCard key={entry.id} entry={entry} onDelete={handleDelete} onEdit={handleEdit} />
                   ))}
                 </div>
               </div>
@@ -339,6 +343,9 @@ export default function LogPage() {
         </div>
       )}
 
+      {/* ── Weekly Report ────────────────────────── */}
+      <WeeklyReportCard />
+
       {/* ── AI Habit Analytics Widget ─────────────── */}
       <section className={`${cardCls} p-4`}>
         {/* Section header */}
@@ -346,9 +353,9 @@ export default function LogPage() {
           <div className="p-1.5 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl">
             <BarChart3 className="w-4 h-4 text-white" />
           </div>
-          <h2 className="font-black text-gray-800 dark:text-gray-200">{t.habitReportTitle}</h2>
+          <h2 className="font-black text-fg">{t.habitReportTitle}</h2>
         </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mb-4 pl-8">{t.habitReportSubtitle}</p>
+        <p className="text-xs text-faint mb-4 pl-8">{t.habitReportSubtitle}</p>
 
         {/* Insufficient data */}
         {habitInsuff && (
@@ -380,7 +387,7 @@ export default function LogPage() {
         {/* Loading skeleton */}
         {habitLoading && (
           <div>
-            <p className="text-xs text-center text-purple-500 dark:text-purple-400 font-medium mb-3 animate-pulse">
+            <p className="text-xs text-center text-purple-600 dark:text-purple-400 font-medium mb-3 animate-pulse">
               {t.generatingReport}
             </p>
             <HabitSkeleton />
@@ -405,7 +412,7 @@ export default function LogPage() {
               </p>
               <ul className="space-y-2">
                 {habitReport.strengths.map((s, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <li key={i} className="flex items-start gap-2 text-sm text-muted">
                     <span className="text-emerald-500 font-black mt-0.5 flex-shrink-0">✓</span>
                     <span className="leading-relaxed">{s}</span>
                   </li>
@@ -420,7 +427,7 @@ export default function LogPage() {
               </p>
               <ul className="space-y-2">
                 {habitReport.frictions.map((f, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <li key={i} className="flex items-start gap-2 text-sm text-muted">
                     <span className="text-amber-500 font-black mt-0.5 flex-shrink-0">!</span>
                     <span className="leading-relaxed">{f}</span>
                   </li>
@@ -433,14 +440,14 @@ export default function LogPage() {
               <p className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-widest mb-2">
                 {t.habitNextWeek}
               </p>
-              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-relaxed">
+              <p className="text-sm font-semibold text-fg leading-relaxed">
                 {habitReport.nextWeekTarget}
               </p>
             </div>
 
             <button
               onClick={() => { setHabitReport(null); setHabitError(''); setHabitInsuff(false); }}
-              className="w-full py-2 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 underline"
+              className="w-full py-2 text-xs text-faint hover:text-fg underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
             >
               {t.regenerate}
             </button>

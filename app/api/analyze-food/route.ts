@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { generateWithRetry } from '@/lib/gemini';
+import { guardAiRoute } from '@/lib/api-guard';
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -18,6 +21,20 @@ Assume a typical single serving. Be realistic and conservative with estimates.
 Do not include markdown code block formatting in your response, just the raw JSON.`;
 
 export async function POST(request: Request): Promise<NextResponse> {
+  const guard = await guardAiRoute(request);
+  if ('blocked' in guard) return guard.blocked;
+
+  const rl = checkRateLimit(guard.clientId, 'analyze-food', RATE_LIMITS['analyze-food']);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Please wait before retrying.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(Math.ceil(rl.resetAfterMs / 1000)) },
+      }
+    );
+  }
+
   if (!apiKey) {
     return NextResponse.json(
       { error: 'GEMINI_API_KEY is not configured in environment variables.' },
@@ -38,6 +55,15 @@ export async function POST(request: Request): Promise<NextResponse> {
       );
     }
 
+    // 4MB base64 ≈ 3MB decoded — Gemini recommends < 5MB inline data
+    const MAX_BASE64_CHARS = 4 * 1024 * 1024;
+    if (imageBase64.length > MAX_BASE64_CHARS) {
+      return NextResponse.json(
+        { error: 'Image too large. Maximum size is 3MB.' },
+        { status: 413 }
+      );
+    }
+
     const validMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!validMimeTypes.includes(mimeType)) {
       return NextResponse.json(
@@ -51,7 +77,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     // Strip data URL prefix if present (e.g. "data:image/jpeg;base64,")
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: 'gemini-2.5-flash',
       contents: [
         {

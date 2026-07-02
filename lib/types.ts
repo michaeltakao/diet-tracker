@@ -36,6 +36,7 @@ export interface CoachMenu {
   defaultReps: number;
   defaultSets: number;
   coachTip: string;
+  coachTipEn?: string;
 }
 
 export interface WeightEntry {
@@ -83,6 +84,112 @@ export interface AppData {
   waterByDate: Record<string, number>; // date -> ml consumed
   badges: Badge[];
   personalRecords: Record<string, PersonalRecord>; // exercise name -> best PR
+  recommendationFeedback: RecommendationFeedback[]; // Phase B: preference signals
+}
+
+// ── Health Profile (stored in localStorage + profiles table) ──
+
+export type FitnessGoal =
+  | 'weight_loss'
+  | 'muscle_gain'
+  | 'maintenance'
+  | 'endurance'
+  | 'flexibility';
+
+export type ActivityLevel =
+  | 'sedentary'
+  | 'lightly_active'
+  | 'moderately_active'
+  | 'very_active'
+  | 'extra_active';
+
+export interface UserHealthProfile {
+  age:                 number | null;
+  healthConditions:    string[];   // e.g. ['糖尿病', '高血圧']
+  dietaryRestrictions: string[];   // e.g. ['ベジタリアン', 'グルテンフリー']
+  medications:         string[];   // e.g. ['メトホルミン', 'ワーファリン']
+  fitnessGoal:         FitnessGoal;
+  activityLevel:       ActivityLevel;
+}
+
+export interface MedLogEntry {
+  date:      string;    // YYYY-MM-DD
+  takenMeds: string[];  // medication names taken today
+}
+
+// ── XAI Explanation ───────────────────────────────────────────
+
+/**
+ * A single factor contributing to an item's affinity score.
+ * Computed client-side by lib/recommend-explain.ts — not stored server-side.
+ */
+export interface ExplanationFactor {
+  label:     string;
+  weight:    number;
+  direction: 'positive' | 'negative';
+}
+
+// ── Personalized Recommendations (LLM output) ─────────────────
+
+/**
+ * A deterministic safety annotation attached to a recommendation, derived
+ * from the static condition/medication rules — NOT from the LLM. `info` and
+ * `caution` notes annotate; `contraindicated` notes cause the item to be
+ * dropped before it ever reaches the user.
+ */
+export type SafetySeverity = 'contraindicated' | 'caution' | 'info';
+
+export interface SafetyNote {
+  severity: SafetySeverity;
+  message:  string;
+  source:   'condition' | 'medication';
+  ref:      string;   // the triggering condition/medication, e.g. 'ワーファリン'
+}
+
+export interface RecommendedFood {
+  name:           string;
+  reason:         string;
+  calories:       number;
+  macroHighlight: string;        // e.g. "高タンパク・低脂質"
+  macroFit?:      string;        // e.g. "残りタンパク質28gを補える" — content-based fit explanation
+  safetyNotes?:   SafetyNote[];  // deterministic caution flags (contraindicated items are removed, not flagged)
+}
+
+export interface RecommendedExercise {
+  name:     string;
+  category: string;          // strength | cardio | flexibility | other
+  duration: string;          // e.g. "30分"
+  reason:   string;
+}
+
+export interface Recommendation {
+  foods:            RecommendedFood[];
+  exercises:        RecommendedExercise[];
+  warnings:         string[];            // deterministically guaranteed: static rules merged with LLM warnings
+  adjustedMacros:   DailyGoals | null;   // clamped to condition caps (e.g. CKD protein ≤ 0.8 g/kg)
+  macroCapsApplied?: string[];           // human-readable record of any caps applied during clamping
+  generatedAt:      string;              // ISO
+}
+
+// ── Recommendation feedback (Phase B: preference model) ───────
+
+/** Explicit user reaction to a recommended item. */
+export type FeedbackKind = 'accept' | 'reject' | 'favorite';
+
+/**
+ * A single accept/reject/♡ event on a recommended food or exercise. Used by
+ * `lib/recommend-preference.ts` to learn a content-based affinity model and
+ * re-rank future (safety-filtered) recommendations. At most one event is kept per
+ * (itemType, itemName) — latest wins.
+ */
+export interface RecommendationFeedback {
+  id:              string;              // uid
+  itemType:        'food' | 'exercise';
+  itemName:        string;
+  kind:            FeedbackKind;
+  macroHighlight?: string;              // food only — for macro content features
+  category?:       string;              // exercise only — for category content features
+  createdAt:       string;              // ISO timestamp
 }
 
 // ── Weekly Report (AI-generated, cached in DB) ────────────────
@@ -151,4 +258,55 @@ export interface WeeklyAverage {
   avgProtein:   number;
   workoutDays:  number;
   avgWater:     number;
+}
+
+// ── Daily Check-in ────────────────────────────────────────────────────────
+
+export interface DailyCheckIn {
+  date:          string;                    // YYYY-MM-DD
+  mood:          1 | 2 | 3 | 4 | 5;        // 気分 (1=最悪 … 5=最高)
+  energy:        1 | 2 | 3 | 4 | 5;        // 体力 (1=消耗 … 5=絶好調)
+  sleepHours:    number;                    // 睡眠時間
+  sorenessAreas: MusclePart[];             // 筋肉痛部位
+  notes?:        string;
+}
+
+export interface WorkoutSuggestion {
+  proceed:           'full' | 'reduced' | 'alternative' | 'rest';
+  sessionName:       string;
+  adjustments:       string[];    // 種目ごとの調整メモ
+  intensityNote:     string;      // 例: "今日は80%強度で"
+  motivationMessage: string;
+  recoveryTips:      string[];
+  generatedAt:       string;      // ISO
+}
+
+// ── Training Plan ─────────────────────────────────────────────────────────
+
+export interface PlannedExercise {
+  id:            string;
+  name:          string;
+  musclePart:    MusclePart;
+  sets:          number;
+  repsMin:       number;
+  repsMax:       number;
+  targetWeight?: number;   // kg (optional starting suggestion)
+  notes?:        string;
+}
+
+export interface TrainingSession {
+  id:        string;
+  name:      string;        // e.g. "Push Day", "Lower A"
+  exercises: PlannedExercise[];
+}
+
+export interface TrainingProgram {
+  id:           string;
+  name:         string;
+  description:  string;
+  sessions:     TrainingSession[];
+  /** dayOfWeek (0=Sun…6=Sat) → session id. Empty string = rest day. */
+  weekSchedule: Record<number, string>;
+  isActive:     boolean;
+  createdAt:    string;
 }

@@ -150,6 +150,15 @@ export async function importFromFile(file: File): Promise<ImportResult> {
       waterByDate: { ...current.waterByDate, ...(incoming.waterByDate ?? {}) },
       badges:          mergeById(current.badges ?? [],  incoming.badges         ?? []),
       personalRecords: { ...current.personalRecords, ...(incoming.personalRecords ?? {}) },
+      // Keyed by (itemType, itemName) rather than id; incoming wins on conflict.
+      recommendationFeedback: Array.from(
+        new Map(
+          [
+            ...(current.recommendationFeedback ?? []),
+            ...(incoming.recommendationFeedback ?? []),
+          ].map((f) => [`${f.itemType}:${f.itemName}`, f] as const),
+        ).values(),
+      ),
     };
 
     saveAppData(merged);

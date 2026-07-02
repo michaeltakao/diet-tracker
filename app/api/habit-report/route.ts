@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { generateWithRetry } from '@/lib/gemini';
+import { guardAiRoute } from '@/lib/api-guard';
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -42,6 +45,20 @@ Analyze the user's 7-day behavioral data and return ONLY valid JSON (no markdown
 Be warm, encouraging, and precise. Reference actual numbers from the data.`;
 
 export async function POST(request: Request): Promise<NextResponse> {
+  const guard = await guardAiRoute(request);
+  if ('blocked' in guard) return guard.blocked;
+
+  const rl = checkRateLimit(guard.clientId, 'habit-report', RATE_LIMITS['habit-report']);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Please wait before retrying.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(Math.ceil(rl.resetAfterMs / 1000)) },
+      }
+    );
+  }
+
   if (!apiKey) {
     return NextResponse.json({ error: 'GEMINI_API_KEY is not configured.' }, { status: 500 });
   }
@@ -76,7 +93,7 @@ ${body.dailySummary.map((d) => {
     `.trim();
 
     const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: SYSTEM_PROMPT + '\n\n' + userMessage }] }],
     });

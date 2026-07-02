@@ -1,18 +1,20 @@
 'use client';
 
 /**
- * ProfileContext — Authentication + profile/goals state.
+ * ProfileContext — Authentication + profile/goals state + migration orchestration.
  *
  * Wraps the entire app (via ProfileProvider in layout.tsx).
- * Exposes the current Supabase user, profile row, and goals.
+ * Exposes the current Supabase user, profile row, goals, and migration state.
  *
  * Design contract:
  * - When Supabase is NOT configured (placeholder env vars): all auth fields
  *   are null/false; goals fall back to localStorage. App runs in guest mode.
  * - When Supabase IS configured: auth state is live via onAuthStateChange.
  * - `goals` always resolves: DB profile → localStorage → hardcoded defaults.
+ * - Migration runs once on first authenticated login (STEP 7).
  *
- * STEP 6 change: updateGoals will dual-write to Supabase AND localStorage.
+ * STEP 6 change: updateGoals dual-writes to Supabase AND localStorage.
+ * STEP 7 change: migration triggered after auth; MigrationBanner rendered here.
  */
 
 import React, {
@@ -20,13 +22,21 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 import type { User } from '@supabase/supabase-js';
 import type { ProfileRow } from '@/lib/database.types';
 import type { DailyGoals } from '@/lib/types';
-import { createClient } from '@/lib/supabase';
+import { createClient, isSupabaseConfigured } from '@/lib/supabase';
 import { getGoals, updateGoals as _updateLocalGoals } from '@/lib/data/profile';
+import {
+  needsMigration,
+  executeMigration,
+  markMigrationComplete,
+} from '@/lib/migrate';
+import type { MigrationStatus, MigrationSummary } from '@/lib/migrate';
+import MigrationBanner from '@/components/MigrationBanner';
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
@@ -51,18 +61,6 @@ function profileToGoals(p: ProfileRow): DailyGoals {
   };
 }
 
-/**
- * Returns true when the environment has real Supabase credentials.
- * False = placeholder/empty = localStorage-only guest mode.
- */
-export function isSupabaseConfigured(): boolean {
-  const url  = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '';
-  const key  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
-  const hasUrl = url.length > 0 && !url.includes('placeholder') && !url.includes('xxxx');
-  const hasKey = key.length > 0 && !key.includes('placeholder');
-  return hasUrl && hasKey;
-}
-
 // ── Context type ──────────────────────────────────────────────────────────────
 
 interface ProfileContextType {
@@ -79,6 +77,10 @@ interface ProfileContextType {
    * Source priority: DB profile > localStorage > hardcoded defaults.
    */
   goals:           DailyGoals;
+  /** Current migration state (STEP 7). */
+  migrationStatus:  MigrationStatus;
+  /** Per-table record counts after a successful migration. */
+  migrationSummary: MigrationSummary | null;
   /** Trigger Google OAuth redirect. */
   signInWithGoogle:  () => Promise<void>;
   /** Send an OTP magic link to the given email. */
@@ -94,11 +96,13 @@ interface ProfileContextType {
 // ── Context + default (for useContext before Provider mounts) ─────────────────
 
 const ProfileContext = createContext<ProfileContextType>({
-  user:            null,
-  profile:         null,
-  isLoading:       false,
-  isAuthenticated: false,
-  goals:           DEFAULT_GOALS,
+  user:             null,
+  profile:          null,
+  isLoading:        false,
+  isAuthenticated:  false,
+  goals:            DEFAULT_GOALS,
+  migrationStatus:  'idle',
+  migrationSummary: null,
   signInWithGoogle:  async () => {},
   signInWithEmail:   async () => ({ error: null }),
   signOut:           async () => {},
@@ -109,11 +113,19 @@ const ProfileContext = createContext<ProfileContextType>({
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
-  const [user,      setUser]      = useState<User | null>(null);
-  const [profile,   setProfile]   = useState<ProfileRow | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
+  // Env-derived and identical on server and client, so it is safe to seed state.
   const supabaseEnabled = isSupabaseConfigured();
+
+  const [user,             setUser]             = useState<User | null>(null);
+  const [profile,          setProfile]          = useState<ProfileRow | null>(null);
+  // We only "load" when a backend exists to resolve a session against; in guest
+  // mode there is nothing to await, so start resolved (avoids a setState in the
+  // mount effect and a spurious loading flash).
+  const [isLoading,        setIsLoading]        = useState(supabaseEnabled);
+  const [migrationStatus,  setMigrationStatus]  = useState<MigrationStatus>('idle');
+  const [migrationSummary, setMigrationSummary] = useState<MigrationSummary | null>(null);
+  // Prevents double-trigger on INITIAL_SESSION + getUser() both firing on mount
+  const migrationTriggeredRef = useRef(false);
 
   // ── Fetch profile row from DB ──────────────────────────────────────────────
 
@@ -134,13 +146,55 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     }
   }, [supabaseEnabled]);
 
+  // ── Migration (STEP 7) ─────────────────────────────────────────────────────
+  // Defined BEFORE useEffect so the dependency array can reference it safely.
+
+  const triggerMigration = useCallback(async (userId: string) => {
+    if (!supabaseEnabled) return;
+    // Guard: only run once per Provider mount (INITIAL_SESSION + getUser both fire)
+    if (migrationTriggeredRef.current) return;
+    migrationTriggeredRef.current = true;
+
+    setMigrationStatus('checking');
+    const supabase = createClient();
+
+    try {
+      const needed = await needsMigration(supabase, userId);
+      if (!needed) {
+        setMigrationStatus('idle');
+        return;
+      }
+
+      setMigrationStatus('migrating');
+
+      // Hard 30-second timeout — never block auth flow indefinitely
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Migration timed out after 30 s')), 30_000),
+      );
+
+      const result = await Promise.race([
+        executeMigration(supabase, userId),
+        timeoutPromise,
+      ]);
+
+      // Mark complete in DB + localStorage
+      await markMigrationComplete(supabase, userId);
+
+      setMigrationSummary(result.summary ?? null);
+      setMigrationStatus('success');
+      // Auto-dismiss banner after 5 seconds
+      setTimeout(() => setMigrationStatus('idle'), 5_000);
+    } catch (err) {
+      console.error('[MIGRATION_ERROR] ProfileContext:', err);
+      setMigrationStatus('error');
+    }
+  }, [supabaseEnabled]);
+
   // ── Initial auth check + subscription ──────────────────────────────────────
 
   useEffect(() => {
-    if (!supabaseEnabled) {
-      setIsLoading(false);
-      return;
-    }
+    // Guest mode: isLoading was seeded false, so there is nothing to do here.
+    if (!supabaseEnabled) return;
 
     const supabase = createClient();
 
@@ -149,6 +203,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
       if (currentUser) {
         fetchProfile(currentUser.id).finally(() => setIsLoading(false));
+        // Trigger migration for already-logged-in users (ref guard prevents double-run
+        // if onAuthStateChange also fires INITIAL_SESSION)
+        void triggerMigration(currentUser.id);
       } else {
         setIsLoading(false);
       }
@@ -156,11 +213,15 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
     // Live subscription: handle sign-in / sign-out / token-refresh
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         const newUser = session?.user ?? null;
         setUser(newUser);
         if (newUser) {
           await fetchProfile(newUser.id);
+          // Trigger migration on fresh sign-in (ref guard prevents re-run if already done)
+          if (event === 'SIGNED_IN') {
+            void triggerMigration(newUser.id);
+          }
         } else {
           setProfile(null);
         }
@@ -168,7 +229,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     );
 
     return () => subscription.unsubscribe();
-  }, [supabaseEnabled, fetchProfile]);
+  }, [supabaseEnabled, fetchProfile, triggerMigration]);
 
   // ── Auth methods ───────────────────────────────────────────────────────────
 
@@ -206,21 +267,32 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   // ── Goals ──────────────────────────────────────────────────────────────────
 
   const updateGoals = useCallback((goals: DailyGoals) => {
-    // Always update localStorage (offline fallback, STEP 2 contract)
     _updateLocalGoals(goals);
 
-    // STEP 6 NOTE: add Supabase write here once dual-write layer is active
-    // For now, update local profile state for immediate UI reflection
     if (user && profile) {
-      setProfile(prev => prev ? {
-        ...prev,
+      const next = {
+        ...profile,
         goal_calories:  goals.calories,
         goal_protein_g: goals.protein,
         goal_fat_g:     goals.fat,
         goal_carbs_g:   goals.carbs,
         goal_water_ml:  goals.water,
         goal_weight_kg: goals.goalWeight ?? null,
-      } : prev);
+      };
+      setProfile(next);
+
+      // Dual-write to Supabase (fire-and-forget)
+      const supabase = createClient();
+      void supabase.from('profiles').update({
+        goal_calories:  goals.calories,
+        goal_protein_g: goals.protein,
+        goal_fat_g:     goals.fat,
+        goal_carbs_g:   goals.carbs,
+        goal_water_ml:  goals.water,
+        goal_weight_kg: goals.goalWeight ?? null,
+      }).eq('id', user.id).then(({ error }) => {
+        if (error) console.warn('[ProfileContext] updateGoals Supabase failed:', error.message);
+      });
     }
   }, [user, profile]);
 
@@ -243,14 +315,22 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       user,
       profile,
       isLoading,
-      isAuthenticated: user !== null,
+      isAuthenticated:  user !== null,
       goals,
+      migrationStatus,
+      migrationSummary,
       signInWithGoogle,
       signInWithEmail,
       signOut,
       updateGoals,
       refreshProfile,
     }}>
+      {/* Migration banner — shown only while migration is in progress or just finished */}
+      <MigrationBanner
+        status={migrationStatus}
+        summary={migrationSummary ?? undefined}
+        onDismiss={() => setMigrationStatus('idle')}
+      />
       {children}
     </ProfileContext.Provider>
   );

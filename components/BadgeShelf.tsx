@@ -19,7 +19,7 @@ export default function BadgeShelf({ badges, maxVisible = 30, title, className =
   return (
     <div className={className}>
       {title && (
-        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2.5">{title}</h2>
+        <h2 className="text-sm font-semibold text-muted mb-2.5">{title}</h2>
       )}
       <div className="flex gap-2 overflow-x-auto scrollbar-none -mx-1 px-1 pb-1">
         {sorted.map((b) => (

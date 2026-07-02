@@ -28,11 +28,18 @@ function SingleBar({ label, current, goal, fillClass, trackClass, textClass }: S
     <div className="w-full">
       <div className="flex justify-between items-center mb-1.5">
         <span className={`text-xs font-semibold ${textClass}`}>{label}</span>
-        <span className={`text-xs font-bold ${isOver ? 'text-red-500' : 'text-gray-600 dark:text-gray-300'} tabular-nums`}>
-          {current}g <span className="font-normal text-gray-400 dark:text-gray-500">/ {goal}g</span>
+        <span className={`text-xs font-bold ${isOver ? 'text-danger' : 'text-muted'} tabular-nums`}>
+          {current}g <span className="font-normal text-faint">/ {goal}g</span>
         </span>
       </div>
-      <div className={`h-2.5 w-full rounded-full overflow-hidden ${trackClass}`}>
+      <div
+        className={`h-2.5 w-full rounded-full overflow-hidden ${trackClass}`}
+        role="progressbar"
+        aria-valuenow={Math.round(pct)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={label}
+      >
         <div
           className={`h-full rounded-full transition-all duration-700 ease-out ${isOver ? 'bg-red-400' : fillClass}`}
           style={{ width: `${pct}%` }}
@@ -61,7 +68,7 @@ export default function MacroBar({ protein, fat, carbs, goalProtein, goalFat, go
         goal={goalFat}
         fillClass="bg-gradient-to-r from-amber-400 to-orange-400"
         trackClass="bg-amber-100 dark:bg-amber-900/30"
-        textClass="text-amber-600 dark:text-amber-400"
+        textClass="text-warning"
       />
       <SingleBar
         label={t.carbs}

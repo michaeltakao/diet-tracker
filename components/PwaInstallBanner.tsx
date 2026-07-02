@@ -39,6 +39,7 @@ export default function PwaInstallBanner() {
     if (localStorage.getItem(DISMISS_KEY)) return;
 
     const p = detectPlatform();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only platform detection on mount (needs navigator)
     setPlatform(p);
 
     // Chrome / Edge / Android: listen for install prompt
@@ -83,33 +84,37 @@ export default function PwaInstallBanner() {
   return (
     <>
       {/* Main banner */}
-      <div className="
-        fixed bottom-20 left-4 right-4 z-40 max-w-md mx-auto
-        bg-white/90 dark:bg-gray-800/90
-        backdrop-blur-md
-        border border-gray-200 dark:border-gray-700
-        rounded-3xl
-        shadow-[0_16px_48px_rgb(0,0,0,0.12)] dark:shadow-[0_16px_48px_rgb(0,0,0,0.4)]
-        p-4
-        animate-slide-in-up
-        flex items-center gap-3
-      ">
+      <div
+        role="dialog"
+        aria-label="ホーム画面に追加"
+        className="
+          fixed bottom-20 left-4 right-4 z-40 max-w-md mx-auto
+          bg-card/90
+          backdrop-blur-md
+          border border-line
+          rounded-3xl
+          shadow-elevated
+          p-4
+          animate-slide-in-up
+          flex items-center gap-3
+        "
+      >
         {/* App icon */}
         <div className="
           w-12 h-12 rounded-2xl flex-shrink-0
-          bg-gradient-to-br from-green-500 to-teal-600
+          bg-gradient-to-br from-brand-500 to-teal-600
           flex items-center justify-center text-2xl
-          shadow-[0_4px_12px_rgba(34,197,94,0.4)]
-        ">
+          shadow-[0_4px_12px_rgba(16,185,129,0.4)]
+        " aria-hidden="true">
           🥗
         </div>
 
         {/* Text */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-black text-gray-900 dark:text-white">
+          <p className="text-sm font-black text-fg">
             ホーム画面に追加
           </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+          <p className="text-xs text-faint mt-0.5">
             {platform === 'ios'
               ? 'Safari の共有メニューから追加できます'
               : 'オフラインでも使えるアプリ版'}
@@ -121,43 +126,48 @@ export default function PwaInstallBanner() {
           onClick={handleInstall}
           className="
             flex items-center gap-1.5 px-3.5 py-2
-            bg-gradient-to-r from-green-500 to-emerald-600
+            bg-gradient-to-r from-brand-500 to-brand-600
             text-white text-xs font-black rounded-xl flex-shrink-0
-            shadow-[0_4px_12px_rgba(34,197,94,0.4)]
+            shadow-[0_4px_12px_rgba(16,185,129,0.4)]
             hover:scale-[1.03] active:scale-95
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
             transition-all duration-200
           "
         >
-          {platform === 'ios' ? <Share size={13} /> : <Download size={13} />}
+          {platform === 'ios' ? <Share size={13} aria-hidden="true" /> : <Download size={13} aria-hidden="true" />}
           {platform === 'ios' ? '方法' : 'インストール'}
         </button>
 
         {/* Dismiss */}
         <button
           onClick={dismiss}
-          className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 active:scale-90 transition-all duration-200 flex-shrink-0"
+          aria-label="閉じる"
+          className="p-2 rounded-lg text-faint hover:text-fg active:scale-90 transition-all duration-200 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
         >
-          <X size={16} />
+          <X size={16} aria-hidden="true" />
         </button>
       </div>
 
       {/* iOS step-by-step hint overlay */}
       {iosHint && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="ホーム画面への追加方法"
           className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end justify-center p-4 animate-fade-in"
           onClick={() => setIosHint(false)}
         >
           <div
             className="
-              bg-white dark:bg-gray-800
+              bg-card
               rounded-3xl w-full max-w-md
-              shadow-[0_24px_64px_rgb(0,0,0,0.25)]
+              shadow-elevated
               p-6
               animate-badge-pop
             "
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-lg font-black text-gray-900 dark:text-white mb-4">
+            <h2 className="text-lg font-black text-fg mb-4">
               📱 ホーム画面への追加方法
             </h2>
             <ol className="space-y-3">
@@ -169,23 +179,25 @@ export default function PwaInstallBanner() {
                 <li key={icon} className="flex items-start gap-3">
                   <span className="
                     w-7 h-7 rounded-full flex-shrink-0
-                    bg-green-500 text-white
+                    bg-brand-500 text-white
                     flex items-center justify-center
                     text-xs font-black
-                  ">
+                  " aria-hidden="true">
                     {icon}
                   </span>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pt-0.5">{text}</p>
+                  <p className="text-sm text-muted leading-relaxed pt-0.5">{text}</p>
                 </li>
               ))}
             </ol>
             <button
               onClick={() => { setIosHint(false); dismiss(); }}
+              autoFocus
               className="
                 mt-5 w-full py-3 rounded-2xl font-black text-sm text-white
-                bg-gradient-to-r from-green-500 to-emerald-600
-                shadow-[0_4px_14px_rgba(34,197,94,0.4)]
+                bg-gradient-to-r from-brand-500 to-brand-600
+                shadow-[0_4px_14px_rgba(16,185,129,0.4)]
                 hover:scale-[1.01] active:scale-[0.98]
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
                 transition-all duration-200
               "
             >
