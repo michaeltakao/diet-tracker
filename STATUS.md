@@ -1,43 +1,57 @@
 # STATUS — diet-tracker
 
 ## Now
-- `feature/research-platform` fully verified and pushed (`35b2ee3`, 2026-06-22).
-  P0 complete:
-  - XAI "なぜこれ？" drawer per recommendation item
-  - Adaptive TDEE engine (14-day OLS regression) + dashboard card
-  - Consent/enrollment flow (/consent page + proxy redirect)
-  - Researcher dashboard (/research, role-gated)
-  - Researcher data export API (/api/research/export, JSON + CSV)
-  - DB migrations 006 (tdee_estimates) + 007 (profiles: role/consented_at)
-  - lib/__tests__/tdee.test.ts (16 tests) + lib/__tests__/recommend-explain.test.ts (12 tests)
-  - database.types.ts regenerated from live Supabase schema
+- **2026-07-03 competitor-informed design & system round** complete; 4 stacked PRs open:
+  - #9 `fix/design-tokens` (W3): undefined `var(--bg)` bug fix, `--ai/--ai-soft` tokens,
+    gray/slate + semantic-accent sweep, `components/ui/` primitives (Card / ConfirmDialog /
+    Toast), native `confirm()/prompt()` removed, a11y text sizes. **Base of the stack.**
+  - #10 `feat/self-delete-ui` (W4): APPI/GDPR data-erasure UI wired to
+    `/api/participant/self-delete` (typed confirmation; server-first, local clear after).
+  - #11 `feat/trends` (W2): 週間/トレンド toggle on /log (`?view=trends`), `lib/trends.ts`
+    (26 tests), recharts panels via next/dynamic, guest on-device TDEE, `lib/telemetry.ts`
+    local event buffer (Phase C surface).
+  - `feat/food-logging` (W1a): portion scaling (`lib/food-scaling.ts`), ♡ favorites wired
+    into Phase B (`W_FAVORITE` via derived macroHighlight, vocabulary-overlap tested),
+    meal templates, FoodEntryForm extraction + servings stepper, migration 009.
+- Merge order: #9 → retarget #10/#11/W1a to main → merge.
 
 ## Next
-- Apply migrations 006+007 to Supabase project via MCP or dashboard (not yet applied).
-- Set `profiles.role = 'researcher'` for researcher accounts in Supabase.
-- P1 features: adherence prediction, habit phenotyping, TDEE-triggered goal adaptation.
-- Merge feature/research-platform → main after field-study setup.
+- Review + merge the 4 PRs (stack base first).
+- W4 manual test with a throwaway account (needs prod auth session).
+- Authed dual-write spot-check in Supabase after first real logins (tables are empty).
+- Backlog (explicit cut list from the round): W1b bundled JP food DB (MEXT 成分表 —
+  demoted per kill criteria; needs real-data curation session), W1c barcode/OFF (spike
+  ≥50% hit-rate on 10 pantry items first), telemetry Supabase dual-write (needs migration
+  + consent gating), recipes, full micronutrient UI, weight-page SVG → recharts,
+  AccountSection full i18n retrofit.
+- P1 research features: adherence prediction, habit phenotyping, TDEE-triggered goal adaptation.
 
 ## Blockers
 - None.
 
 ## Key decisions
-- Phase A safety layer wired into `/api/recommend` (`lib/recommend-safety.ts`,
-  19 tests) — commit `84ba7dd`, 2026-06-03.
-- Semantic token design system + WCAG-AA (use tokens, not `gray-*`).
-- Pre-existing `plan/page.tsx` lint error left as-is (documented, not ours).
+- Phase A safety layer wired into `/api/recommend` (`lib/recommend-safety.ts`, 19 tests)
+  — commit `84ba7dd`, 2026-06-03.
+- Semantic token design system + WCAG-AA (use tokens, not `gray-*`); AI features use the
+  `--ai` violet family (2026-07-03).
+- `FoodEntry` kcal/P/F/C are always FINAL consumed values; portion metadata is separate
+  columns — TDEE/reports/streaks unaffected (migration 009 design).
+- Favorites double as the Phase B `W_FAVORITE` signal: `deriveMacroHighlight` emits
+  `・`-joined tokens in the exact `foodFeatures()` vocabulary (unit-tested overlap).
+- Telemetry lives on its own localStorage key, never in AppData; server-side collection
+  deferred until it has its own migration + consent gating.
 - Repo is the Master's research vehicle — see vault `ADR-001`.
-- `postcss` overridden to `^8.5.10` (CVE-2026-41305, MEDIUM) — same fix as
-  price-commons.
-- CI workflows hardened against script injection (`cac19bf`, 2026-06-12):
-  `issue-route.yml` github-script steps take LLM classifier outputs via `env:`
-  (they derive from attacker-controlled issue text and ran with `issues: write`);
-  `pr-review.yml` checkout uses `persist-credentials: false` and `base_ref` via
-  env. Found during Layer-3 mega-prompt triage — see vault `ADR-003`.
+- `postcss` overridden to `^8.5.10` (CVE-2026-41305, MEDIUM).
+- CI workflows hardened against script injection (`cac19bf`, 2026-06-12) — see vault `ADR-003`.
 
 ## Last verified state
-- 2026-07-02: sweep re-verify — `npm run lint` clean on branch `feature/research-platform`.
-- 2026-06-22: `feature/research-platform` @ `35b2ee3` — `npm run build` ✓,
-  `npm test` 86/86 ✓. All P0 routes compile and appear in build manifest.
-- 2026-06-11: trivy (lockfile) clean · gitleaks history scan: 9 findings,
-  all triaged false positives.
+- 2026-07-03: migrations **006/007 confirmed live**, **008 + 009 applied** to prod
+  (`chkkpucuiyjdeqgyyszt`) and verified (role-freeze policy, researcher_access_log,
+  favorite_foods/meal_templates RLS + FK CASCADE); `database.types.ts` regenerated.
+  `feature/research-platform` merged → `main` (`f61128b`) and pushed.
+- 2026-07-03: on `feat/food-logging` (tip of the stack) — `npm run lint` clean,
+  `npx vitest run` **134/134**, `npm run build` green, `tsc --noEmit` clean.
+  Manual Chrome verification (guest seed data): trends charts dark+light+ja+en,
+  servings stepper rescale, ♡ → Phase B event, template save → one-tap re-log.
+- 2026-06-11: trivy (lockfile) clean · gitleaks history scan: 9 findings, all triaged
+  false positives.
