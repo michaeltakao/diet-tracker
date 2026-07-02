@@ -42,7 +42,7 @@ export default function ConsentPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--bg)]">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-surface">
       <div className="w-full max-w-lg space-y-4">
 
         {/* Header */}
@@ -144,7 +144,7 @@ export default function ConsentPage() {
           <button
             type="button"
             onClick={() => router.replace('/')}
-            className="flex-1 py-3 rounded-2xl text-xs font-bold text-faint bg-surface-2 hover:bg-[var(--bg-card)] transition-colors"
+            className="flex-1 py-3 rounded-2xl text-xs font-bold text-faint bg-surface-2 hover:bg-card transition-colors"
           >
             後で決める
           </button>
