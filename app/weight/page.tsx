@@ -14,6 +14,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 function getTodayDate() { return new Date().toISOString().split('T')[0]; }
 
 import { fmtShortJa } from '@/lib/format-date';
+import { CARD_CLASS as cardCls } from '@/components/ui/Card';
 
 function formatDateShort(dateStr: string) {
   return fmtShortJa(dateStr);
@@ -59,7 +60,6 @@ export default function WeightPage() {
   const goalAchieved = toGoal !== null && Math.abs(toGoal) < 0.05;
   const goalRemaining = toGoal !== null && !goalAchieved ? +Math.abs(toGoal).toFixed(1) : null;
 
-  const cardCls = 'bg-card rounded-3xl shadow-card border border-line';
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">

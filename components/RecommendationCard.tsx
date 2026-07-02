@@ -8,6 +8,7 @@ import { buildAffinityModel, rankRecommendation, type AffinityModel } from '@/li
 import { explainFood, explainExercise, type ExplanationFactor } from '@/lib/recommend-explain';
 import { useProfile } from '@/contexts/ProfileContext';
 import type { Recommendation, FeedbackKind } from '@/lib/types';
+import { CARD_CLASS as CARD } from '@/components/ui/Card';
 
 function getTodayDate(): string {
   return new Date().toISOString().split('T')[0];
@@ -40,7 +41,6 @@ const CATEGORY_ICONS: Record<string, string> = {
   other:       '⚡',
 };
 
-const CARD = 'bg-card rounded-3xl shadow-card border border-line';
 
 type ItemType = 'food' | 'exercise';
 

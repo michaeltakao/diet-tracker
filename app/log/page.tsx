@@ -25,6 +25,7 @@ function getWeekDates(anchor: Date): string[] {
 
 import { fmtCalendarCell, fmtMonthDayDowLongJa, fmtLongEn } from '@/lib/format-date';
 import { postJson, HttpError } from '@/lib/httpClient';
+import { CARD_CLASS as cardCls } from '@/components/ui/Card';
 
 function formatShort(dateStr: string, locale: string): { day: string; num: string } {
   if (locale !== 'ja-JP') {
@@ -235,7 +236,6 @@ export default function LogPage() {
     }
   };
 
-  const cardCls = 'bg-card rounded-3xl shadow-card border border-line';
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">

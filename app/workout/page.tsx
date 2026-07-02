@@ -12,6 +12,7 @@ import {
   Trash2, ChevronRight, Sparkles,
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
+import { Toast } from '@/components/ui/Toast';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import BadgeShelf from '@/components/BadgeShelf';
 import MedWarning from '@/components/MedWarning';
@@ -302,11 +303,7 @@ export default function WorkoutPage() {
       )}
 
       {/* PR Toast */}
-      {prToast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-40 bg-yellow-400 text-yellow-900 font-black text-sm px-5 py-3 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap">
-          {prToast}
-        </div>
-      )}
+      <Toast message={prToast} variant="celebrate" />
 
       {/* Header */}
       <div className="bg-gradient-to-br from-brand-600 via-emerald-600 to-teal-600 text-white px-4 pt-12 pb-8 rounded-b-[2.5rem] shadow-[0_16px_48px_rgba(16,185,129,0.25)]">

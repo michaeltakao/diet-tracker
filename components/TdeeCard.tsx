@@ -6,8 +6,8 @@ import { getAppData } from '@/lib/data';
 import { postJson } from '@/lib/httpClient';
 import { tdeeConfidenceLabel } from '@/lib/tdee';
 import { useProfile } from '@/contexts/ProfileContext';
+import { CARD_CLASS as CARD } from '@/components/ui/Card';
 
-const CARD = 'bg-card rounded-3xl shadow-card border border-line';
 
 interface TdeeEstimate {
   tdeeKcal:   number | null;

@@ -5,6 +5,7 @@ import { CalendarDays, RefreshCw, Trophy, TrendingDown, TrendingUp } from 'lucid
 import { getAppData, getStreak, getWeightEntries, getHealthProfile } from '@/lib/data';
 import { postJson, HttpError } from '@/lib/httpClient';
 import { useProfile } from '@/contexts/ProfileContext';
+import { CARD_CLASS as CARD } from '@/components/ui/Card';
 
 interface WeeklyReport {
   weekScore:         number;
@@ -38,7 +39,6 @@ function scoreLabel(s: number): { grade: string; color: string; bg: string } {
   return             { grade: 'D', color: 'text-danger', bg: 'bg-danger-soft' };
 }
 
-const CARD = 'bg-card rounded-3xl shadow-card border border-line';
 
 export default function WeeklyReportCard() {
   const { isAuthenticated, goals } = useProfile();

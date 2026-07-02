@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ClipboardList, CheckCircle2, Shield } from 'lucide-react';
 import { postJson } from '@/lib/httpClient';
+import { CARD_CLASS as CARD } from '@/components/ui/Card';
 
-const CARD = 'bg-card rounded-3xl shadow-card border border-line';
 
 export default function ConsentPage() {
   const router = useRouter();

@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { FlaskConical, Download, Users, TrendingUp, RefreshCw, ChevronLeft } from 'lucide-react';
 import type { ParticipantSummary } from '@/app/api/research/participants/route';
 import { getJson } from '@/lib/httpClient';
+import { CARD_CLASS as CARD } from '@/components/ui/Card';
 
-const CARD = 'bg-card rounded-3xl shadow-card border border-line';
 
 function statusBadge(lastFoodLog: string | null): { label: string; color: string } {
   if (!lastFoodLog) return { label: '未ログ', color: 'text-faint bg-surface-2' };
