@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, PenLine, Clock, Zap, BookmarkPlus, Heart } from 'lucide-react';
 import { addFoodEntry, getRecentFoods, getHealthProfile, getFavoriteFoods } from '@/lib/data';
-import { scaleFood } from '@/lib/food-scaling';
+import { scaleFood, type ScalableFood } from '@/lib/food-scaling';
 import { FoodEntryForm, type FoodFormData } from '@/components/FoodEntryForm';
 import { MealTemplateSheet } from '@/components/MealTemplateSheet';
 import { FoodEntry, FavoriteFood, MealTemplate } from '@/lib/types';
@@ -71,6 +71,10 @@ export default function AddPage() {
   const [speedMode, setSpeedMode]           = useState(false);
   const [speedToast, setSpeedToast]         = useState(false);
   const [servings, setServings]             = useState(1);
+  // Per-serving nutrition base: scaling always multiplies this, never the
+  // displayed (rounded) values, so stepping 1×→0.5×→1× is an exact round trip.
+  // null = derive from the current fields on next scale (manual edits reset it).
+  const baseNutritionRef = useRef<ScalableFood | null>(null);
   const [sourceIsAi, setSourceIsAi]         = useState(false);
   const [favorites, setFavorites]           = useState<FavoriteFood[]>([]);
   const [showTemplates, setShowTemplates]   = useState(false);
@@ -98,6 +102,13 @@ export default function AddPage() {
     setPhotoDataUrl(photo);
     setSourceIsAi(true);
     setLogTime(getCurrentTime());
+    setServings(1);
+    baseNutritionRef.current = {
+      calories: result.calories,
+      protein: result.protein,
+      fat: result.fat,
+      carbs: result.carbs,
+    };
     setForm((prev) => ({
       ...prev,
       name: result.name,
@@ -108,13 +119,21 @@ export default function AddPage() {
     }));
   };
 
+  // DB columns are NUMERIC(6,1) — reject anything that can't round-trip.
+  const MAX_NUTRITION_VALUE = 99999;
+
+  const isInvalidNutrition = (raw: string): boolean => {
+    const v = Number(raw);
+    return raw === '' || !Number.isFinite(v) || v < 0 || v > MAX_NUTRITION_VALUE;
+  };
+
   const validate = (): boolean => {
     const newErrors: Partial<FormData> = {};
-    if (!form.name.trim())                          newErrors.name     = '名前を入力してください';
-    if (!form.calories || isNaN(Number(form.calories))) newErrors.calories = '数値を入力してください';
-    if (!form.protein  || isNaN(Number(form.protein)))  newErrors.protein  = '数値を入力してください';
-    if (!form.fat      || isNaN(Number(form.fat)))      newErrors.fat      = '数値を入力してください';
-    if (!form.carbs    || isNaN(Number(form.carbs)))    newErrors.carbs    = '数値を入力してください';
+    if (!form.name.trim())                 newErrors.name     = '名前を入力してください';
+    if (isInvalidNutrition(form.calories)) newErrors.calories = '数値を入力してください';
+    if (isInvalidNutrition(form.protein))  newErrors.protein  = '数値を入力してください';
+    if (isInvalidNutrition(form.fat))      newErrors.fat      = '数値を入力してください';
+    if (isInvalidNutrition(form.carbs))    newErrors.carbs    = '数値を入力してください';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -124,10 +143,17 @@ export default function AddPage() {
     setForm((prev) => {
       const nums = [prev.calories, prev.protein, prev.fat, prev.carbs].map(Number);
       if (nums.some((v) => !Number.isFinite(v)) || nums.every((v) => v === 0)) return prev;
-      const scaled = scaleFood(
-        { calories: nums[0], protein: nums[1], fat: nums[2], carbs: nums[3] },
-        next / servings,
-      );
+      // Re-derive the per-serving base from the current fields (exact division,
+      // no rounding) after a manual edit invalidated it.
+      if (!baseNutritionRef.current) {
+        baseNutritionRef.current = {
+          calories: nums[0] / servings,
+          protein: nums[1] / servings,
+          fat: nums[2] / servings,
+          carbs: nums[3] / servings,
+        };
+      }
+      const scaled = scaleFood(baseNutritionRef.current, next);
       return {
         ...prev,
         calories: String(scaled.calories),
@@ -166,6 +192,7 @@ export default function AddPage() {
       setForm({ ...EMPTY_FORM, mealType: form.mealType });
       setPhotoDataUrl(undefined);
       setServings(1);
+      baseNutritionRef.current = null;
       setSourceIsAi(false);
       setSpeedToast(true);
       setTimeout(() => setSpeedToast(false), 1500);
@@ -215,6 +242,11 @@ export default function AddPage() {
   };
 
   const updateField = (field: keyof FormData, value: string) => {
+    // A manual edit redefines the nutrition at the CURRENT servings; the
+    // per-serving base is re-derived on the next servings change.
+    if (field === 'calories' || field === 'protein' || field === 'fat' || field === 'carbs') {
+      baseNutritionRef.current = null;
+    }
     setForm((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   };

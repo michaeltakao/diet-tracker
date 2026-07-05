@@ -130,7 +130,11 @@ export async function toggleFavorite(food: FavoriteInput): Promise<boolean> {
       macro_highlight: fav.macroHighlight,
       source_id: fav.sourceId ?? null,
       created_at: fav.createdAt,
-    }, { onConflict: 'id' });
+      // Conflict target must match the table's UNIQUE(user_id, name): local
+      // favorites are keyed by name and minted a fresh id per device, so an
+      // id-based upsert would raise 23505 when another device already synced
+      // the same food — silently dropping the sync.
+    }, { onConflict: 'user_id,name' });
     if (error) console.warn('[data/favorites] Supabase upsert failed:', error.message);
   }
   return true;

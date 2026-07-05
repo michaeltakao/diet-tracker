@@ -61,6 +61,9 @@ CREATE INDEX IF NOT EXISTS favorite_foods_user
 
 ALTER TABLE public.favorite_foods ENABLE ROW LEVEL SECURITY;
 
+-- Postgres has no CREATE POLICY IF NOT EXISTS; DROP first keeps the file
+-- rerun-safe like every other statement in it.
+DROP POLICY IF EXISTS "favorite_foods: user owns rows" ON public.favorite_foods;
 CREATE POLICY "favorite_foods: user owns rows"
   ON public.favorite_foods FOR ALL
   USING      (auth.uid() = user_id)
@@ -83,6 +86,7 @@ CREATE INDEX IF NOT EXISTS meal_templates_user
 
 ALTER TABLE public.meal_templates ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "meal_templates: user owns rows" ON public.meal_templates;
 CREATE POLICY "meal_templates: user owns rows"
   ON public.meal_templates FOR ALL
   USING      (auth.uid() = user_id)

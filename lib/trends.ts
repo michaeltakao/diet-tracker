@@ -57,9 +57,13 @@ export function smoothWeightSeries(
   alpha: number = WEIGHT_SMOOTH_ALPHA,
 ): SmoothedWeightPoint[] {
   const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+  // Enforce the documented contract: duplicate dates keep the last occurrence,
+  // otherwise one day counts as two observations in the EWMA/OLS downstream.
+  const byDate = new Map<string, { date: string; weight: number }>();
+  for (const e of sorted) byDate.set(e.date, e);
   const out: SmoothedWeightPoint[] = [];
   let prev: number | null = null;
-  for (const e of sorted) {
+  for (const e of byDate.values()) {
     const smoothed = expSmooth(prev, e.weight, alpha);
     prev = smoothed;
     out.push({ date: e.date, raw: e.weight, smoothed: Math.round(smoothed * 100) / 100 });
