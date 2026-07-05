@@ -44,8 +44,15 @@ export async function DELETE(): Promise<NextResponse> {
   // Uses the GoTrue Admin API via the service-role key.
   const { error: authErr } = await svc.auth.admin.deleteUser(user.id);
   if (authErr) {
-    // Profile data is already gone; log the auth cleanup failure for manual follow-up.
+    // Profile data is already gone but the login credential survives — the
+    // erasure is INCOMPLETE and must not be reported as success. The session
+    // is still valid, so the client can retry: the profiles delete is a no-op
+    // and this call runs again.
     console.error('[self-delete] auth.admin.deleteUser failed:', authErr);
+    return NextResponse.json(
+      { error: 'アカウント削除が完了しませんでした。もう一度お試しください。' },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ deletedAt: new Date().toISOString() });

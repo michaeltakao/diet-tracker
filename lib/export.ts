@@ -159,6 +159,8 @@ export async function importFromFile(file: File): Promise<ImportResult> {
           ].map((f) => [`${f.itemType}:${f.itemName}`, f] as const),
         ).values(),
       ),
+      favoriteFoods: mergeById(current.favoriteFoods ?? [], incoming.favoriteFoods ?? []),
+      mealTemplates: mergeById(current.mealTemplates ?? [], incoming.mealTemplates ?? []),
     };
 
     saveAppData(merged);

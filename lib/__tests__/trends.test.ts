@@ -47,6 +47,19 @@ describe('smoothWeightSeries', () => {
     expect(out[2].smoothed).toBeLessThan(81); // 0.25·83 + 0.75·80 = 80.75
     expect(out[2].smoothed).toBeGreaterThan(80);
   });
+
+  it('dedupes duplicate dates, keeping the last occurrence', () => {
+    const out = smoothWeightSeries([
+      { date: '2026-06-01', weight: 80 },
+      { date: '2026-06-02', weight: 81 },
+      { date: '2026-06-02', weight: 79 }, // import/sync duplicate — wins
+    ]);
+    expect(out).toHaveLength(2);
+    expect(out[1]).toMatchObject({ date: '2026-06-02', raw: 79 });
+    // One observation per day: EWMA sees 79, not 81-then-79.
+    const expected = WEIGHT_SMOOTH_ALPHA * 79 + (1 - WEIGHT_SMOOTH_ALPHA) * 80;
+    expect(out[1].smoothed).toBeCloseTo(expected, 2);
+  });
 });
 
 describe('projectGoalDate', () => {

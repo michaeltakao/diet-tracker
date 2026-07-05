@@ -50,3 +50,4 @@ next-env.d.ts
 
 # secscan security baseline (SARIF reports — never commit)
 .secscan/
+docs/reviews/

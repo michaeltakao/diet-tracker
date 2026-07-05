@@ -76,6 +76,13 @@ export async function addFoodEntry(entry: FoodEntry): Promise<void> {
     carbs_g:     entry.carbs,
     photo_url:   entry.photo_url ?? null,
     logged_at:   entry.addedAt,
+    servings:     entry.servings ?? null,
+    serving_unit: entry.servingUnit ?? null,
+    amount_g:     entry.amountG ?? null,
+    source:       entry.source ?? null,
+    source_id:    entry.sourceId ?? null,
+    sodium_mg:    entry.sodiumMg ?? null,
+    fiber_g:      entry.fiberG ?? null,
   }, { onConflict: 'id' });
 
   if (error) {
@@ -105,6 +112,13 @@ export async function updateFoodEntry(entry: FoodEntry): Promise<void> {
     carbs_g:     entry.carbs,
     photo_url:   entry.photo_url ?? null,
     logged_at:   entry.addedAt,
+    servings:     entry.servings ?? null,
+    serving_unit: entry.servingUnit ?? null,
+    amount_g:     entry.amountG ?? null,
+    source:       entry.source ?? null,
+    source_id:    entry.sourceId ?? null,
+    sodium_mg:    entry.sodiumMg ?? null,
+    fiber_g:      entry.fiberG ?? null,
   }, { onConflict: 'id' });
 
   if (error) {
