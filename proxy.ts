@@ -9,7 +9,10 @@
  *
  * Guest mode: if NEXT_PUBLIC_SUPABASE_URL contains "placeholder" or "xxxx"
  * (i.e., the developer hasn't set up Supabase yet), all auth checks are
- * bypassed and the app runs in localStorage-only guest mode.
+ * bypassed and the app runs in localStorage-only guest mode. With Supabase
+ * configured, a user can still opt into guest mode per-device via the
+ * dt-guest cookie (set by the login page's "Continue without an account"
+ * link); the auth guard then passes unauthenticated page requests through.
  *
  * See: docs/decisions/ADR-007-dual-write.md
  */
@@ -83,6 +86,13 @@ export async function proxy(request: NextRequest) {
   const isApiRoute    = pathname.startsWith('/api/');
 
   // Unauthenticated → /login
+  // Exception: explicit guest opt-in (dt-guest cookie, set by the login page's
+  // "Continue without an account" link). Guests run localStorage-only; AI
+  // routes still enforce their own gate in lib/api-guard.ts.
+  const isGuest = request.cookies.get('dt-guest')?.value === '1';
+  if (!user && isGuest && !isLoginPage) {
+    return response;
+  }
   if (!user && !isLoginPage && !isAuthRoute) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';

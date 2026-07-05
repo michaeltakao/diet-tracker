@@ -254,6 +254,13 @@ function LoginPageInner() {
       {/* Guest mode */}
       <Link
         href={nextPath.startsWith('/') ? nextPath : '/'}
+        prefetch={false}
+        onClick={() => {
+          // Guest opt-in cookie: proxy.ts lets unauthenticated requests through
+          // when present. prefetch={false} so the RSC payload is never fetched
+          // (and cached as a /login redirect) before the cookie exists.
+          document.cookie = 'dt-guest=1; path=/; max-age=31536000; samesite=lax';
+        }}
         className="text-sm text-faint hover:text-fg transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
       >
         Continue without an account →
