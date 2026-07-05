@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ClipboardList, CheckCircle2, Shield } from 'lucide-react';
 import { postJson } from '@/lib/httpClient';
+import { CARD_CLASS as CARD } from '@/components/ui/Card';
 
-const CARD = 'bg-card rounded-3xl shadow-card border border-line';
 
 export default function ConsentPage() {
   const router = useRouter();
@@ -42,7 +42,7 @@ export default function ConsentPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--bg)]">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-surface">
       <div className="w-full max-w-lg space-y-4">
 
         {/* Header */}
@@ -144,7 +144,7 @@ export default function ConsentPage() {
           <button
             type="button"
             onClick={() => router.replace('/')}
-            className="flex-1 py-3 rounded-2xl text-xs font-bold text-faint bg-surface-2 hover:bg-[var(--bg-card)] transition-colors"
+            className="flex-1 py-3 rounded-2xl text-xs font-bold text-faint bg-surface-2 hover:bg-card transition-colors"
           >
             後で決める
           </button>

@@ -7,6 +7,7 @@ import { addFoodEntry, getRecentFoods, getHealthProfile } from '@/lib/data';
 import { FoodEntry } from '@/lib/types';
 import PhotoUpload from '@/components/PhotoUpload';
 import BottomNav from '@/components/BottomNav';
+import { Toast } from '@/components/ui/Toast';
 import MedWarning from '@/components/MedWarning';
 import { getNutritionWarnings } from '@/lib/medication-rules';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -182,19 +183,8 @@ export default function AddPage() {
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
-      {/* Quick-add success toast */}
-      {quickAddToast && (
-        <div role="status" aria-live="polite" className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white font-bold text-sm px-5 py-3 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap">
-          ✓ {t.quickAddSuccess}
-        </div>
-      )}
-
-      {/* Speed mode added toast */}
-      {speedToast && (
-        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white font-bold text-sm px-5 py-3 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap">
-          ✓ {t.quickAddSuccess}
-        </div>
-      )}
+      {/* Quick-add / speed-mode success toast */}
+      <Toast message={quickAddToast || speedToast ? `✓ ${t.quickAddSuccess}` : null} />
 
       {/* ── Med / condition warnings ─────────────── */}
       {nutritionWarnings.length > 0 && (
@@ -215,11 +205,11 @@ export default function AddPage() {
               flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold
               transition-all duration-200
               ${speedMode
-                ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-700'
+                ? 'bg-ai-soft text-ai border border-ai/30'
                 : 'bg-surface-2 text-faint border border-line-strong'}
             `}
           >
-            <Zap size={11} className={speedMode ? 'text-violet-500' : ''} />
+            <Zap size={11} className={speedMode ? 'text-ai' : ''} />
             {t.speedMode}
           </button>
           <div className="flex items-center gap-1.5 text-xs text-faint font-medium">

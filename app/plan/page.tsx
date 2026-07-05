@@ -24,6 +24,7 @@ import type {
   DailyCheckIn, WorkoutSuggestion, MusclePart,
 } from '@/lib/types';
 import BottomNav from '@/components/BottomNav';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { postJson, HttpError } from '@/lib/httpClient';
 
@@ -71,19 +72,19 @@ function ExerciseRow({ ex }: { ex: PlannedExercise }) {
   const MUSCLE_LABELS = lang === 'en' ? MUSCLE_LABELS_EN : MUSCLE_LABELS_JA;
   return (
     <div className="flex items-center gap-3 py-2 border-b border-line last:border-0">
-      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${MUSCLE_COLORS[ex.musclePart] ?? ''}`}>
+      <span className={`text-xs font-black px-2 py-0.5 rounded-full shrink-0 ${MUSCLE_COLORS[ex.musclePart] ?? ''}`}>
         {MUSCLE_LABELS[ex.musclePart]}
       </span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-fg truncate">{ex.name}</p>
-        {ex.notes && <p className="text-[10px] text-faint truncate">{ex.notes}</p>}
+        {ex.notes && <p className="text-xs text-faint truncate">{ex.notes}</p>}
       </div>
       <div className="shrink-0 text-right">
         <p className="text-xs font-black text-muted tabular-nums">
           {ex.sets}×{ex.repsMin === ex.repsMax ? ex.repsMin : `${ex.repsMin}–${ex.repsMax}`}
         </p>
         {ex.targetWeight != null && (
-          <p className="text-[10px] text-faint">{ex.targetWeight} kg</p>
+          <p className="text-xs text-faint">{ex.targetWeight} kg</p>
         )}
       </div>
     </div>
@@ -104,14 +105,14 @@ function SessionCard({
     <div className="border border-line rounded-2xl overflow-hidden">
       <button
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center gap-3 p-3 hover:bg-surface-2 dark:hover:bg-gray-700/50 transition-colors"
+        className="w-full flex items-center gap-3 p-3 hover:bg-surface-2 transition-colors"
       >
         <Dumbbell size={14} className="text-faint shrink-0" />
         <div className="flex-1 text-left">
           <p className="text-sm font-bold text-fg">{session.name}</p>
           <div className="flex gap-1 mt-0.5 flex-wrap">
             {muscles.map(m => (
-              <span key={m} className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${MUSCLE_COLORS[m]}`}>
+              <span key={m} className={`text-xs font-black px-1.5 py-0.5 rounded-full ${MUSCLE_COLORS[m]}`}>
                 {MUSCLE_LABELS[m]}
               </span>
             ))}
@@ -152,14 +153,14 @@ function ProgramCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               {isActive && (
-                <span className="text-[10px] font-black text-white bg-brand-600 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-black text-white bg-brand-600 px-2 py-0.5 rounded-full">
                   {t.activeProgramBadge}
                 </span>
               )}
               <h3 className="text-sm font-black text-fg truncate">{program.name}</h3>
             </div>
             <p className="text-[11px] text-faint leading-relaxed">{program.description}</p>
-            <p className="text-[10px] text-faint mt-1">{program.sessions.length} {t.sessionsCountSuffix}</p>
+            <p className="text-xs text-faint mt-1">{program.sessions.length} {t.sessionsCountSuffix}</p>
           </div>
           <button
             onClick={() => setOpen(v => !v)}
@@ -236,7 +237,7 @@ function CheckInWidget({
     <div className="bg-card rounded-3xl border border-line overflow-hidden shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
       <button
         onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-center gap-3 p-4 hover:bg-surface-2 dark:hover:bg-gray-700/30 transition-colors"
+        className="w-full flex items-center gap-3 p-4 hover:bg-surface-2 transition-colors"
       >
         <div className="w-9 h-9 rounded-2xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
           <Brain size={17} className="text-purple-500" />
@@ -252,7 +253,7 @@ function CheckInWidget({
           )}
         </div>
         {value.mood > 0 && (
-          <span className="text-[10px] font-black text-brand bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">{t.recordedLabel}</span>
+          <span className="text-xs font-black text-brand bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">{t.recordedLabel}</span>
         )}
         {expanded ? <ChevronUp size={15} className="text-faint" /> : <ChevronDown size={15} className="text-faint" />}
       </button>
@@ -275,7 +276,7 @@ function CheckInWidget({
                   }`}
                 >
                   <span className="text-lg">{MOOD_EMOJIS[n]}</span>
-                  <span className="text-[9px] font-bold text-faint">{MOOD_LABELS[n]}</span>
+                  <span className="text-xs font-bold text-faint">{MOOD_LABELS[n]}</span>
                 </button>
               ))}
             </div>
@@ -296,7 +297,7 @@ function CheckInWidget({
                   }`}
                 >
                   <span className="text-lg">{ENERGY_EMOJIS[n]}</span>
-                  <span className="text-[9px] font-bold text-faint">{ENERGY_LABELS[n]}</span>
+                  <span className="text-xs font-bold text-faint">{ENERGY_LABELS[n]}</span>
                 </button>
               ))}
             </div>
@@ -311,7 +312,7 @@ function CheckInWidget({
             <div className="flex items-center gap-3">
               <button
                 onClick={() => set({ sleepHours: Math.max(0, value.sleepHours - 0.5) })}
-                className="w-9 h-9 rounded-xl border border-line-strong flex items-center justify-center text-faint hover:bg-surface-2 dark:hover:bg-gray-700 transition-colors font-bold text-lg"
+                className="w-9 h-9 rounded-xl border border-line-strong flex items-center justify-center text-faint hover:bg-surface-2 transition-colors font-bold text-lg"
               >−</button>
               <div className="flex-1 text-center">
                 <span className="text-2xl font-black text-fg tabular-nums">{value.sleepHours}</span>
@@ -319,7 +320,7 @@ function CheckInWidget({
               </div>
               <button
                 onClick={() => set({ sleepHours: Math.min(14, value.sleepHours + 0.5) })}
-                className="w-9 h-9 rounded-xl border border-line-strong flex items-center justify-center text-faint hover:bg-surface-2 dark:hover:bg-gray-700 transition-colors font-bold text-lg"
+                className="w-9 h-9 rounded-xl border border-line-strong flex items-center justify-center text-faint hover:bg-surface-2 transition-colors font-bold text-lg"
               >＋</button>
             </div>
           </div>
@@ -450,7 +451,7 @@ function SuggestionCard({
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-2xl bg-white/60 dark:bg-gray-800/60 flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-2xl bg-card/60 flex items-center justify-center shrink-0">
             <Zap size={17} className={style.text} />
           </div>
           <div>
@@ -460,7 +461,7 @@ function SuggestionCard({
         </div>
         <button
           onClick={onRefresh}
-          className="p-2 rounded-xl hover:bg-white/50 dark:hover:bg-gray-700/50 transition-colors"
+          className="p-2 rounded-xl hover:bg-card/50 transition-colors"
           title="再生成"
         >
           <RefreshCw size={14} className={style.text} />
@@ -471,14 +472,14 @@ function SuggestionCard({
       <p className={`text-sm font-bold ${style.text} mb-2`}>{suggestion.sessionName}</p>
 
       {/* Intensity note */}
-      <p className={`text-xs ${style.text} opacity-80 mb-3 bg-white/40 dark:bg-gray-800/40 px-3 py-2 rounded-xl`}>
+      <p className={`text-xs ${style.text} opacity-80 mb-3 bg-card/40 px-3 py-2 rounded-xl`}>
         {suggestion.intensityNote}
       </p>
 
       {/* Adjustments */}
       {suggestion.adjustments.length > 0 && (
         <div className="mb-3">
-          <p className={`text-[10px] font-black uppercase tracking-widest ${style.text} opacity-50 mb-1.5`}>{t.adjustmentsLabel}</p>
+          <p className={`text-xs font-black uppercase tracking-widest ${style.text} opacity-50 mb-1.5`}>{t.adjustmentsLabel}</p>
           <div className="space-y-1">
             {suggestion.adjustments.map((adj, i) => (
               <div key={i} className="flex items-start gap-2">
@@ -493,7 +494,7 @@ function SuggestionCard({
       {/* Recovery tips */}
       {suggestion.recoveryTips.length > 0 && (
         <div className="mb-3">
-          <p className={`text-[10px] font-black uppercase tracking-widest ${style.text} opacity-50 mb-1.5`}>{t.recoveryLabel}</p>
+          <p className={`text-xs font-black uppercase tracking-widest ${style.text} opacity-50 mb-1.5`}>{t.recoveryLabel}</p>
           <div className="space-y-1">
             {suggestion.recoveryTips.map((tip, i) => (
               <p key={i} className={`text-xs ${style.text} opacity-80`}>• {tip}</p>
@@ -533,6 +534,9 @@ export default function PlanPage() {
     sleepHours: 7,
     sorenessAreas: [],
   });
+
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [showNewProgram, setShowNewProgram] = useState(false);
 
   const [suggestion, setSuggestion] = useState<WorkoutSuggestion | null>(null);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
@@ -635,10 +639,14 @@ export default function PlanPage() {
 
   const handleActivate = (id: string) => { activateProgram(id); reload(); };
 
-  const handleDelete = (id: string) => {
-    if (!confirm(lang === 'en' ? 'Delete this program?' : 'このプログラムを削除しますか？')) return;
-    deleteProgram(id);
-    reload();
+  const handleDelete = (id: string) => setDeleteTargetId(id);
+
+  const confirmDelete = () => {
+    if (deleteTargetId) {
+      deleteProgram(deleteTargetId);
+      reload();
+    }
+    setDeleteTargetId(null);
   };
 
   const handleDuplicate = (prog: TrainingProgram) => {
@@ -742,7 +750,7 @@ export default function PlanPage() {
                 <p className="text-xs font-bold text-blue-700 dark:text-blue-300">{t.accountLinkTitle}</p>
                 <p className="text-[11px] text-blue-500 dark:text-blue-400">{t.accountLinkDesc}</p>
               </div>
-              <span className="text-[10px] font-black text-blue-500 bg-blue-100 dark:bg-blue-900/40 px-2 py-1 rounded-full shrink-0">{lang === 'en' ? 'Settings →' : '設定 →'}</span>
+              <span className="text-xs font-black text-blue-500 bg-blue-100 dark:bg-blue-900/40 px-2 py-1 rounded-full shrink-0">{lang === 'en' ? 'Settings →' : '設定 →'}</span>
             </button>
           )}
 
@@ -778,19 +786,19 @@ export default function PlanPage() {
                   <p className="text-2xl font-black text-fg tabular-nums">
                     {todaySession.exercises.length}
                   </p>
-                  <p className="text-[10px] text-faint">{t.exerciseCountLabel}</p>
+                  <p className="text-xs text-faint">{t.exerciseCountLabel}</p>
                 </div>
                 <div>
                   <p className="text-2xl font-black text-fg tabular-nums">
                     {todaySession.exercises.reduce((s, e) => s + e.sets, 0)}
                   </p>
-                  <p className="text-[10px] text-faint">{t.totalSetsLabel}</p>
+                  <p className="text-xs text-faint">{t.totalSetsLabel}</p>
                 </div>
                 <div>
                   <p className="text-2xl font-black text-fg tabular-nums">
                     {[...new Set(todaySession.exercises.map(e => e.musclePart))].length}
                   </p>
-                  <p className="text-[10px] text-faint">{t.musclePartLabel}</p>
+                  <p className="text-xs text-faint">{t.musclePartLabel}</p>
                 </div>
               </div>
             </>
@@ -842,7 +850,7 @@ export default function PlanPage() {
                       ) : (
                         <span className="text-xs text-faint">{t.restDayLabel}</span>
                       )}
-                      {isToday && <span className="ml-auto text-[10px] font-black text-blue-500">{t.todayShort}</span>}
+                      {isToday && <span className="ml-auto text-xs font-black text-blue-500">{t.todayShort}</span>}
                     </div>
                   );
                 })}
@@ -918,13 +926,7 @@ export default function PlanPage() {
               {lang === 'en' ? 'Add from Template' : 'テンプレートから追加'}
             </button>
             <button
-              onClick={() => {
-                const name = prompt(lang === 'en' ? 'Enter program name' : 'プログラム名を入力してください');
-                if (!name) return;
-                const prog = createProgram(name, '', [createSession(lang === 'en' ? 'Session 1' : 'セッション 1', [])]);
-                saveProgram(prog);
-                reload();
-              }}
+              onClick={() => setShowNewProgram(true)}
               className="px-4 py-3 rounded-2xl text-sm font-bold bg-surface-2 text-muted hover:bg-line transition-all"
             >
               <Plus size={16} />
@@ -941,7 +943,7 @@ export default function PlanPage() {
                     <p className="text-[11px] text-faint mb-2">{tmpl.description}</p>
                     <div className="flex gap-1.5 mb-2 flex-wrap">
                       {tmpl.sessions.map(s => (
-                        <span key={s.id} className="text-[10px] font-bold px-2 py-0.5 bg-surface-2 text-muted rounded-full">
+                        <span key={s.id} className="text-xs font-bold px-2 py-0.5 bg-surface-2 text-muted rounded-full">
                           {s.name}
                         </span>
                       ))}
@@ -982,6 +984,32 @@ export default function PlanPage() {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTargetId != null}
+        title={t.deleteProgramTitle}
+        description={t.deleteProgramConfirmMsg}
+        confirmLabel={t.delete}
+        cancelLabel={t.cancel}
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTargetId(null)}
+      />
+
+      <ConfirmDialog
+        open={showNewProgram}
+        title={t.newProgramTitle}
+        confirmLabel={t.createLabel}
+        cancelLabel={t.cancel}
+        input={{ label: t.programNameLabel }}
+        onConfirm={(name) => {
+          const prog = createProgram(name, '', [createSession(lang === 'en' ? 'Session 1' : 'セッション 1', [])]);
+          saveProgram(prog);
+          reload();
+          setShowNewProgram(false);
+        }}
+        onCancel={() => setShowNewProgram(false)}
+      />
 
       <BottomNav />
     </div>

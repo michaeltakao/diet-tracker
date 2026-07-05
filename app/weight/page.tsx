@@ -14,6 +14,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 function getTodayDate() { return new Date().toISOString().split('T')[0]; }
 
 import { fmtShortJa } from '@/lib/format-date';
+import { CARD_CLASS as cardCls } from '@/components/ui/Card';
 
 function formatDateShort(dateStr: string) {
   return fmtShortJa(dateStr);
@@ -59,7 +60,6 @@ export default function WeightPage() {
   const goalAchieved = toGoal !== null && Math.abs(toGoal) < 0.05;
   const goalRemaining = toGoal !== null && !goalAchieved ? +Math.abs(toGoal).toFixed(1) : null;
 
-  const cardCls = 'bg-card rounded-3xl shadow-card border border-line';
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
@@ -80,13 +80,13 @@ export default function WeightPage() {
           className={`
             w-11 h-11 rounded-2xl
             flex items-center justify-center
-            font-black text-white
+            font-black
             transition-all duration-200
             hover:scale-[1.04] active:scale-95
             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
             ${showForm
-              ? 'bg-slate-500 dark:bg-slate-600'
-              : 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-[0_4px_12px_rgba(99,102,241,0.4)]'}
+              ? 'bg-surface-2 text-muted border border-line-strong'
+              : 'text-white bg-gradient-to-br from-indigo-500 to-purple-600 shadow-[0_4px_12px_rgba(99,102,241,0.4)]'}
           `}
         >
           <Plus size={22} strokeWidth={2.5} aria-hidden="true" className={`transition-transform duration-200 ${showForm ? 'rotate-45' : ''}`} />
@@ -161,11 +161,11 @@ export default function WeightPage() {
               <>
                 <div className="flex items-center justify-center gap-0.5">
                   {diff < 0
-                    ? <TrendingDown size={16} className="text-emerald-500" aria-hidden="true" />
+                    ? <TrendingDown size={16} className="text-success" aria-hidden="true" />
                     : diff > 0
                     ? <TrendingUp size={16} className="text-red-500" aria-hidden="true" />
                     : <Minus size={16} className="text-faint" aria-hidden="true" />}
-                  <p className={`text-xl font-black tabular-nums leading-tight ${diff < 0 ? 'text-emerald-600 dark:text-emerald-400' : diff > 0 ? 'text-red-500 dark:text-red-400' : 'text-faint'}`}>
+                  <p className={`text-xl font-black tabular-nums leading-tight ${diff < 0 ? 'text-success' : diff > 0 ? 'text-danger' : 'text-faint'}`}>
                     {diff > 0 ? '+' : ''}{diff}
                   </p>
                 </div>
@@ -181,7 +181,7 @@ export default function WeightPage() {
             <p className="text-[10px] font-bold text-faint uppercase tracking-wide mb-1">{t.toGoalLabel}</p>
             {toGoal !== null ? (
               <>
-                <p className={`text-xl font-black tabular-nums leading-tight ${goalAchieved ? 'text-emerald-600 dark:text-emerald-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                <p className={`text-xl font-black tabular-nums leading-tight ${goalAchieved ? 'text-success' : 'text-indigo-600 dark:text-indigo-400'}`}>
                   {goalAchieved ? '✓' : `${goalRemaining}`}
                 </p>
                 <p className="text-xs text-faint font-medium">{goalAchieved ? t.goalAchievedLabel : 'kg'}</p>
@@ -285,7 +285,7 @@ export default function WeightPage() {
                   {d !== null && (
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full tabular-nums ${
                       d < 0
-                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                        ? 'bg-success-soft text-success'
                         : d > 0
                         ? 'bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400'
                         : 'bg-surface-2 text-faint'

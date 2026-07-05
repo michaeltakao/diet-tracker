@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { FlaskConical, Download, Users, TrendingUp, RefreshCw, ChevronLeft } from 'lucide-react';
 import type { ParticipantSummary } from '@/app/api/research/participants/route';
 import { getJson } from '@/lib/httpClient';
+import { CARD_CLASS as CARD } from '@/components/ui/Card';
 
-const CARD = 'bg-card rounded-3xl shadow-card border border-line';
 
 function statusBadge(lastFoodLog: string | null): { label: string; color: string } {
   if (!lastFoodLog) return { label: '未ログ', color: 'text-faint bg-surface-2' };
@@ -59,7 +59,7 @@ export default function ResearchPage() {
   const exportUrl = (fmt: string) => `/api/research/export?format=${fmt}`;
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] pb-24">
+    <div className="min-h-screen bg-surface pb-24">
       <div className="max-w-3xl mx-auto px-4 pt-6 space-y-5">
 
         {/* Header */}
@@ -206,7 +206,7 @@ export default function ResearchPage() {
                   key={table}
                   href={`/api/research/export?table=${table}&format=csv`}
                   download
-                  className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-surface-2 hover:bg-[var(--bg-card)] text-xs text-muted transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-surface-2 hover:bg-card text-xs text-muted transition-colors"
                 >
                   <Download size={11} className="text-violet-400" />
                   {label} (CSV)

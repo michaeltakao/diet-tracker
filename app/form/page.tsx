@@ -280,7 +280,7 @@ export default function FormPage() {
 
       {/* Camera / Canvas */}
       <div className={`${cardCls} mb-3 overflow-hidden p-0`}>
-        <div className="relative bg-gray-900 rounded-3xl overflow-hidden" style={{ aspectRatio: '4/3' }}>
+        <div className="relative bg-black rounded-3xl overflow-hidden" style={{ aspectRatio: '4/3' }}>
           <video
             ref={videoRef}
             className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"

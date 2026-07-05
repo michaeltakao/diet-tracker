@@ -257,7 +257,7 @@ export default function MedsPage() {
                   <span className="text-xs text-faint w-20 shrink-0">{entry.date}</span>
                   <div className="flex-1 h-2 bg-surface-2 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : pct > 50 ? 'bg-amber-400' : 'bg-rose-400'}`}
+                      className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-success' : pct > 50 ? 'bg-warning' : 'bg-danger'}`}
                       style={{ width: `${pct}%` }}
                     />
                   </div>

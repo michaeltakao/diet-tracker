@@ -18,6 +18,7 @@ import BadgeCelebration from '@/components/BadgeCelebration';
 import RecommendationCard from '@/components/RecommendationCard';
 import TdeeCard from '@/components/TdeeCard';
 import BottomNav from '@/components/BottomNav';
+import { Toast } from '@/components/ui/Toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
@@ -127,15 +128,7 @@ export default function HomePage() {
       )}
 
       {/* Copy-yesterday toast */}
-      {copyToast && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 font-bold text-sm px-5 py-2.5 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap"
-        >
-          {copyToast}
-        </div>
-      )}
+      <Toast message={copyToast} variant="neutral" />
 
       {/* ── Header ─────────────────────────────────── */}
       <div className="flex items-center justify-between pt-6 pb-4">

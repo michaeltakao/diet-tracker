@@ -48,9 +48,9 @@ export default function WeightChart({ entries, goalWeight }: WeightChartProps) {
           <span className={`
             text-sm font-bold px-3 py-1 rounded-full tabular-nums
             ${diff < 0
-              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+              ? 'bg-success-soft text-success'
               : diff > 0
-              ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+              ? 'bg-danger-soft text-danger'
               : 'bg-surface-2 text-faint'}
           `}>
             {diff > 0 ? '▲' : diff < 0 ? '▼' : '─'} {Math.abs(diff)} kg
@@ -67,8 +67,8 @@ export default function WeightChart({ entries, goalWeight }: WeightChartProps) {
       >
         <defs>
           <linearGradient id="wGradFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#6366f1" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+            <stop offset="0%"   stopColor="var(--ai)" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="var(--ai)" stopOpacity="0" />
           </linearGradient>
           {/* Clipping so area fill doesn't exceed chart bounds */}
           <clipPath id="chartClip">
@@ -81,7 +81,7 @@ export default function WeightChart({ entries, goalWeight }: WeightChartProps) {
           <line
             x1={PAD} y1={toY(goalWeight).toFixed(1)}
             x2={W - PAD} y2={toY(goalWeight).toFixed(1)}
-            stroke="#86efac"
+            stroke="var(--success)"
             strokeWidth="1.5"
             strokeDasharray="5 3"
             opacity="0.8"
@@ -102,7 +102,7 @@ export default function WeightChart({ entries, goalWeight }: WeightChartProps) {
           <path
             d={pathD}
             fill="none"
-            stroke="#6366f1"
+            stroke="var(--ai)"
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -112,16 +112,16 @@ export default function WeightChart({ entries, goalWeight }: WeightChartProps) {
         {/* Dots */}
         {entries.map((e, i) => (
           <g key={e.id}>
-            <circle cx={toX(i).toFixed(1)} cy={toY(e.weight).toFixed(1)} r="5" fill="white" />
-            <circle cx={toX(i).toFixed(1)} cy={toY(e.weight).toFixed(1)} r="3" fill="#6366f1" />
+            <circle cx={toX(i).toFixed(1)} cy={toY(e.weight).toFixed(1)} r="5" fill="var(--card)" />
+            <circle cx={toX(i).toFixed(1)} cy={toY(e.weight).toFixed(1)} r="3" fill="var(--ai)" />
           </g>
         ))}
 
         {/* Date labels: first + last */}
         {entries.length > 1 && (
           <>
-            <text x={PAD} y={H - 1} fontSize="9" fill="#9ca3af">{entries[0].date.slice(5)}</text>
-            <text x={W - PAD} y={H - 1} fontSize="9" fill="#9ca3af" textAnchor="end">
+            <text x={PAD} y={H - 1} fontSize="9" fill="var(--faint)">{entries[0].date.slice(5)}</text>
+            <text x={W - PAD} y={H - 1} fontSize="9" fill="var(--faint)" textAnchor="end">
               {entries.at(-1)!.date.slice(5)}
             </text>
           </>
@@ -133,7 +133,7 @@ export default function WeightChart({ entries, goalWeight }: WeightChartProps) {
             x={toX(0).toFixed(1)}
             y={(toY(entries[0].weight) - 8).toFixed(1)}
             fontSize="10"
-            fill="#6366f1"
+            fill="var(--ai)"
             textAnchor="middle"
             fontWeight="bold"
           >
