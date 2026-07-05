@@ -213,15 +213,22 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
     // Live subscription: handle sign-in / sign-out / token-refresh
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         const newUser = session?.user ?? null;
         setUser(newUser);
         if (newUser) {
-          await fetchProfile(newUser.id);
-          // Trigger migration on fresh sign-in (ref guard prevents re-run if already done)
-          if (event === 'SIGNED_IN') {
-            void triggerMigration(newUser.id);
-          }
+          // Defer all Supabase calls out of this callback: auth-js holds its
+          // navigator.locks mutex while awaiting the callback, so any
+          // supabase.* call in here (fetchProfile → PostgREST → getSession)
+          // deadlocks the page's auth lock forever and silently disables
+          // every dual-write. Supabase docs require deferring via setTimeout.
+          setTimeout(() => {
+            void fetchProfile(newUser.id);
+            // Trigger migration on fresh sign-in (ref guard prevents re-run)
+            if (event === 'SIGNED_IN') {
+              void triggerMigration(newUser.id);
+            }
+          }, 0);
         } else {
           setProfile(null);
         }
