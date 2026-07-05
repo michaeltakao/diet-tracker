@@ -9,9 +9,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, CheckCircle, Cloud, Brain, RefreshCw, Mail, X } from 'lucide-react';
+import { LogOut, CheckCircle, Cloud, Brain, RefreshCw, Mail, X, Trash2 } from 'lucide-react';
 import { useProfile } from '@/contexts/ProfileContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { deleteJson } from '@/lib/httpClient';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 const BENEFITS = [
   { icon: Cloud,       text: '複数デバイスでデータ同期' },
@@ -21,14 +24,37 @@ const BENEFITS = [
 
 export default function AccountSection({ cardCls }: { cardCls: string }) {
   const { isAuthenticated, user, signInWithGoogle, signInWithEmail, signOut } = useProfile();
+  const { t } = useLanguage();
   const router = useRouter();
   const [emailMode, setEmailMode] = useState(false);
   const [email,     setEmail]     = useState('');
   const [sent,      setSent]      = useState(false);
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting,    setDeleting]    = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   if (!isSupabaseConfigured()) return null;
+
+  const handleSelfDelete = async () => {
+    setConfirmingDelete(false);
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      // Server first: only clear local data once the server confirms erasure,
+      // so a failed request never leaves the user with silently missing data.
+      await deleteJson<{ deletedAt: string }>('/api/participant/self-delete');
+      localStorage.clear();
+      try {
+        await signOut(); // best effort — the auth user is already deleted
+      } catch {}
+      router.replace('/login');
+    } catch {
+      setDeleteError(t.deleteAccountError);
+      setDeleting(false);
+    }
+  };
 
   const handleGoogle = async () => {
     setLoading(true);
@@ -91,6 +117,36 @@ export default function AccountSection({ cardCls }: { cardCls: string }) {
           <LogOut size={13} aria-hidden="true" />
           ログアウト
         </button>
+
+        {/* Danger zone — APPI/GDPR data erasure */}
+        <div className="mt-4 pt-3 border-t border-line">
+          <p className="text-xs font-black text-danger uppercase tracking-widest mb-2">
+            {t.dangerZoneLabel}
+          </p>
+          <button
+            onClick={() => { setDeleteError(null); setConfirmingDelete(true); }}
+            disabled={deleting}
+            className="flex items-center gap-2 text-xs font-bold text-danger hover:opacity-80 disabled:opacity-40 transition-opacity rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+          >
+            <Trash2 size={13} aria-hidden="true" />
+            {deleting ? t.deletingLabel : t.deleteAccountLabel}
+          </button>
+          {deleteError && (
+            <p role="alert" className="mt-2 text-xs text-danger">{deleteError}</p>
+          )}
+        </div>
+
+        <ConfirmDialog
+          open={confirmingDelete}
+          title={t.deleteAccountTitle}
+          description={t.deleteAccountDesc}
+          confirmLabel={t.deleteAccountConfirmBtn}
+          cancelLabel={t.cancel}
+          variant="danger"
+          requireText={t.deleteAccountConfirmWord}
+          onConfirm={handleSelfDelete}
+          onCancel={() => setConfirmingDelete(false)}
+        />
       </div>
     );
   }
