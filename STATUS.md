@@ -4,7 +4,29 @@
 - **2026-07-05 PRODUCTION DEPLOYED** — https://diet-tracker-two-blue.vercel.app
   (Vercel project `diet-tracker`, team michaeltakaos-projects; deploys via
   `npx vercel deploy --prod --yes`).
-- 2026-07-03 competitor round's 4 stacked PRs (#9–#12) all **merged to main** 07-02.
+- **2026-07-05 CRITICAL FIX `28d3d44`**: auth-lock deadlock — ProfileContext's async
+  `onAuthStateChange` callback awaited `fetchProfile()` while auth-js held its
+  navigator.locks mutex → lock held for the page's lifetime → **every Supabase
+  dual-write silently degraded to localStorage-only**. Found live in the prod smoke
+  test (this is why the dual-write tables had zero rows). Deployed prod needs this
+  commit (redeploy if Vercel didn't auto-deploy).
+- 2026-07-05 review-fix round `a7b9574` (pre-merge, on the stack): servings scale from
+  immutable base (round-trip exact), AI-fill resets servings, validate() rejects
+  non-finite/negative/oversized, favorites upsert `onConflict: user_id,name`,
+  self-delete returns 500 on auth-cleanup failure, trends same-day dedupe (+test),
+  migration 009 policies rerun-safe. Cross-vendor review: Copilot/GPT (gpt-5.4-mini)
+  + Claude; **Gemini CLI leg DOWN** (IneligibleTierError → Antigravity migration,
+  [🔒user]). Record: `docs/reviews/code-review-2026-07-05.md` (gitignored).
+- 2026-07-03 competitor round's 4 stacked PRs (#9–#12) **merged to main 07-05**
+  (merge order #9→#12, branches deleted).
+- **2026-07-05 prod smoke test PASSED** (local dev vs prod Supabase, throwaway SQL
+  user, Chrome DevTools): consent flow → `consented_at` set; food log at 1.5×
+  servings → `food_logs` row with `servings=1.50, source='manual'`; ♡ favorite →
+  `favorite_foods` row (`macro_highlight=高タンパク`); template → `meal_templates`
+  row; **cascade erasure verified** — deleting `profiles` zeroed food_logs /
+  favorite_foods / meal_templates / recommendation_feedback / tdee_estimates;
+  auth user purged. Self-delete route fails SAFE without service key (500, UI
+  error, localStorage kept).
 - Guest mode fixed for production (`dt-guest` cookie, `b19e69b`): the login page's
   "Continue without an account" link was dead UI when Supabase is configured —
   proxy.ts redirected everything to /login. Found in post-deploy smoke E2E.
@@ -21,8 +43,22 @@
      (Google OAuth + magic link won't round-trip until then).
   3. Create a real account → authed full E2E: consent → recommend → export.
   4. Set researcher role for your own account (researcher_access_log flow).
-- W4 manual test with a throwaway account (needs prod auth session, after 2–3).
-- Authed dual-write spot-check in Supabase after first real logins.
+- **[🔒user] Supabase dashboard → Auth → Providers: Google is DISABLED**
+  (`external.google=false`) — the login page's Google button cannot work against
+  this project until enabled (or hide the button).
+- **[🔒user] Gemini CLI ineligible** (IneligibleTierError) — migrate to Antigravity
+  or council loses its preferred cross-vendor reviewer (Copilot/GPT still works).
+- **[🔒user] local `.env.local` has placeholder NEXT_PUBLIC_SUPABASE_* values and
+  no usable `SUPABASE_SERVICE_ROLE_KEY`** — local dev runs guest-mode-only until
+  filled (smoke test worked around it via shell env; service-key routes untestable).
+- W4 self-delete: cascade + fail-safe verified 07-05 (see Now); full route E2E
+  (auth.admin.deleteUser leg) still needs `SUPABASE_SERVICE_ROLE_KEY` in env.
+- ~~Authed dual-write spot-check~~ **DONE 07-05** (SQL evidence, see Now). Note:
+  STEP-7 bulk migration rows leave `servings`/`source` NULL — backfill or accept.
+- Review follow-ups (from 07-05 cross-vendor round, non-blocking): no Supabase→local
+  hydration path (second device sees empty app — biggest sign-in value gap);
+  MealCard edit coerces empty fields to 0 (pre-existing); favorites quick-add
+  ignores the servings stepper (UX).
 - Backlog (explicit cut list from the round): W1b bundled JP food DB (MEXT 成分表 —
   demoted per kill criteria; needs real-data curation session), W1c barcode/OFF (spike
   ≥50% hit-rate on 10 pantry items first), telemetry Supabase dual-write (needs migration
@@ -49,11 +85,18 @@
   `・`-joined tokens in the exact `foodFeatures()` vocabulary (unit-tested overlap).
 - Telemetry lives on its own localStorage key, never in AppData; server-side collection
   deferred until it has its own migration + consent gating.
+- **Never call `supabase.*` inside an `onAuthStateChange` callback** — auth-js holds
+  its navigator.locks mutex while awaiting the callback; defer via `setTimeout`
+  (`28d3d44`, 2026-07-05). Symptom of violation: dual-writes silently stop.
 - Repo is the Master's research vehicle — see vault `ADR-001`.
 - `postcss` overridden to `^8.5.10` (CVE-2026-41305, MEDIUM).
 - CI workflows hardened against script injection (`cac19bf`, 2026-06-12) — see vault `ADR-003`.
 
 ## Last verified state
+- 2026-07-05: main (`28d3d44`) — `npm run lint` clean, `npx vitest run` **135/135**,
+  `npm run build` green. Prod smoke test vs `chkkpucuiyjdeqgyyszt`: dual-write rows
+  (food/favorite/template incl. migration-009 columns) + cascade erasure + auth-user
+  purge all SQL-verified; throwaway user destroyed.
 - 2026-07-05: main (`b19e69b`) — `npm run lint` clean, `npx vitest run` **135/135**,
   `npm run build` green. Production smoke E2E on
   https://diet-tracker-two-blue.vercel.app (Chrome DevTools): /login renders,
