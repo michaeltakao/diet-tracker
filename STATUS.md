@@ -1,6 +1,18 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-12 MULTI-GENERATION ROUND merged (PR #13, main `9af9ef1`)** — app now
+  supports every generation 12+ per 日本人の食事摂取基準（2025年版）:
+  `lib/nutrition-standards.ts` (EER/protein-RDA/%E tables, source-cited,
+  cross-checked ×2), minor (12–17) calorie floor + growth warning + TdeeCard
+  deficit-preset filter, senior (65+) protein floor 1.0 g/kg (**CKD cap wins** —
+  tested), profile +sex/+height_cm (migration 010 **applied to prod**),
+  settings 推奨値 button + 性別/身長 inputs, **18+ consent attestation gate**
+  (client+server, `adult_confirmed_at`; minors → guest mode — vault `ADR-004`),
+  large-text mode (112.5%). 165 tests. Browser-smoked personas 15/70.
+- **Gotcha (Turbopack)**: editing `app/globals.css` while the dev server is down
+  can leave a stale persistent-cache compile that survives restart + hard reload;
+  `rm -rf .next` fixes it.
 - **2026-07-05 PRODUCTION DEPLOYED** — https://diet-tracker-two-blue.vercel.app
   (Vercel project `diet-tracker`, team michaeltakaos-projects; deploys via
   `npx vercel deploy --prod --yes`).
@@ -93,6 +105,14 @@
 - CI workflows hardened against script injection (`cac19bf`, 2026-06-12) — see vault `ADR-003`.
 
 ## Last verified state
+- 2026-07-12: main (`9af9ef1`, post PR #13 merge) — `npm run lint` clean,
+  `npx vitest run` **165/165**, `npm run build` green. Migration **010 applied**
+  to prod (`chkkpucuiyjdeqgyyszt`), `database.types.ts` in sync. Browser smoke
+  (dev :3210, SW unregistered): age-70 推奨値 → 2350/60/65/338 exact; age-15 →
+  2850 EER fill, consent blocked without 18+ checkbox, guest exit sets
+  `dt-guest=1`; large-text 16→18px, persists, no overflow (dashboard, /log,
+  BottomNav). Prod redeploy pending (Vercel auto-deploy from main, or
+  `npx vercel deploy --prod --yes`).
 - 2026-07-05: main (`28d3d44`) — `npm run lint` clean, `npx vitest run` **135/135**,
   `npm run build` green. Prod smoke test vs `chkkpucuiyjdeqgyyszt`: dual-write rows
   (food/favorite/template incl. migration-009 columns) + cascade erasure + auth-user
