@@ -20,9 +20,14 @@ export default function ConsentPage() {
   // 18歳未満: 研究参加は不可だが、アプリ本体はゲストモード（この端末のみ保存）で
   // 全機能利用できる。サインアウト + ゲストcookie（login pageと同じ）で / へ。
   const continueAsGuest = async () => {
-    await signOut();
-    document.cookie = 'dt-guest=1; path=/; max-age=31536000; samesite=lax';
-    router.replace('/');
+    try {
+      await signOut();
+    } finally {
+      // Even if sign-out fails (e.g. network), the guest exit must not strand
+      // the user on the consent page.
+      document.cookie = 'dt-guest=1; path=/; max-age=31536000; samesite=lax';
+      router.replace('/');
+    }
   };
 
   const handleConsent = async () => {
