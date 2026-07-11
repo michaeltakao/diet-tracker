@@ -4,6 +4,7 @@ import './globals.css';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ProfileProvider } from '@/contexts/ProfileContext';
 import PwaRegister from '@/components/PwaRegister';
+import TextScaleInit from '@/components/TextScaleInit';
 import PwaInstallBanner from '@/components/PwaInstallBanner';
 import SideNav from '@/components/SideNav';
 import CalorieContextBar from '@/components/CalorieContextBar';
@@ -79,6 +80,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </LanguageProvider>
         </ProfileProvider>
         <PwaRegister />
+        <TextScaleInit />
       </body>
     </html>
   );

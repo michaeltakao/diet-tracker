@@ -1,6 +1,6 @@
 /**
  * Auto-generated Supabase database types.
- * Generated 2026-07-03 via the Supabase MCP `generate_typescript_types` (project chkkpucuiyjdeqgyyszt).
+ * Generated 2026-07-09 via the Supabase MCP `generate_typescript_types` (project chkkpucuiyjdeqgyyszt).
  * DO NOT hand-edit the Database type below — regenerate with:
  *   npx supabase gen types typescript --project-id chkkpucuiyjdeqgyyszt > lib/database.types.ts
  *
@@ -306,6 +306,7 @@ export type Database = {
       profiles: {
         Row: {
           activity_level: string
+          adult_confirmed_at: string | null
           age: number | null
           avatar_url: string | null
           consented_at: string | null
@@ -320,16 +321,19 @@ export type Database = {
           goal_water_ml: number
           goal_weight_kg: number | null
           health_conditions: string[]
+          height_cm: number | null
           id: string
           lang: string
           medications: string[]
           migrated_at: string | null
           role: string
+          sex: string | null
           study_cohort: string | null
           updated_at: string
         }
         Insert: {
           activity_level?: string
+          adult_confirmed_at?: string | null
           age?: number | null
           avatar_url?: string | null
           consented_at?: string | null
@@ -344,16 +348,19 @@ export type Database = {
           goal_water_ml?: number
           goal_weight_kg?: number | null
           health_conditions?: string[]
+          height_cm?: number | null
           id: string
           lang?: string
           medications?: string[]
           migrated_at?: string | null
           role?: string
+          sex?: string | null
           study_cohort?: string | null
           updated_at?: string
         }
         Update: {
           activity_level?: string
+          adult_confirmed_at?: string | null
           age?: number | null
           avatar_url?: string | null
           consented_at?: string | null
@@ -368,11 +375,13 @@ export type Database = {
           goal_water_ml?: number
           goal_weight_kg?: number | null
           health_conditions?: string[]
+          height_cm?: number | null
           id?: string
           lang?: string
           medications?: string[]
           migrated_at?: string | null
           role?: string
+          sex?: string | null
           study_cohort?: string | null
           updated_at?: string
         }

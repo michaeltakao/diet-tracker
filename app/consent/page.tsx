@@ -5,21 +5,37 @@ import { useRouter } from 'next/navigation';
 import { ClipboardList, CheckCircle2, Shield } from 'lucide-react';
 import { postJson } from '@/lib/httpClient';
 import { CARD_CLASS as CARD } from '@/components/ui/Card';
+import { useProfile } from '@/contexts/ProfileContext';
 
 
 export default function ConsentPage() {
   const router = useRouter();
-  const [agreed,    setAgreed]    = useState(false);
+  const { signOut } = useProfile();
+  const [agreed,         setAgreed]         = useState(false);
+  const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error,     setError]     = useState<string | null>(null);
   const [done,      setDone]      = useState(false);
 
+  // 18歳未満: 研究参加は不可だが、アプリ本体はゲストモード（この端末のみ保存）で
+  // 全機能利用できる。サインアウト + ゲストcookie（login pageと同じ）で / へ。
+  const continueAsGuest = async () => {
+    try {
+      await signOut();
+    } finally {
+      // Even if sign-out fails (e.g. network), the guest exit must not strand
+      // the user on the consent page.
+      document.cookie = 'dt-guest=1; path=/; max-age=31536000; samesite=lax';
+      router.replace('/');
+    }
+  };
+
   const handleConsent = async () => {
-    if (!agreed) return;
+    if (!agreed || !adultConfirmed) return;
     setSubmitting(true);
     setError(null);
     try {
-      await postJson('/api/consent', {});
+      await postJson('/api/consent', { adultConfirmed: true });
       setDone(true);
       setTimeout(() => router.replace('/'), 1500);
     } catch (err) {
@@ -122,18 +138,48 @@ export default function ConsentPage() {
           <span>あなたのデータはRow Level Securityで保護され、第三者に提供されません</span>
         </div>
 
-        {/* Agreement checkbox */}
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={agreed}
-            onChange={e => setAgreed(e.target.checked)}
-            className="mt-0.5 w-4 h-4 accent-violet-600 flex-shrink-0"
-          />
-          <span className="text-xs text-muted leading-relaxed">
-            上記の内容を理解し、研究への参加に同意します。
-          </span>
-        </label>
+        {/* Minor disclosure */}
+        <div className={`${CARD} p-4 space-y-2`}>
+          <h2 className="text-xs font-bold text-fg">18歳未満の方へ</h2>
+          <p className="text-xs text-muted leading-relaxed">
+            研究への参加は18歳以上の方に限らせていただきます（保護者同意の
+            仕組みを設けていないため）。18歳未満の方も、アプリのすべての機能を
+            ゲストモード（データはこの端末のみに保存）でご利用いただけます。
+          </p>
+          <button
+            type="button"
+            onClick={continueAsGuest}
+            className="text-xs font-bold text-violet-500 dark:text-violet-400 hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+          >
+            ゲストモードで続ける →
+          </button>
+        </div>
+
+        {/* Agreement checkboxes */}
+        <div className="space-y-3">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={adultConfirmed}
+              onChange={e => setAdultConfirmed(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-violet-600 flex-shrink-0"
+            />
+            <span className="text-xs text-muted leading-relaxed">
+              私は18歳以上です。
+            </span>
+          </label>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={e => setAgreed(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-violet-600 flex-shrink-0"
+            />
+            <span className="text-xs text-muted leading-relaxed">
+              上記の内容を理解し、研究への参加に同意します。
+            </span>
+          </label>
+        </div>
 
         {error && (
           <p className="text-xs text-red-500">{error}</p>
@@ -151,11 +197,11 @@ export default function ConsentPage() {
           <button
             type="button"
             onClick={handleConsent}
-            disabled={!agreed || submitting}
+            disabled={!agreed || !adultConfirmed || submitting}
             className={`
               flex-1 py-3 rounded-2xl text-xs font-bold transition-all
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-              ${agreed && !submitting
+              ${agreed && adultConfirmed && !submitting
                 ? 'bg-violet-600 text-white hover:bg-violet-700 active:scale-95'
                 : 'bg-surface-2 text-faint cursor-not-allowed'}
             `}

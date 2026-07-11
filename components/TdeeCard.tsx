@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { Activity, Info } from 'lucide-react';
-import { getAppData } from '@/lib/data';
+import { getAppData, getHealthProfile } from '@/lib/data';
 import { postJson } from '@/lib/httpClient';
 import { tdeeConfidenceLabel } from '@/lib/tdee';
+import { isMinor } from '@/lib/nutrition-standards';
 import { useProfile } from '@/contexts/ProfileContext';
 import { CARD_CLASS as CARD } from '@/components/ui/Card';
 
@@ -34,6 +35,7 @@ export default function TdeeCard() {
   const [estimate, setEstimate] = useState<TdeeEstimate | null>(null);
   const [loading,  setLoading]  = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [minor,    setMinor]    = useState(false);
 
   const fetchEstimate = async () => {
     setLoading(true);
@@ -70,7 +72,8 @@ export default function TdeeCard() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch, setState is called after await, not synchronously
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe localStorage read on mount
+    setMinor(isMinor(getHealthProfile().age));
     void fetchEstimate();
   }, [isAuthenticated]);
 
@@ -125,11 +128,16 @@ export default function TdeeCard() {
         </div>
       </div>
 
-      {/* Suggested goal targets */}
+      {/* Suggested goal targets — deficit presets are hidden for growth-phase (12–17) users */}
       <div>
         <p className="text-[9px] text-faint uppercase tracking-widest font-black mb-2">目標カロリー候補</p>
+        {minor && (
+          <p className="text-[9px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 rounded-xl px-3 py-1.5 mb-2">
+            成長期のため減量向けの目標は表示していません。維持カロリーを目安にしてください。
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-1.5">
-          {GOAL_DEFICITS.map(({ label, kcal }) => {
+          {GOAL_DEFICITS.filter(({ kcal }) => !minor || kcal >= 0).map(({ label, kcal }) => {
             const target = tdee + kcal;
             return (
               <div

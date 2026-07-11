@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Save, Check, Upload, Trash2, Database, FileJson, FileSpreadsheet, User, Pill, Plus, X } from 'lucide-react';
-import { getAppData, updateGoals, getHealthProfile, updateHealthProfile } from '@/lib/data';
+import { ChevronLeft, Save, Check, Upload, Trash2, Database, FileJson, FileSpreadsheet, User, Pill, Plus, X, Sparkles } from 'lucide-react';
+import { getAppData, updateGoals, getHealthProfile, updateHealthProfile, getLatestWeightEntry } from '@/lib/data';
 import { DailyGoals, UserHealthProfile, FitnessGoal, ActivityLevel } from '@/lib/types';
+import { recommendedGoals, ageBand } from '@/lib/nutrition-standards';
+import { getTextScale, setTextScale, type TextScale } from '@/components/TextScaleInit';
 import {
   getStorageStats, exportDataAsJSON, exportDataAsCSV,
   importFromFile, clearAllData, StorageStats,
@@ -77,10 +79,11 @@ export default function SettingsPage() {
   const [clearConfirm, setClearConfirm] = useState(false);
   const [importMsg,    setImportMsg]    = useState<{ ok: boolean; text: string } | null>(null);
   const [healthProfile, setHealthProfile] = useState<UserHealthProfile>({
-    age: null, healthConditions: [], dietaryRestrictions: [],
+    age: null, sex: null, heightCm: null, healthConditions: [], dietaryRestrictions: [],
     medications: [], fitnessGoal: 'maintenance', activityLevel: 'moderately_active',
   });
   const [medInput, setMedInput] = useState('');
+  const [textScale, setTextScaleState] = useState<TextScale>('standard');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -96,6 +99,7 @@ export default function SettingsPage() {
     });
     setStats(getStorageStats());
     setHealthProfile(getHealthProfile());
+    setTextScaleState(getTextScale());
   }, []);
 
   const refreshStats = () => setStats(getStorageStats());
@@ -161,6 +165,28 @@ export default function SettingsPage() {
   const updateField = (field: keyof GoalForm, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setSaved(false);
+  };
+
+  // 食事摂取基準ベースの推奨値 — 年齢12歳以上が設定されている場合のみ有効
+  const recommendReady = ageBand(healthProfile.age) !== null;
+
+  const applyRecommendedGoals = () => {
+    const rec = recommendedGoals(healthProfile, getLatestWeightEntry()?.weight ?? null);
+    if (!rec) return;
+    // kcal/P/F/C のみ上書き — water と goalWeight はユーザー設定を維持
+    setForm(prev => ({
+      ...prev,
+      calories: String(rec.calories),
+      protein:  String(rec.protein),
+      fat:      String(rec.fat),
+      carbs:    String(rec.carbs),
+    }));
+    setSaved(false);
+  };
+
+  const changeTextScale = (scale: TextScale) => {
+    setTextScale(scale);
+    setTextScaleState(scale);
   };
 
   const cardCls = 'bg-card rounded-3xl shadow-card border border-line p-4';
@@ -257,11 +283,68 @@ export default function SettingsPage() {
         </p>
       </div>
 
+      {/* ── Text scale ────────────────────────── */}
+      <div className={`${cardCls} mb-3`}>
+        <label className="block text-xs font-black text-faint uppercase tracking-widest mb-3">
+          {lang === 'en' ? 'Text size' : '文字サイズ'}
+        </label>
+        <div className="flex gap-2">
+          {([
+            { code: 'standard' as const, label: lang === 'en' ? 'Standard' : '標準' },
+            { code: 'large'    as const, label: lang === 'en' ? 'Large'    : '大'   },
+          ]).map(({ code, label }) => (
+            <button
+              key={code}
+              onClick={() => changeTextScale(code)}
+              aria-pressed={textScale === code}
+              className={`
+                flex-1 py-3 rounded-2xl text-sm font-bold
+                transition-all duration-200 hover:scale-[1.02] active:scale-95
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                ${textScale === code
+                  ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                  : 'bg-surface-2 text-muted hover:bg-line'}
+              `}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-faint mt-2">
+          {lang === 'en'
+            ? 'Larger text across the whole app.'
+            : 'アプリ全体の文字を大きく表示します。'}
+        </p>
+      </div>
+
       {/* ── Daily Goals ───────────────────────── */}
       <div className={`${cardCls} mb-3 space-y-4`}>
         <p className="text-xs font-black text-faint uppercase tracking-widest">
           {t.dailyGoals}
         </p>
+
+        <div>
+          <button
+            onClick={applyRecommendedGoals}
+            disabled={!recommendReady}
+            className={`
+              w-full flex items-center justify-center gap-2
+              py-3 rounded-2xl text-xs font-bold
+              transition-all duration-200
+              ${recommendReady
+                ? 'bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-800 hover:bg-violet-100 dark:hover:bg-violet-900/50 hover:scale-[1.02] active:scale-[0.97]'
+                : 'bg-surface-2 text-faint border border-line cursor-not-allowed opacity-60'}
+            `}
+          >
+            <Sparkles size={14} aria-hidden="true" />
+            年齢に合わせた推奨値を入力
+          </button>
+          <p className="text-[10px] text-faint mt-1.5">
+            {recommendReady
+              ? '日本人の食事摂取基準（2025年版）に基づく目安値。入力後に保存してください。'
+              : '健康プロフィールで年齢（12歳以上）を設定すると使えます。'}
+          </p>
+        </div>
 
         {([
           {
@@ -357,6 +440,62 @@ export default function SettingsPage() {
             placeholder="例: 25"
             min="1"
             max="120"
+            className={`${inputCls} focus:ring-rose-400`}
+          />
+        </div>
+
+        {/* Sex */}
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide mb-2">
+            <span>🚻</span>
+            <span>性別（任意）</span>
+          </label>
+          <div className="flex gap-2">
+            {([
+              { value: 'male'   as const, label: '男性' },
+              { value: 'female' as const, label: '女性' },
+              { value: null,              label: '未設定' },
+            ]).map(({ value, label }) => (
+              <button
+                key={label}
+                onClick={() => { setHealthProfile(prev => ({ ...prev, sex: value })); setSaved(false); }}
+                aria-pressed={(healthProfile.sex ?? null) === value}
+                className={`
+                  flex-1 py-2.5 rounded-2xl text-xs font-bold
+                  transition-all duration-200 hover:scale-[1.02] active:scale-95
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                  ${(healthProfile.sex ?? null) === value
+                    ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-[0_4px_12px_rgba(139,92,246,0.3)]'
+                    : 'bg-surface-2 text-muted hover:bg-line'}
+                `}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-faint mt-1.5">
+            未設定の場合は男女平均の推奨値を使用します
+          </p>
+        </div>
+
+        {/* Height */}
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide mb-2">
+            <span>📏</span>
+            <span>身長（cm・任意）</span>
+          </label>
+          <input
+            type="number"
+            value={healthProfile.heightCm ?? ''}
+            onChange={e => {
+              const v = e.target.value;
+              setHealthProfile(prev => ({ ...prev, heightCm: v ? Number(v) : null }));
+              setSaved(false);
+            }}
+            placeholder="例: 165.0"
+            min="80"
+            max="250"
+            step="0.1"
             className={`${inputCls} focus:ring-rose-400`}
           />
         </div>

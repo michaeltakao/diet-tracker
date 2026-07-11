@@ -11,6 +11,8 @@ const HEALTH_PROFILE_KEY = 'diet-tracker-health-profile';
 
 export const DEFAULT_HEALTH_PROFILE: UserHealthProfile = {
   age:                 null,
+  sex:                 null,
+  heightCm:            null,
   healthConditions:    [],
   dietaryRestrictions: [],
   medications:         [],
@@ -40,6 +42,8 @@ export function updateHealthProfile(profile: UserHealthProfile): void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (ctx.supabase.from('profiles') as any).update({
       age:                  profile.age,
+      sex:                  profile.sex ?? null,
+      height_cm:            profile.heightCm ?? null,
       health_conditions:    profile.healthConditions,
       dietary_restrictions: profile.dietaryRestrictions,
       medications:          profile.medications,
