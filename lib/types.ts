@@ -150,6 +150,8 @@ export type ActivityLevel =
 
 export interface UserHealthProfile {
   age:                 number | null;
+  sex?:                'male' | 'female' | null;  // unset → sex-averaged 食事摂取基準 targets
+  heightCm?:           number | null;             // enables Mifflin-St Jeor TDEE fallback
   healthConditions:    string[];   // e.g. ['糖尿病', '高血圧']
   dietaryRestrictions: string[];   // e.g. ['ベジタリアン', 'グルテンフリー']
   medications:         string[];   // e.g. ['メトホルミン', 'ワーファリン']

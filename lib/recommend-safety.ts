@@ -26,11 +26,21 @@ import {
   getMedicationRules,
   buildHealthContextPrompt,
 } from '@/lib/medication-rules';
+import {
+  isMinor,
+  isSenior,
+  estimatedEnergyRequirement,
+  SENIOR_PROTEIN_G_PER_KG,
+} from '@/lib/nutrition-standards';
 
 // ── Renal protein cap ───────────────────────────────────────────────────────
 
 /** CKD protein restriction (g/kg/day). Conservative end of the 0.6–0.8 range. */
 const CKD_PROTEIN_G_PER_KG = 0.8;
+
+/** Mandatory warning shown to every growth-phase (12–17) user. */
+export const MINOR_GROWTH_WARNING =
+  '成長期のためカロリー制限は推奨されません。バランスの良い食事で必要なエネルギーをしっかり摂りましょう';
 
 // ── Food-level rules ────────────────────────────────────────────────────────
 
@@ -177,10 +187,18 @@ export function screenFood(
 }
 
 /**
- * Clamp an LLM-proposed macro target to condition-based hard caps.
+ * Clamp an LLM-proposed macro target to condition- and age-based bounds.
  *
- * Currently enforces the CKD protein ceiling (0.8 g/kg/day). Returns the
- * (possibly unchanged) macros plus a human-readable record of caps applied.
+ * Order of application (precedence encoded by sequence):
+ *   1. Minor (12–17) calorie floor at the band's 推定エネルギー必要量 — the LLM
+ *      can never push a growth-phase user into a caloric deficit.
+ *   2. Senior (65+) protein floor 1.0 g/kg (sarcopenia prevention), applied
+ *      BEFORE the CKD cap so that…
+ *   3. …the CKD protein ceiling (0.8 g/kg/day, contraindication-grade) always
+ *      wins over the senior floor.
+ *
+ * Returns the (possibly unchanged) macros plus a human-readable record of
+ * caps/floors applied.
  */
 export function clampMacros(
   adjusted: DailyGoals,
@@ -190,6 +208,22 @@ export function clampMacros(
   const conditions = profile.healthConditions ?? [];
   const capsApplied: string[] = [];
   let macros = { ...adjusted };
+
+  if (isMinor(profile.age)) {
+    const eer = estimatedEnergyRequirement(profile.age, profile.sex ?? null, profile.activityLevel);
+    if (eer != null && macros.calories < eer) {
+      capsApplied.push(`成長期（12〜17歳）: カロリー下限 ${eer}kcal/日（推定エネルギー必要量）を適用`);
+      macros = { ...macros, calories: eer };
+    }
+  }
+
+  if (isSenior(profile.age) && weightKg && weightKg > 0) {
+    const floor = Math.round(SENIOR_PROTEIN_G_PER_KG * weightKg);
+    if (macros.protein < floor) {
+      capsApplied.push(`高齢期（65歳以上）: タンパク質下限 ${floor}g/日（${SENIOR_PROTEIN_G_PER_KG} g/kg・サルコペニア予防）を適用`);
+      macros = { ...macros, protein: floor };
+    }
+  }
 
   if (conditions.includes('腎臓病') && weightKg && weightKg > 0) {
     const cap = Math.round(CKD_PROTEIN_G_PER_KG * weightKg);
@@ -220,6 +254,7 @@ export function buildSafetyReport(
   const mandatoryWarnings = [...new Set([
     ...condRules.flatMap(r => r.nutritionWarnings),
     ...medRules.flatMap(r => r.foodInteractions.map(f => `[${r.displayName}] ${f}`)),
+    ...(isMinor(profile.age) ? [MINOR_GROWTH_WARNING] : []),
   ])];
 
   // Absolute contraindicated terms that apply to this specific user.
@@ -238,6 +273,27 @@ export function buildSafetyReport(
   }
   if (conditions.includes('腎臓病') && weightKg && weightKg > 0) {
     parts.push(`■ 腎臓病のためタンパク質は1日 ${Math.round(CKD_PROTEIN_G_PER_KG * weightKg)}g（${CKD_PROTEIN_G_PER_KG} g/kg）以下に抑えること`);
+  }
+  if (isMinor(profile.age)) {
+    parts.push(
+      '■ 利用者は成長期（12〜17歳）です。カロリー制限・減量目的の提案は絶対にしないこと。' +
+      '推定エネルギー必要量を満たす食事を前提とし、成長に必要なカルシウム・鉄・タンパク質が十分摂れる食品を優先して提案すること',
+    );
+  }
+  if (isSenior(profile.age)) {
+    // CKD (contraindication-grade cap) wins over the frailty protein floor —
+    // omit the floor phrase entirely so the prompt never self-contradicts.
+    const proteinLine = conditions.includes('腎臓病')
+      ? ''
+      : weightKg && weightKg > 0
+        ? `タンパク質は1日 ${Math.round(SENIOR_PROTEIN_G_PER_KG * weightKg)}g（${SENIOR_PROTEIN_G_PER_KG} g/kg）以上を目安にし、`
+        : `タンパク質は体重1kgあたり${SENIOR_PROTEIN_G_PER_KG}g以上を目安にし、`;
+    parts.push(
+      '■ 利用者は65歳以上です。フレイル・サルコペニア予防を最優先すること: ' +
+      proteinLine +
+      'こまめな水分補給を毎回促し（加齢で喉の渇きを感じにくくなるため）、' +
+      '噛みやすい・飲み込みやすい調理法（柔らかく煮る等）の選択肢も添えること',
+    );
   }
 
   return { promptInjection: parts.join('\n'), mandatoryWarnings, contraindicatedTerms };
