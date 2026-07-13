@@ -1,6 +1,23 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-14 FTUE & PUBLIC-BETA EXPERIENCE DESIGN landed (docs-only)** —
+  `docs/roadmaps/FTUE_BETA_DESIGN_2026-07.md`: FTUE critical path + 12
+  drop-off countermeasures, journey map D0–D30, session-start AI-trainer flow
+  (CheckInWidget merged from /plan), meal-scan v2 result card + ≤3-tap
+  correction + failure fallbacks, social LP + notification copy, retention
+  D1–D30 (streak redefined = any-log day + weekly repair ticket),
+  no-dark-pattern checklist, accessibility 5-pack, research evaluation plan
+  (SUS @D14 / UEQ-S @D30), beta checklist, and a consolidated P0/P1/P2 that
+  **supersedes the 07-13 roadmap's P0 ordering**. Two 🔴 bugs found in the
+  audits, documented NOT fixed:
+  1. **Consent-skip race** — nothing inserts a `profiles` row on signup, and
+     the proxy only forces `/consent` for users WITH a row where
+     `consented_at IS NULL` → fresh OAuth users likely skip the research
+     consent wall entirely (ethics/validity, P0 #1).
+  2. **recommendation_feedback pipeline broken end-to-end** — the study's
+     core signal is localStorage-only (dual-write deferred) while the
+     researcher dashboard + export read the CLOUD table (P0 #2).
 - **2026-07-13 COMPETITIVE STUDY + REDESIGN ROADMAP landed (docs-only)** —
   reverse-engineering of 19 fitness/nutrition apps + gap analysis + 3-pillar
   redesign: `docs/research/COMPETITIVE_STUDY_2026-07.md` (ranking, retention
@@ -55,12 +72,19 @@
   `workflow_dispatch`-only.
 
 ## Next
-- **[auto] Redesign P0** (per `docs/roadmaps/REDESIGN_ROADMAP_2026-07.md`): gate
-  `suggest-workout` with `guardAiRoute` (bug-level); durable per-user daily AI
-  quotas (`ai_usage` table, enforced in `guardAiRoute`); Gemini `responseSchema`
-  migration ×6 call sites; exercise DB seed (free-exercise-db → ~120–150 curated,
-  +pattern/JP names); `workout_sessions`+`workout_sets` per-set schema;
-  environment-aware deterministic generation v1; ghost-text set-logging ergonomics.
+- **[auto] Beta P0** (per `docs/roadmaps/FTUE_BETA_DESIGN_2026-07.md` §11 —
+  refines/supersedes the 07-13 roadmap's P0 ordering): 1) 🔴 consent-skip race
+  fix (profiles row on signup + missing-row = unconsented); 2) 🔴
+  `recommendation_feedback` dual-write to Supabase; 3) `suggest-workout` behind
+  `guardAiRoute` + durable `ai_usage` per-user daily quotas; 4) kill fake
+  default goals + 60-s 4-chip onboarding; 5) empty states → single next-action
+  CTAs; 6) streak redefinition (any-log day) + weekly repair ticket; 7) web
+  push; 8) Gemini `responseSchema` migration ×6; 9) session-start flow
+  (env/time/equipment/energy; CheckInWidget merged /plan → /workout); 10)
+  cohort auto-assignment + SUS surface. Enablers carried from the 07-13
+  roadmap: exercise DB seed (free-exercise-db → ~120–150 curated, +pattern/JP
+  names); `workout_sessions`+`workout_sets` per-set schema; environment-aware
+  deterministic generation v1; ghost-text set-logging ergonomics.
 - **[🔒user] to finish production**:
   1. Vercel env (Production): add `SUPABASE_SERVICE_ROLE_KEY` (enables export +
      participant self-delete) and confirm `GEMINI_API_KEY` value is current
