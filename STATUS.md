@@ -1,6 +1,15 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-13 COMPETITIVE STUDY + REDESIGN ROADMAP landed (docs-only)** —
+  reverse-engineering of 19 fitness/nutrition apps + gap analysis + 3-pillar
+  redesign: `docs/research/COMPETITIVE_STUDY_2026-07.md` (ranking, retention
+  mechanics, UX analysis, 4 publication opportunities) and
+  `docs/roadmaps/REDESIGN_ROADMAP_2026-07.md` (environment-aware deterministic
+  workout engine + LLM narrative design, photo workflow v2, P0/P1/P2, migrations
+  011+ schema, API/UI changes). Locked decisions: exercise DB seeded from
+  free-exercise-db (public domain); deterministic engine decides / LLM only
+  explains; per-user daily AI quotas. No code yet.
 - **2026-07-12 MULTI-GENERATION ROUND merged (PR #13, main `9af9ef1`)** — app now
   supports every generation 12+ per 日本人の食事摂取基準（2025年版）:
   `lib/nutrition-standards.ts` (EER/protein-RDA/%E tables, source-cited,
@@ -46,6 +55,12 @@
   `workflow_dispatch`-only.
 
 ## Next
+- **[auto] Redesign P0** (per `docs/roadmaps/REDESIGN_ROADMAP_2026-07.md`): gate
+  `suggest-workout` with `guardAiRoute` (bug-level); durable per-user daily AI
+  quotas (`ai_usage` table, enforced in `guardAiRoute`); Gemini `responseSchema`
+  migration ×6 call sites; exercise DB seed (free-exercise-db → ~120–150 curated,
+  +pattern/JP names); `workout_sessions`+`workout_sets` per-set schema;
+  environment-aware deterministic generation v1; ghost-text set-logging ergonomics.
 - **[🔒user] to finish production**:
   1. Vercel env (Production): add `SUPABASE_SERVICE_ROLE_KEY` (enables export +
      participant self-delete) and confirm `GEMINI_API_KEY` value is current
@@ -72,8 +87,9 @@
   MealCard edit coerces empty fields to 0 (pre-existing); favorites quick-add
   ignores the servings stepper (UX).
 - Backlog (explicit cut list from the round): W1b bundled JP food DB (MEXT 成分表 —
-  demoted per kill criteria; needs real-data curation session), W1c barcode/OFF (spike
-  ≥50% hit-rate on 10 pantry items first), telemetry Supabase dual-write (needs migration
+  demoted per kill criteria; **revived *scoped* as P1 in the 07-13 roadmap**: top ~500
+  washoku + pg_trgm, grounds photo v2 numbers), W1c barcode/OFF (spike
+  ≥50% hit-rate on 10 pantry items first; unchanged, still gates barcode), telemetry Supabase dual-write (needs migration
   + consent gating), recipes, full micronutrient UI, weight-page SVG → recharts,
   AccountSection full i18n retrofit.
 - P1 research features: adherence prediction, habit phenotyping, TDEE-triggered goal adaptation.
