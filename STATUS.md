@@ -1,6 +1,14 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-14 P0 #1 FIXED: consent-skip race** — three-layer fix: `proxy.ts`
+  consent guard now **fails closed** (missing `profiles` row or query error →
+  `/consent`, never inside the app unconsented); `app/auth/callback/route.ts`
+  best-effort repairs a missing profiles row after code exchange (service-role
+  upsert mirroring the `handle_new_user()` trigger, `ignoreDuplicates`, never
+  breaks login); `app/api/consent/route.ts` detects a zero-row update and
+  recovers via service-role upsert (or 500s honestly — never reports consent
+  it didn't persist). lint + 165 tests + build green.
 - **2026-07-14 FTUE & PUBLIC-BETA EXPERIENCE DESIGN landed (docs-only)** —
   `docs/roadmaps/FTUE_BETA_DESIGN_2026-07.md`: FTUE critical path + 12
   drop-off countermeasures, journey map D0–D30, session-start AI-trainer flow

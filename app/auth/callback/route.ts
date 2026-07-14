@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createServerSupabase, createServiceSupabase } from '@/lib/supabase-server';
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -32,13 +32,53 @@ export async function GET(request: NextRequest) {
   if (code) {
     try {
       const supabase = await createServerSupabase();
-      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+      const { data: exchanged, error: exchangeError } =
+        await supabase.auth.exchangeCodeForSession(code);
 
       if (exchangeError) {
         console.error('[auth/callback] Code exchange failed:', exchangeError.message);
         const loginUrl = new URL('/login', origin);
         loginUrl.searchParams.set('error', 'exchange_failed');
         return NextResponse.redirect(loginUrl);
+      }
+
+      // Best-effort: ensure the profiles row exists. The on_auth_user_created
+      // trigger normally creates it, but if it ever failed (or the user
+      // predates 001) the row is missing and RLS has no INSERT policy for the
+      // anon client — repair via service role. Any failure here must NOT
+      // break login: the proxy's fail-closed consent guard is the backstop.
+      try {
+        const user = exchanged?.user;
+        if (user) {
+          const { data: profileRow } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (!profileRow && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            const svc = await createServiceSupabase();
+            // Mirrors handle_new_user() (001:53-58); ignoreDuplicates never
+            // clobbers a row created concurrently.
+            const { error: upsertError } = await svc.from('profiles').upsert(
+              {
+                id: user.id,
+                display_name:
+                  (user.user_metadata?.full_name as string | undefined) ??
+                  user.email?.split('@')[0] ??
+                  null,
+                avatar_url:
+                  (user.user_metadata?.avatar_url as string | undefined) ?? null,
+              },
+              { onConflict: 'id', ignoreDuplicates: true },
+            );
+            if (upsertError) {
+              console.error('[auth/callback] profiles ensure-row failed:', upsertError);
+            }
+          }
+        }
+      } catch (ensureErr) {
+        console.error('[auth/callback] profiles ensure-row failed:', ensureErr);
       }
 
       // Success — redirect to `next` (default: dashboard)

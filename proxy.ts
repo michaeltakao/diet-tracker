@@ -114,7 +114,9 @@ export async function proxy(request: NextRequest) {
       .select('consented_at')
       .eq('id', user.id)
       .maybeSingle();
-    if (profile.data && profile.data.consented_at === null) {
+    // Fail closed: a missing row (trigger failure, pre-001 user) or a query
+    // error must land on /consent, never inside the app unconsented.
+    if (!profile.data || profile.data.consented_at === null) {
       const consentUrl = request.nextUrl.clone();
       consentUrl.pathname = '/consent';
       return NextResponse.redirect(consentUrl);
