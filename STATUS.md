@@ -21,6 +21,25 @@
   (dashboard/export read the cloud table) unbroken going forward.
   `clearRecommendationFeedback` stays local-only (cloud history = research
   data). lint + 165 tests + build green.
+- **2026-07-14 FTUE ONBOARDING WIZARD shipped (D4–D5)** — new `app/onboarding/`
+  4-chip wizard (goal / body birth-year+sex+height+weight / experience /
+  today's environment), every step skippable with an explicit labeled default;
+  result screen = deterministic TDEE (Mifflin-St Jeor when body confirmed,
+  食事摂取基準 EER sex-averaged otherwise) + kcal/PFC targets each with a
+  1-line WHY, all badged 仮, CTA → first workout. Persistence via lib/data:
+  goal+experience → health profile always; age/sex/height + weight entry ONLY
+  when body step confirmed (defaults are never logged as measurements); goals
+  → `updateGoals` (kills fake dashboard defaults on this device).
+  `experience?` = new localStorage-only `UserHealthProfile` field (no DB
+  column). Forced redirect in `proxy.ts` via `dt-onboarded` cookie (1y,
+  per-device; consent still wins for authed users; guests gated too).
+  New: `lib/data/onboarding.ts` (record+cookie),
+  `components/onboarding/ChipGroup.tsx`. Browser-verified 3 paths on dev
+  :3210 (complete → numbers exact vs Mifflin/EER tables + dashboard shows
+  real targets; あとで skip → defaults recorded, nothing fabricated; body-skip
+  → sex-averaged 2275 kcal + 仮 note, no weight entry). NOTE: redirect gate
+  inactive in local dev (placeholder Supabase env → proxy pass-through);
+  active in prod.
 - **2026-07-14 FTUE & PUBLIC-BETA EXPERIENCE DESIGN landed (docs-only)** —
   `docs/roadmaps/FTUE_BETA_DESIGN_2026-07.md`: FTUE critical path + 12
   drop-off countermeasures, journey map D0–D30, session-start AI-trainer flow
@@ -97,7 +116,8 @@
   fix~~ **DONE 07-14** (`e7852dc`); 2) ~~🔴 `recommendation_feedback` dual-write
   to Supabase~~ **DONE 07-14**; 3) `suggest-workout` behind
   `guardAiRoute` + durable `ai_usage` per-user daily quotas; 4) kill fake
-  default goals + 60-s 4-chip onboarding; 5) empty states → single next-action
+  default goals + ~~60-s 4-chip onboarding~~ **wizard DONE 07-14** (fake-default
+  rework of `app/page.tsx` still open); 5) empty states → single next-action
   CTAs; 6) streak redefinition (any-log day) + weekly repair ticket; 7) web
   push; 8) Gemini `responseSchema` migration ×6; 9) session-start flow
   (env/time/equipment/energy; CheckInWidget merged /plan → /workout); 10)

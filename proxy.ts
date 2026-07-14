@@ -80,10 +80,26 @@ export async function proxy(request: NextRequest) {
 
   // ── Auth guard ────────────────────────────────────────────────────────────
   const pathname = request.nextUrl.pathname;
-  const isLoginPage   = pathname === '/login';
-  const isAuthRoute   = pathname.startsWith('/auth/');
-  const isConsentPage = pathname === '/consent';
-  const isApiRoute    = pathname.startsWith('/api/');
+  const isLoginPage      = pathname === '/login';
+  const isAuthRoute      = pathname.startsWith('/auth/');
+  const isConsentPage    = pathname === '/consent';
+  const isApiRoute       = pathname.startsWith('/api/');
+  const isOnboardingPage = pathname === '/onboarding';
+
+  // First visit → /onboarding (FTUE D4). Page routes only. For authed users
+  // this fires AFTER the consent check below (consent always comes first).
+  // The dt-onboarded cookie is per-device: a returning user on a new device
+  // is re-prompted once (the wizard prefills from their profile and is
+  // skippable in one tap). With placeholder Supabase env this proxy returns
+  // at the top, so local guest dev stays ungated; production is configured.
+  const needsOnboarding =
+    !isOnboardingPage && !isConsentPage && !isApiRoute && !isAuthRoute && !isLoginPage &&
+    request.cookies.get('dt-onboarded')?.value !== '1';
+  const onboardingRedirect = () => {
+    const onboardingUrl = request.nextUrl.clone();
+    onboardingUrl.pathname = '/onboarding';
+    return NextResponse.redirect(onboardingUrl);
+  };
 
   // Unauthenticated → /login
   // Exception: explicit guest opt-in (dt-guest cookie, set by the login page's
@@ -91,6 +107,7 @@ export async function proxy(request: NextRequest) {
   // routes still enforce their own gate in lib/api-guard.ts.
   const isGuest = request.cookies.get('dt-guest')?.value === '1';
   if (!user && isGuest && !isLoginPage) {
+    if (needsOnboarding) return onboardingRedirect();
     return response;
   }
   if (!user && !isLoginPage && !isAuthRoute) {
@@ -121,6 +138,11 @@ export async function proxy(request: NextRequest) {
       consentUrl.pathname = '/consent';
       return NextResponse.redirect(consentUrl);
     }
+  }
+
+  // Authed onboarding gate — after consent so /consent always wins.
+  if (user && needsOnboarding) {
+    return onboardingRedirect();
   }
 
   return response;

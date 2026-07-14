@@ -148,6 +148,8 @@ export type ActivityLevel =
   | 'very_active'
   | 'extra_active';
 
+export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
+
 export interface UserHealthProfile {
   age:                 number | null;
   sex?:                'male' | 'female' | null;  // unset → sex-averaged 食事摂取基準 targets
@@ -157,6 +159,7 @@ export interface UserHealthProfile {
   medications:         string[];   // e.g. ['メトホルミン', 'ワーファリン']
   fitnessGoal:         FitnessGoal;
   activityLevel:       ActivityLevel;
+  experience?:         ExperienceLevel | null;    // localStorage-only — no profiles column
 }
 
 export interface MedLogEntry {
