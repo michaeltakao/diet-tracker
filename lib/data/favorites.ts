@@ -17,8 +17,8 @@ import {
   getFavoriteFoods as _get,
   addFavoriteFood as _add,
   removeFavoriteFood as _remove,
-  addRecommendationFeedback,
 } from '@/lib/storage';
+import { addRecommendationFeedback } from './recommendation-feedback';
 import { getWriteContext } from './_write';
 import type { FavoriteFood } from '@/lib/types';
 

@@ -9,6 +9,18 @@
   breaks login); `app/api/consent/route.ts` detects a zero-row update and
   recovers via service-role upsert (or 500s honestly — never reports consent
   it didn't persist). lint + 165 tests + build green.
+- **2026-07-14 P0 #2 FIXED: recommendation_feedback dual-write** —
+  `lib/data/recommendation-feedback.ts` no longer re-exports the
+  localStorage-only writer: `addRecommendationFeedback` now writes
+  localStorage synchronously then upserts to the Supabase
+  `recommendation_feedback` table when authenticated (fire-and-forget,
+  `onConflict: user_id,item_type,item_name` = migration 005 UNIQUE key,
+  latest-wins mirroring the local dedup); `lib/data/favorites.ts` now
+  routes its `kind: 'favorite'` event through the wrapper instead of
+  `@/lib/storage`, so ♡ feedback reaches the cloud too. Study pipeline
+  (dashboard/export read the cloud table) unbroken going forward.
+  `clearRecommendationFeedback` stays local-only (cloud history = research
+  data). lint + 165 tests + build green.
 - **2026-07-14 FTUE & PUBLIC-BETA EXPERIENCE DESIGN landed (docs-only)** —
   `docs/roadmaps/FTUE_BETA_DESIGN_2026-07.md`: FTUE critical path + 12
   drop-off countermeasures, journey map D0–D30, session-start AI-trainer flow
@@ -81,9 +93,9 @@
 
 ## Next
 - **[auto] Beta P0** (per `docs/roadmaps/FTUE_BETA_DESIGN_2026-07.md` §11 —
-  refines/supersedes the 07-13 roadmap's P0 ordering): 1) 🔴 consent-skip race
-  fix (profiles row on signup + missing-row = unconsented); 2) 🔴
-  `recommendation_feedback` dual-write to Supabase; 3) `suggest-workout` behind
+  refines/supersedes the 07-13 roadmap's P0 ordering): 1) ~~🔴 consent-skip race
+  fix~~ **DONE 07-14** (`e7852dc`); 2) ~~🔴 `recommendation_feedback` dual-write
+  to Supabase~~ **DONE 07-14**; 3) `suggest-workout` behind
   `guardAiRoute` + durable `ai_usage` per-user daily quotas; 4) kill fake
   default goals + 60-s 4-chip onboarding; 5) empty states → single next-action
   CTAs; 6) streak redefinition (any-log day) + weekly repair ticket; 7) web
