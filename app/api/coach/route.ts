@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { generateWithRetry } from '@/lib/gemini';
-import { guardAiRoute } from '@/lib/api-guard';
+import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildHealthContextPrompt } from '@/lib/medication-rules';
 
@@ -43,7 +43,7 @@ Be specific and personalized. Reference actual numbers from the data. Keep it wa
 Do not include markdown code block formatting. Return only raw JSON.`;
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const guard = await guardAiRoute(request);
+  const guard = await guardAiRoute(request, 'coach');
   if ('blocked' in guard) return guard.blocked;
 
   const rl = checkRateLimit(guard.clientId, 'coach', RATE_LIMITS['coach']);
@@ -103,6 +103,8 @@ ${body.recentWorkoutLog.length === 0
         { role: 'user', parts: [{ text: SYSTEM_PROMPT + '\n\n' + userMessage }] },
       ],
     });
+
+    await recordAiUsage(guard.userId, 'coach', response.usageMetadata?.totalTokenCount);
 
     const raw = (response.text ?? '').trim();
     const jsonMatch = raw.match(/\{[\s\S]*\}/);

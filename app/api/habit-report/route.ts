@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { generateWithRetry } from '@/lib/gemini';
-import { guardAiRoute } from '@/lib/api-guard';
+import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
 const apiKey = process.env.GEMINI_API_KEY;
@@ -45,7 +45,7 @@ Analyze the user's 7-day behavioral data and return ONLY valid JSON (no markdown
 Be warm, encouraging, and precise. Reference actual numbers from the data.`;
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const guard = await guardAiRoute(request);
+  const guard = await guardAiRoute(request, 'habit-report');
   if ('blocked' in guard) return guard.blocked;
 
   const rl = checkRateLimit(guard.clientId, 'habit-report', RATE_LIMITS['habit-report']);
@@ -97,6 +97,8 @@ ${body.dailySummary.map((d) => {
       model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: SYSTEM_PROMPT + '\n\n' + userMessage }] }],
     });
+
+    await recordAiUsage(guard.userId, 'habit-report', response.usageMetadata?.totalTokenCount);
 
     const raw = (response.text ?? '').trim();
     const jsonMatch = raw.match(/\{[\s\S]*\}/);

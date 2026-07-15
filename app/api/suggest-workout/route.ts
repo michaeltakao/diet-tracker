@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { generateWithRetry } from '@/lib/gemini';
-import { getServerUser, createServerSupabase } from '@/lib/supabase-server';
+import { createServerSupabase } from '@/lib/supabase-server';
+import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildHealthContextPrompt } from '@/lib/medication-rules';
 
@@ -69,16 +70,17 @@ const GOAL_LABELS: Record<string, string> = {
 export async function POST(request: Request): Promise<NextResponse> {
   if (!apiKey) return NextResponse.json({ error: 'GEMINI_API_KEY not set' }, { status: 500 });
 
-  const user = await getServerUser();
-  // Guest access is intentional here (check-in is client-side). Prefer the
-  // proxy-set x-real-ip; the x-forwarded-for chain's first entry is client-spoofable.
-  const rateLimitId = user?.id
-    ?? request.headers.get('x-real-ip')?.trim()
-    ?? request.headers.get('x-forwarded-for')?.split(',')[0].trim()
-    ?? 'guest';
+  const guard = await guardAiRoute(request, 'suggest-workout');
+  if ('blocked' in guard) return guard.blocked;
+  const userId = guard.userId;
 
-  const rl = checkRateLimit(rateLimitId, 'suggest-workout', RATE_LIMITS['suggest-workout']);
-  if (!rl.allowed) return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+  const rl = checkRateLimit(guard.clientId, 'suggest-workout', RATE_LIMITS['suggest-workout']);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Please wait before retrying.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.resetAfterMs / 1000)) } },
+    );
+  }
 
   let body: SuggestRequest;
   try {
@@ -105,7 +107,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   let healthConditions = body.healthConditions ?? [];
   let medications      = body.medications ?? [];
 
-  if (user) {
+  if (userId) {
     // ── Authenticated: fetch everything server-side from DB ──────────────────
     const supabase = await createServerSupabase();
 
@@ -113,7 +115,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const { data: profile } = await supabase
       .from('profiles')
       .select('fitness_goal, goal_weight_kg, health_conditions, medications')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
 
     if (profile) {
@@ -127,7 +129,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const { data: latestWeight } = await supabase
       .from('weight_logs')
       .select('weight_kg')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('logged_date', { ascending: false })
       .limit(1)
       .single();
@@ -141,7 +143,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const { data: workouts } = await supabase
       .from('workout_logs')
       .select('logged_date, name, muscle_part')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .gte('logged_date', startDate)
       .order('logged_date', { ascending: false });
 
@@ -154,7 +156,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const { data: prs } = await supabase
       .from('personal_records')
       .select('exercise_name, max_weight_kg, achieved_date')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('max_weight_kg', { ascending: false })
       .limit(20);
 
@@ -167,7 +169,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const { data: activeProgram } = await supabase
       .from('training_programs')
       .select('data')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('is_active', true)
       .single();
 
@@ -230,7 +232,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       ? personalRecords.slice(0, 10).map(r => `  ${r.name}: ${r.weight}kg (${r.date})`).join('\n')
       : '  記録なし',
     healthCtx ? `\n${healthCtx}` : '',
-    user ? '\n【注意】このデータはサーバーサイドでデータベースから取得した正確な個人データです。' : '',
+    userId ? '\n【注意】このデータはサーバーサイドでデータベースから取得した正確な個人データです。' : '',
   ].filter(Boolean).join('\n');
 
   // ── Call Gemini ─────────────────────────────────────────────────────────────
@@ -241,6 +243,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     config: { systemInstruction: SYSTEM_PROMPT, temperature: 0.7 },
     contents: [{ role: 'user', parts: [{ text: userMessage }] }],
   });
+
+  await recordAiUsage(userId, 'suggest-workout', result.usageMetadata?.totalTokenCount);
 
   const raw = result.text?.trim() ?? '';
   const jsonStr = raw.startsWith('{') ? raw : raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');

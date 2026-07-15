@@ -24,6 +24,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage: {
+        Row: {
+          calls: number
+          created_at: string
+          est_tokens: number
+          id: string
+          route: string
+          updated_at: string
+          usage_date: string
+          user_id: string
+        }
+        Insert: {
+          calls?: number
+          created_at?: string
+          est_tokens?: number
+          id?: string
+          route: string
+          updated_at?: string
+          usage_date: string
+          user_id: string
+        }
+        Update: {
+          calls?: number
+          created_at?: string
+          est_tokens?: number
+          id?: string
+          route?: string
+          updated_at?: string
+          usage_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       badges: {
         Row: {
           created_at: string
@@ -726,7 +767,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_ai_usage: {
+        Args: { p_route: string; p_est_tokens?: number }
+        Returns: undefined
+      }
     }
     Enums: {
       badge_type:
@@ -773,6 +817,7 @@ export type TdeeEstimateRow      = Database["public"]["Tables"]["tdee_estimates"
 export type RecommendationFeedbackRow = Database["public"]["Tables"]["recommendation_feedback"]["Row"]
 export type FavoriteFoodRow      = Database["public"]["Tables"]["favorite_foods"]["Row"]
 export type MealTemplateRow      = Database["public"]["Tables"]["meal_templates"]["Row"]
+export type AiUsageRow           = Database["public"]["Tables"]["ai_usage"]["Row"]
 
 export type FoodLogInsert           = Database["public"]["Tables"]["food_logs"]["Insert"]
 export type WorkoutLogInsert        = Database["public"]["Tables"]["workout_logs"]["Insert"]
@@ -787,6 +832,7 @@ export type TdeeEstimateInsert      = Database["public"]["Tables"]["tdee_estimat
 export type RecommendationFeedbackInsert = Database["public"]["Tables"]["recommendation_feedback"]["Insert"]
 export type FavoriteFoodInsert      = Database["public"]["Tables"]["favorite_foods"]["Insert"]
 export type MealTemplateInsert      = Database["public"]["Tables"]["meal_templates"]["Insert"]
+export type AiUsageInsert           = Database["public"]["Tables"]["ai_usage"]["Insert"]
 
 export type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"]
 

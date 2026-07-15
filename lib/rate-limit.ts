@@ -65,3 +65,24 @@ export const RATE_LIMITS = {
   'weekly-report':    { maxRequests: 3,  windowMs: 3_600_000 },
   'suggest-workout':  { maxRequests: 10, windowMs:    60_000 },
 } as const satisfies Record<string, RateLimitConfig>;
+
+/**
+ * Durable per-user daily quotas (successful calls per JST calendar day),
+ * layered on top of the in-memory per-minute limits above. Enforced by
+ * guardAiRoute() against the Supabase `ai_usage` table for authenticated
+ * users; guests are covered by APP_ACCESS_CODE + the in-memory limiter only.
+ * Generous by design (research beta) — cost control, not punishment.
+ */
+export const DAILY_QUOTAS = {
+  'analyze-food':    100,
+  'coach':           200,
+  'habit-report':     20,
+  'recommend':       100,
+  'weekly-report':    20,
+  'suggest-workout':  50,
+} as const satisfies Record<keyof typeof RATE_LIMITS, number>;
+
+/** Cap on a user's total successful AI calls per JST day, across all routes. */
+export const GLOBAL_DAILY_QUOTA = 400;
+
+export type AiRouteName = keyof typeof DAILY_QUOTAS;

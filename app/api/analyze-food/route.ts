@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { generateWithRetry } from '@/lib/gemini';
-import { guardAiRoute } from '@/lib/api-guard';
+import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
 const apiKey = process.env.GEMINI_API_KEY;
@@ -21,7 +21,7 @@ Assume a typical single serving. Be realistic and conservative with estimates.
 Do not include markdown code block formatting in your response, just the raw JSON.`;
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const guard = await guardAiRoute(request);
+  const guard = await guardAiRoute(request, 'analyze-food');
   if ('blocked' in guard) return guard.blocked;
 
   const rl = checkRateLimit(guard.clientId, 'analyze-food', RATE_LIMITS['analyze-food']);
@@ -94,6 +94,8 @@ export async function POST(request: Request): Promise<NextResponse> {
         },
       ],
     });
+
+    await recordAiUsage(guard.userId, 'analyze-food', response.usageMetadata?.totalTokenCount);
 
     const raw = (response.text ?? '').trim();
 

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { generateWithRetry } from '@/lib/gemini';
-import { guardAiRoute } from '@/lib/api-guard';
+import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildHealthContextPrompt } from '@/lib/medication-rules';
 import { runParallelAgents } from '@/lib/parallel-agents';
@@ -37,7 +37,7 @@ interface WeeklyReportRequest {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const guard = await guardAiRoute(request);
+  const guard = await guardAiRoute(request, 'weekly-report');
   if ('blocked' in guard) return guard.blocked;
 
   const rl = checkRateLimit(guard.clientId, 'weekly-report', RATE_LIMITS['weekly-report']);
@@ -172,6 +172,10 @@ ${resultMap['goal'] ?? '（提案なし）'}
       model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: orchestratorPrompt }] }],
     });
+
+    // One user action = one quota unit, even though this route fans out to
+    // 4 parallel agents + 1 orchestrator internally.
+    await recordAiUsage(guard.userId, 'weekly-report', orchestratorResponse.usageMetadata?.totalTokenCount);
 
     const raw = (orchestratorResponse.text ?? '').trim();
     const jsonMatch = raw.match(/\{[\s\S]*\}/);

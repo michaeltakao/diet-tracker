@@ -1,6 +1,24 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-15 P0 #3 DONE: suggest-workout guard + durable ai_usage daily quota** —
+  `app/api/suggest-workout/route.ts` now goes through `guardAiRoute` (was the
+  only AI route with inline auth; its 429 also gains the missing `Retry-After`).
+  New durable per-user **JST-day** quota layer in `lib/api-guard.ts` backed by
+  Supabase `ai_usage` (migration **011 applied to prod**): guard checks
+  per-route `DAILY_QUOTAS` (analyze-food 100 / coach 200 / recommend 100 /
+  suggest-workout 50 / weekly-report 20 / habit-report 20) + `GLOBAL_DAILY_QUOTA`
+  400, **fail-closed** (quota-check DB error → 503, never a free pass); all 6
+  AI routes charge via `recordAiUsage` (RPC `increment_ai_usage`,
+  SECURITY DEFINER, auth.uid()-scoped, anon revoked) **only after a successful
+  Gemini call** — failed requests never consume quota; recorder is best-effort
+  (undercount over user-facing failure). Guests = authed-only quota by design
+  (FK to profiles), still behind APP_ACCESS_CODE + in-memory limiter.
+  Verified: lint + 165 tests + build green; prod SQL sanity (RLS on, grants
+  correct); RPC upsert arithmetic live-tested in prod inside a rolled-back
+  txn (2 calls → calls=2, est_tokens summed, JST date); dev guest E2E 200 +
+  11th request → 429 `retry-after: 8`. NOT exercised: authed 429 in prod
+  (needs a real session — [🔒user] E2E item).
 - **2026-07-14 P0 #1 FIXED: consent-skip race** — three-layer fix: `proxy.ts`
   consent guard now **fails closed** (missing `profiles` row or query error →
   `/consent`, never inside the app unconsented); `app/auth/callback/route.ts`
@@ -114,8 +132,9 @@
 - **[auto] Beta P0** (per `docs/roadmaps/FTUE_BETA_DESIGN_2026-07.md` §11 —
   refines/supersedes the 07-13 roadmap's P0 ordering): 1) ~~🔴 consent-skip race
   fix~~ **DONE 07-14** (`e7852dc`); 2) ~~🔴 `recommendation_feedback` dual-write
-  to Supabase~~ **DONE 07-14**; 3) `suggest-workout` behind
-  `guardAiRoute` + durable `ai_usage` per-user daily quotas; 4) kill fake
+  to Supabase~~ **DONE 07-14**; 3) ~~`suggest-workout` behind
+  `guardAiRoute` + durable `ai_usage` per-user daily quotas~~ **DONE 07-15**
+  (migration 011 in prod); 4) kill fake
   default goals + ~~60-s 4-chip onboarding~~ **wizard DONE 07-14** (fake-default
   rework of `app/page.tsx` still open); 5) empty states → single next-action
   CTAs; 6) streak redefinition (any-log day) + weekly repair ticket; 7) web

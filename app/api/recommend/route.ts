@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { generateWithRetry } from '@/lib/gemini';
-import { guardAiRoute } from '@/lib/api-guard';
+import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildSafetyReport, filterRecommendation } from '@/lib/recommend-safety';
 import type { UserHealthProfile, DailyGoals, Recommendation } from '@/lib/types';
@@ -81,7 +81,7 @@ Rules:
 - Return only raw JSON, no extra text`;
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const guard = await guardAiRoute(request);
+  const guard = await guardAiRoute(request, 'recommend');
   if ('blocked' in guard) return guard.blocked;
 
   const rl = checkRateLimit(guard.clientId, 'recommend', RATE_LIMITS['recommend']);
@@ -151,6 +151,8 @@ ${body.recentWorkoutLog.length > 0
         { role: 'user', parts: [{ text: SYSTEM_PROMPT + '\n\n' + userMessage }] },
       ],
     });
+
+    await recordAiUsage(guard.userId, 'recommend', response.usageMetadata?.totalTokenCount);
 
     const raw = (response.text ?? '').trim();
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
