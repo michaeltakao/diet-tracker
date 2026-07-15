@@ -7,6 +7,7 @@ import {
   getAppData, removeFoodEntry, updateFoodEntry, addWater, getWaterForDate, getStreak,
   checkAndAwardBadges, getBadges, addFoodEntry,
 } from '@/lib/data';
+import { getOnboardingRecord } from '@/lib/data/onboarding';
 import { FoodEntry, DailyGoals, Badge } from '@/lib/types';
 import CalorieBar from '@/components/CalorieBar';
 import PFCDonut from '@/components/PFCDonut';
@@ -23,6 +24,23 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
+// Deliberate mirror of the unexported DEFAULT_GOALS in lib/storage.ts. Kept in
+// sync by hand rather than exported (exporting it would touch a third file for
+// scope P0 #4a intentionally excludes). Used only to detect a device whose
+// goals are still the fabricated fresh-install defaults — see goalsEqualDefaults.
+const DEFAULT_GOALS_LITERAL: DailyGoals = { calories: 2000, protein: 150, fat: 60, carbs: 200, water: 2000 };
+
+/** True when goals are byte-for-byte the fabricated fresh-install defaults. */
+function goalsEqualDefaults(g: DailyGoals): boolean {
+  return (
+    g.calories === DEFAULT_GOALS_LITERAL.calories &&
+    g.protein === DEFAULT_GOALS_LITERAL.protein &&
+    g.fat === DEFAULT_GOALS_LITERAL.fat &&
+    g.carbs === DEFAULT_GOALS_LITERAL.carbs &&
+    g.water === DEFAULT_GOALS_LITERAL.water
+  );
+}
+
 function getTodayDate(): string {
   return new Date().toISOString().split('T')[0];
 }
@@ -36,7 +54,12 @@ function formatDate(dateStr: string): string {
 export default function HomePage() {
   const { t } = useLanguage();
   const [entries, setEntries]   = useState<FoodEntry[]>([]);
-  const [goals, setGoals]       = useState<DailyGoals>({ calories: 2000, protein: 150, fat: 60, carbs: 200, water: 2000 });
+  // null = "no real goals set" (un-onboarded / skip path) → empty-state card.
+  // Typing as nullable forces every goal-render site into a guarded branch.
+  const [goals, setGoals]       = useState<DailyGoals | null>(null);
+  // Gates first paint so we never flash fabricated numbers OR the empty card
+  // before the client-only data load resolves.
+  const [goalsReady, setGoalsReady] = useState(false);
   const [water, setWater]       = useState(0);
   const [streak, setStreak]     = useState(0);
   const [today]                 = useState(getTodayDate());
@@ -48,7 +71,16 @@ export default function HomePage() {
   const loadData = () => {
     const data = getAppData();
     setEntries(data.foodEntries.filter((e) => e.date === today));
-    setGoals(data.goals);
+    // Show goals only when they are *real*, not the fabricated fresh-install
+    // defaults. Real = the user completed the wizard (record exists, not
+    // skipped) OR their goals differ from the defaults (covers a settings-only
+    // user who never onboarded). Accepted false-negative: someone who manually
+    // saves exactly 2000/150/60/200/2000 sees the empty state; false-positive
+    // is impossible for wizard completers.
+    const rec = getOnboardingRecord();
+    const goalsAreReal = (rec !== null && !rec.skipped) || !goalsEqualDefaults(data.goals);
+    setGoals(goalsAreReal ? data.goals : null);
+    setGoalsReady(true);
     setWater(getWaterForDate(today));
     setStreak(getStreak());
     setEarnedBadges(getBadges());
@@ -105,8 +137,8 @@ export default function HomePage() {
     { calories: 0, protein: 0, fat: 0, carbs: 0 }
   );
 
-  const remaining = Math.max(0, goals.calories - totals.calories);
-  const over      = totals.calories > goals.calories;
+  const remaining = goals ? Math.max(0, goals.calories - totals.calories) : 0;
+  const over      = goals ? totals.calories > goals.calories : false;
 
   const grouped = MEAL_TYPES.reduce(
     (acc, type) => { acc[type] = entries.filter((e) => e.mealType === type); return acc; },
@@ -181,50 +213,86 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ── Hero calorie card ──────────────────────── */}
-      <div className={`
-        rounded-3xl p-5 mb-3
-        ${over
-          ? 'bg-gradient-to-br from-amber-500 to-red-600'
-          : 'bg-gradient-to-br from-brand-500 to-teal-600'}
-        shadow-elevated
-      `}>
-        <p className="text-xs font-bold uppercase tracking-widest text-white/85 mb-1">
-          {over ? '⚠️ オーバー' : t.remaining}
-        </p>
-        <div className="flex items-end gap-2 mb-1">
-          <span className="text-5xl font-black text-white tracking-tight leading-none tabular-nums">
-            {over ? `+${(totals.calories - goals.calories).toLocaleString()}` : remaining.toLocaleString()}
-          </span>
-          <span className="text-lg text-white/85 font-medium mb-1">kcal</span>
+      {/* ── Goal-dependent section (real goals vs empty state) ───────────
+          Gated on goalsReady so the first paint never flashes fabricated
+          numbers or the empty card before the client-only load resolves. */}
+      {goalsReady && (goals ? (
+        <>
+          {/* ── Hero calorie card ──────────────────────── */}
+          <div className={`
+            rounded-3xl p-5 mb-3
+            ${over
+              ? 'bg-gradient-to-br from-amber-500 to-red-600'
+              : 'bg-gradient-to-br from-brand-500 to-teal-600'}
+            shadow-elevated
+          `}>
+            <p className="text-xs font-bold uppercase tracking-widest text-white/85 mb-1">
+              {over ? '⚠️ オーバー' : t.remaining}
+            </p>
+            <div className="flex items-end gap-2 mb-1">
+              <span className="text-5xl font-black text-white tracking-tight leading-none tabular-nums">
+                {over ? `+${(totals.calories - goals.calories).toLocaleString()}` : remaining.toLocaleString()}
+              </span>
+              <span className="text-lg text-white/85 font-medium mb-1">kcal</span>
+            </div>
+            <p className="text-xs text-white/75 font-medium tabular-nums">
+              {totals.calories.toLocaleString()} / {goals.calories.toLocaleString()} kcal {t.consumed}
+            </p>
+          </div>
+
+          {/* ── Calorie bar ─────────────────────────────── */}
+          <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
+            <CalorieBar current={totals.calories} goal={goals.calories} />
+          </div>
+
+          {/* ── PFC Donut ───────────────────────────────── */}
+          <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
+            <h2 className="text-sm font-bold text-muted mb-2">{t.macroBreakdown}</h2>
+            <PFCDonut
+              protein={totals.protein} fat={totals.fat} carbs={totals.carbs}
+              goalProtein={goals.protein} goalFat={goals.fat} goalCarbs={goals.carbs}
+            />
+          </div>
+
+          {/* ── Macro bars ──────────────────────────────── */}
+          <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
+            <h2 className="text-sm font-bold text-muted mb-3">{t.macros}</h2>
+            <MacroBar
+              protein={totals.protein} fat={totals.fat} carbs={totals.carbs}
+              goalProtein={goals.protein} goalFat={goals.fat} goalCarbs={goals.carbs}
+            />
+          </div>
+        </>
+      ) : (
+        /* ── Empty state: no real goals set ─────────────── */
+        <div className="bg-card rounded-3xl shadow-card border border-line p-10 text-center mb-3">
+          <p className="text-4xl mb-3" aria-hidden="true">🎯</p>
+          <p className="text-sm font-semibold text-muted">{t.noGoalsTitle}</p>
+          <p className="text-xs text-faint mt-1 mb-4">{t.noGoalsSub}</p>
+          <Link
+            href="/onboarding"
+            className="
+              inline-flex items-center justify-center
+              px-5 py-2.5 rounded-2xl
+              bg-gradient-to-br from-brand-500 to-brand-600 text-white
+              text-sm font-bold
+              shadow-card hover:scale-[1.03] active:scale-95
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+              transition-all duration-200
+            "
+          >
+            {t.noGoalsCta}
+          </Link>
+          <div className="mt-3">
+            <Link
+              href="/settings"
+              className="text-xs text-faint underline underline-offset-2 hover:text-fg transition-colors"
+            >
+              {t.noGoalsSettingsLink}
+            </Link>
+          </div>
         </div>
-        <p className="text-xs text-white/75 font-medium tabular-nums">
-          {totals.calories.toLocaleString()} / {goals.calories.toLocaleString()} kcal {t.consumed}
-        </p>
-      </div>
-
-      {/* ── Calorie bar ─────────────────────────────── */}
-      <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
-        <CalorieBar current={totals.calories} goal={goals.calories} />
-      </div>
-
-      {/* ── PFC Donut ───────────────────────────────── */}
-      <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
-        <h2 className="text-sm font-bold text-muted mb-2">{t.macroBreakdown}</h2>
-        <PFCDonut
-          protein={totals.protein} fat={totals.fat} carbs={totals.carbs}
-          goalProtein={goals.protein} goalFat={goals.fat} goalCarbs={goals.carbs}
-        />
-      </div>
-
-      {/* ── Macro bars ──────────────────────────────── */}
-      <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
-        <h2 className="text-sm font-bold text-muted mb-3">{t.macros}</h2>
-        <MacroBar
-          protein={totals.protein} fat={totals.fat} carbs={totals.carbs}
-          goalProtein={goals.protein} goalFat={goals.fat} goalCarbs={goals.carbs}
-        />
-      </div>
+      ))}
 
       {/* ── Personalized Recommendation ─────────────── */}
       <RecommendationCard />
@@ -234,7 +302,7 @@ export default function HomePage() {
 
       {/* ── Water Tracker ───────────────────────────── */}
       <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
-        <WaterTracker current={water} goal={goals.water ?? 2000} onAdd={handleAddWater} />
+        <WaterTracker current={water} goal={goals?.water ?? 2000} onAdd={handleAddWater} />
       </div>
 
       {/* ── Badge shelf ─────────────────────────────── */}

@@ -1,6 +1,44 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-15 P0 #4a DONE: remove fake default goals from the dashboard** —
+  `app/page.tsx` no longer renders the fabricated 2000/150/60/200/2000 as real
+  targets. `goals` state is now `DailyGoals | null` (null = "no real goals");
+  `loadData()` shows goals only when real — `(onboarding record exists && not
+  skipped) || goals differ from the fresh-install defaults` (module-level
+  `goalsEqualDefaults`, a hand-kept mirror of the unexported `DEFAULT_GOALS` in
+  `lib/storage.ts`). Un-onboarded / skip-path devices now get a 🎯
+  「目標を設定してください」empty-state card (CTA → `/onboarding`, secondary
+  link → `/settings`) instead of fake numbers. `goalsReady` gates first paint so
+  neither fake numbers nor the empty card flash before the client-only load.
+  WaterTracker stays visible in both states (`goals?.water ?? 2000` = universal
+  hydration guideline, not a fabricated nutrition target); header/streak/
+  RecommendationCard/TdeeCard/meals/badges/FAB unchanged. 4 i18n keys added
+  (ja+en) in `lib/i18n.ts` (second file in the commit — hardcoding JP would
+  regress the English UI). Accepted false-negative: a user who manually saves
+  exactly 2000/150/60/200/2000 sees the empty state; false-positive impossible
+  for wizard completers. Verified: lint + 165 tests + build green; dev E2E both
+  states (skip → 🎯 card, no fake targets, meals+water intact; wizard-completed
+  → real 2,450 kcal / 2,150 remaining, empty card gone).
+  **STILL open (P0 #4b, NOT fixed here — dashboard-only per ticket):** the
+  fabricated defaults are still consumed by `app/log/page.tsx:159,184`,
+  `components/TrendsPanel.tsx:80,91`, `components/RecommendationCard.tsx:181`,
+  `components/WeeklyReportCard.tsx:81-84`, `app/plan/page.tsx:567`, and the badge
+  engine (`lib/storage.ts:305,314`) — some send them to AI routes.
+- **2026-07-15 SECURITY AUDIT (post-P0 #3, report-only)** —
+  `docs/reviews/SECURITY_AUDIT_2026-07-15.md` (gitignored, not committed).
+  No P0. P1: (1) AI routes leak upstream `Error.message` + echo raw Gemini
+  output on parse failure (reflected injectable channel); (2) `research/export`
+  query params unvalidated + IRB audit-log insert is fire-and-forget (PII can be
+  read un-logged); (3) prompt-injection via verbatim user free-text (bounded:
+  single-user, food output post-filtered but suggest-workout/coach free-text is
+  not) — overlaps roadmap P0 #8 (zod + responseSchema). P2: **open-redirect
+  guard in `auth/callback:86` is bypassable** (`//evil.com` passes
+  `startsWith('/')` → `new URL` resolves off-origin; correction to the prior
+  "positive" — phishing-grade only, PKCE means no token leak), no runtime input
+  validation, unbounded arrays, shared access code in localStorage, no CSP/
+  security headers. Answered user Q: non-AI routes do NOT need guardAiRoute
+  (they're authed + session-derived id filters, no RLS-only route found).
 - **2026-07-15 P0 #3 DONE: suggest-workout guard + durable ai_usage daily quota** —
   `app/api/suggest-workout/route.ts` now goes through `guardAiRoute` (was the
   only AI route with inline auth; its 429 also gains the missing `Retry-After`).
