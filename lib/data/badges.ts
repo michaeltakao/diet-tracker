@@ -13,6 +13,8 @@ import {
   addBadge            as _add,
   checkAndAwardBadges as _checkAndAward,
   getStreak           as _getStreak,
+  getStreakState      as _getStreakState,
+  type StreakSummary,
 } from '@/lib/storage';
 import { getWriteContext } from './_write';
 import type { Badge, BadgeType } from '@/lib/types';
@@ -35,9 +37,14 @@ export function hasBadge(type: BadgeType, date?: string): boolean {
   return _has(type, date);
 }
 
-/** Current consecutive day streak (food logging). */
+/** Current consecutive day streak (any-log: food / workout / weight / water). */
 export function getStreak(): number {
   return _getStreak();
+}
+
+/** Streak + longest + repair-ticket availability (any-log, JST). */
+export function getStreakState(): StreakSummary {
+  return _getStreakState();
 }
 
 // ── Write (localStorage + Supabase dual-write) ────────────────────────────────

@@ -1,6 +1,43 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-15 ENGAGEMENT ROUND DONE (Beta P0 #6 + extras)** — any-log streak +
+  weekly repair ticket + first-log badges + fixed weekly challenge.
+  **Streak redefined**: `getStreak()` now counts *any-log* days (food OR workout
+  OR weight OR water>0) on **JST** day boundaries (was food-only, UTC); pure
+  math in new `lib/streak.ts` (walk + ISO-week keys + look-ahead ticket
+  consumption), wired in `lib/storage.ts`. One gap-day per ISO week is bridged
+  by a repair ticket (bridged day does NOT count — honest logged-day count);
+  consumed tickets persist in new `AppData.streakState.repairedDates`
+  (**deviation from the plan's `lastRepairWeek: string|null`** — a week key
+  alone can't keep bridging the same gap on recompute; dates are required for
+  recompute stability, unit-tested). `streakState` also tracks `longest`
+  (device-local only — server persistence of longest = documented follow-up);
+  export/import merges it (max longest, union repairs). New `getStreakState()`
+  (current/longest/repairAvailable) re-exported via `lib/data/badges.ts`;
+  dashboard flame pill gets a 最長 tooltip. **Behavior change**: `streak3/7/30`
+  badges now trigger off the any-log streak (workout-only users can earn them —
+  intended per redefinition); descriptions reworded, verified live.
+  **First-log badges**: `first_food` 🥇 / `first_workout` 💪 (once ever, existing
+  award/hasBadge idempotence, dual-write flows automatically). **Weekly
+  challenge (fixed)**: "log 5 distinct any-log days this JST Mon–Sun week" —
+  derived live from entries (no client-side progress storage → no drift) in new
+  `lib/data/weekly-challenge.ts`; best-effort dual-write upsert to new
+  `weekly_challenges` table (**migration 012 applied to prod** + SQL-verified:
+  enum +first_food/first_workout, RLS on, owner policy, UNIQUE(user_id,
+  week_start); first-completion timestamp preserved across syncs);
+  `database.types.ts` hand-extended (sanctioned). New
+  `components/WeeklyChallengeCard.tsx` (CalorieBar-style token bar, aria
+  progressbar, done state, renders in BOTH goal states per P0 #4a pattern) on
+  the dashboard; i18n ja+en keys added. Verified: lint clean, **184/184 vitest**
+  (19 new: ISO-week/JST/leap edges, repair semantics incl. recompute stability +
+  no-waste look-ahead + cross-week tickets, storage integration), build green;
+  browser E2E on dev :3000 (4 seeded scenarios: mixed-type streak=4 & challenge
+  3/5; gap bridged → 2日 + repairedDates persisted; double-gap breaks → 1日, no
+  ticket wasted, longest=9 tooltip preserved; 5 activity days → 5/5 100% bar +
+  達成 state; badges no-dup across reloads). No reminders/notifications (no push
+  infra yet — P0 #7), no selectable challenges, no dark patterns (generous
+  ticket, no fake urgency).
 - **2026-07-15 P0 #4a DONE: remove fake default goals from the dashboard** —
   `app/page.tsx` no longer renders the fabricated 2000/150/60/200/2000 as real
   targets. `goals` state is now `DailyGoals | null` (null = "no real goals");
@@ -175,8 +212,9 @@
   (migration 011 in prod); 4) kill fake
   default goals + ~~60-s 4-chip onboarding~~ **wizard DONE 07-14** (fake-default
   rework of `app/page.tsx` still open); 5) empty states → single next-action
-  CTAs; 6) streak redefinition (any-log day) + weekly repair ticket; 7) web
-  push; 8) Gemini `responseSchema` migration ×6; 9) session-start flow
+  CTAs; 6) ~~streak redefinition (any-log day) + weekly repair ticket~~
+  **DONE 07-15** (+ first-log badges + weekly challenge; migration 012 in
+  prod); 7) web push; 8) Gemini `responseSchema` migration ×6; 9) session-start flow
   (env/time/equipment/energy; CheckInWidget merged /plan → /workout); 10)
   cohort auto-assignment + SUS surface. Enablers carried from the 07-13
   roadmap: exercise DB seed (free-exercise-db → ~120–150 curated, +pattern/JP
@@ -242,6 +280,11 @@
 - CI workflows hardened against script injection (`cac19bf`, 2026-06-12) — see vault `ADR-003`.
 
 ## Last verified state
+- 2026-07-15 (engagement round): `npm run lint` clean, `npx vitest run`
+  **184/184**, `npm run build` green. Migration **012 applied** to prod
+  (`chkkpucuiyjdeqgyyszt`) + SQL sanity (badge_type 9 values, weekly_challenges
+  RLS+policy+indexes). Dev-server browser E2E: 4 seeded streak/challenge/badge
+  scenarios all pass (see Now).
 - 2026-07-12: main (`9af9ef1`, post PR #13 merge) — `npm run lint` clean,
   `npx vitest run` **165/165**, `npm run build` green. Migration **010 applied**
   to prod (`chkkpucuiyjdeqgyyszt`), `database.types.ts` in sync. Browser smoke

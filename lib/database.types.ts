@@ -618,6 +618,47 @@ export type Database = {
           },
         ]
       }
+      weekly_challenges: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          goal_days: number
+          id: string
+          progress_days: number
+          updated_at: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          goal_days?: number
+          id?: string
+          progress_days?: number
+          updated_at?: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          goal_days?: number
+          id?: string
+          progress_days?: number
+          updated_at?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_challenges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       weekly_reports: {
         Row: {
           avg_calories: number | null
@@ -781,6 +822,8 @@ export type Database = {
         | "calorie_goal"
         | "workout_master"
         | "pr_achieved"
+        | "first_food"
+        | "first_workout"
       meal_type: "breakfast" | "lunch" | "dinner" | "snack"
       muscle_part: "chest" | "back" | "legs" | "shoulders" | "arms" | "abs"
       workout_category: "strength" | "cardio" | "flexibility" | "other"
@@ -813,6 +856,7 @@ export type PersonalRecordRow    = Database["public"]["Tables"]["personal_record
 export type CheckinRow           = Database["public"]["Tables"]["checkins"]["Row"]
 export type TrainingProgramRow   = Database["public"]["Tables"]["training_programs"]["Row"]
 export type WeeklyReportRow      = Database["public"]["Tables"]["weekly_reports"]["Row"]
+export type WeeklyChallengeRow   = Database["public"]["Tables"]["weekly_challenges"]["Row"]
 export type TdeeEstimateRow      = Database["public"]["Tables"]["tdee_estimates"]["Row"]
 export type RecommendationFeedbackRow = Database["public"]["Tables"]["recommendation_feedback"]["Row"]
 export type FavoriteFoodRow      = Database["public"]["Tables"]["favorite_foods"]["Row"]
@@ -828,6 +872,7 @@ export type PersonalRecordInsert    = Database["public"]["Tables"]["personal_rec
 export type CheckinInsert           = Database["public"]["Tables"]["checkins"]["Insert"]
 export type TrainingProgramInsert   = Database["public"]["Tables"]["training_programs"]["Insert"]
 export type WeeklyReportInsert      = Database["public"]["Tables"]["weekly_reports"]["Insert"]
+export type WeeklyChallengeInsert   = Database["public"]["Tables"]["weekly_challenges"]["Insert"]
 export type TdeeEstimateInsert      = Database["public"]["Tables"]["tdee_estimates"]["Insert"]
 export type RecommendationFeedbackInsert = Database["public"]["Tables"]["recommendation_feedback"]["Insert"]
 export type FavoriteFoodInsert      = Database["public"]["Tables"]["favorite_foods"]["Insert"]

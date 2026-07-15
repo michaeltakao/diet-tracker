@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Settings, Flame, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import {
-  getAppData, removeFoodEntry, updateFoodEntry, addWater, getWaterForDate, getStreak,
+  getAppData, removeFoodEntry, updateFoodEntry, addWater, getWaterForDate, getStreakState,
   checkAndAwardBadges, getBadges, addFoodEntry,
 } from '@/lib/data';
 import { getOnboardingRecord } from '@/lib/data/onboarding';
@@ -16,6 +16,7 @@ import MealCard from '@/components/MealCard';
 import WaterTracker from '@/components/WaterTracker';
 import BadgeShelf from '@/components/BadgeShelf';
 import BadgeCelebration from '@/components/BadgeCelebration';
+import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
 import RecommendationCard from '@/components/RecommendationCard';
 import TdeeCard from '@/components/TdeeCard';
 import BottomNav from '@/components/BottomNav';
@@ -62,6 +63,7 @@ export default function HomePage() {
   const [goalsReady, setGoalsReady] = useState(false);
   const [water, setWater]       = useState(0);
   const [streak, setStreak]     = useState(0);
+  const [longestStreak, setLongestStreak] = useState(0);
   const [today]                 = useState(getTodayDate());
   const [celebrationBadges, setCelebrationBadges] = useState<Badge[]>([]);
   const [earnedBadges, setEarnedBadges]           = useState<Badge[]>([]);
@@ -82,7 +84,9 @@ export default function HomePage() {
     setGoals(goalsAreReal ? data.goals : null);
     setGoalsReady(true);
     setWater(getWaterForDate(today));
-    setStreak(getStreak());
+    const streakState = getStreakState();
+    setStreak(streakState.current);
+    setLongestStreak(streakState.longest);
     setEarnedBadges(getBadges());
   };
 
@@ -170,7 +174,10 @@ export default function HomePage() {
         </div>
         <div className="flex items-center gap-2">
           {streak > 0 && (
-            <div className="flex items-center gap-1 bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800 px-2.5 py-1.5 rounded-2xl">
+            <div
+              className="flex items-center gap-1 bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800 px-2.5 py-1.5 rounded-2xl"
+              title={`${t.longestStreak}: ${longestStreak}${t.streakDays}`}
+            >
               <Flame size={13} className="text-orange-500" aria-hidden="true" />
               <span className="text-xs font-black text-orange-600 dark:text-orange-400">
                 {streak}{t.streakDays}
@@ -304,6 +311,9 @@ export default function HomePage() {
       <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
         <WaterTracker current={water} goal={goals?.water ?? 2000} onAdd={handleAddWater} />
       </div>
+
+      {/* ── Weekly challenge (any-log, both goal states) ── */}
+      <WeeklyChallengeCard />
 
       {/* ── Badge shelf ─────────────────────────────── */}
       {earnedBadges.length > 0 && (

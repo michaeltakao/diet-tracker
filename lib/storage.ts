@@ -1,4 +1,5 @@
 import { AppData, Badge, BadgeType, DailyGoals, FavoriteFood, FoodEntry, MealTemplate, PersonalRecord, RecommendationFeedback, WeightEntry, WorkoutEntry } from './types';
+import { activityDaysFrom, computeStreak, jstToday } from './streak';
 
 const STORAGE_KEY = 'diet-tracker-v1';
 
@@ -21,6 +22,7 @@ const DEFAULT_DATA: AppData = {
   recommendationFeedback: [],
   favoriteFoods: [],
   mealTemplates: [],
+  streakState: { longest: 0, repairedDates: [] },
 };
 
 export function getAppData(): AppData {
@@ -40,6 +42,10 @@ export function getAppData(): AppData {
       recommendationFeedback: parsed.recommendationFeedback ?? [],
       favoriteFoods: parsed.favoriteFoods ?? [],
       mealTemplates: parsed.mealTemplates ?? [],
+      streakState: {
+        longest: parsed.streakState?.longest ?? 0,
+        repairedDates: parsed.streakState?.repairedDates ?? [],
+      },
     };
   } catch {
     return { ...DEFAULT_DATA, goals: { ...DEFAULT_GOALS } };
@@ -295,10 +301,18 @@ export function checkAndAwardBadges(today: string): Badge[] {
     newBadges.push(full);
   };
 
-  // Streak badges (once ever)
-  if (streak >= 3) award({ type: 'streak3', name: '🔥 3日連続！', description: '3日間連続して食事を記録しました！', icon: '🔥' });
-  if (streak >= 7) award({ type: 'streak7', name: '🏆 1週間継続！', description: '7日間連続して食事を記録しました！', icon: '🏆' });
-  if (streak >= 30) award({ type: 'streak30', name: '💎 1ヶ月継続！', description: '30日間連続して食事を記録しました！', icon: '💎' });
+  // First-log badges (once ever)
+  if (data.foodEntries.length > 0) {
+    award({ type: 'first_food', name: '🥇 はじめての食事記録！', description: '最初の食事を記録しました！', icon: '🥇' });
+  }
+  if (data.workoutEntries.length > 0) {
+    award({ type: 'first_workout', name: '💪 はじめてのトレーニング！', description: '最初のワークアウトを記録しました！', icon: '💪' });
+  }
+
+  // Streak badges (once ever) — any-log streak: food OR workout OR weight OR water
+  if (streak >= 3) award({ type: 'streak3', name: '🔥 3日連続！', description: '3日間連続して記録しました！', icon: '🔥' });
+  if (streak >= 7) award({ type: 'streak7', name: '🏆 1週間継続！', description: '7日間連続して記録しました！', icon: '🏆' });
+  if (streak >= 30) award({ type: 'streak30', name: '💎 1ヶ月継続！', description: '30日間連続して記録しました！', icon: '💎' });
 
   // Water goal (once per day)
   const water = data.waterByDate[today] ?? 0;
@@ -331,21 +345,49 @@ export function checkAndAwardBadges(today: string): Badge[] {
   return newBadges;
 }
 
-// ── Streak ───────────────────────────────────────────────
-export function getStreak(): number {
+// ── Streak (any-log, JST boundary, weekly repair ticket) ─
+// Pure math lives in lib/streak.ts; this section wires it to AppData and
+// persists the side effects (longest-ever, consumed repair tickets).
+
+export interface StreakSummary {
+  current: number;
+  longest: number;
+  /** True when this ISO week's repair ticket has not been consumed. */
+  repairAvailable: boolean;
+}
+
+/** Union of activity days (food / workout / weight / water>0) — JST keys. */
+export function getActivityDays(): Set<string> {
+  return activityDaysFrom(getAppData());
+}
+
+function refreshStreak(): StreakSummary {
   const data = getAppData();
-  const logged = new Set(data.foodEntries.map((e) => e.date));
-  let streak = 0;
-  const today = new Date();
-  for (let i = 0; i < 365; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().split('T')[0];
-    if (logged.has(key)) {
-      streak++;
-    } else if (i > 0) {
-      break;
-    }
+  const result = computeStreak(activityDaysFrom(data), data.streakState, jstToday());
+  const changed =
+    result.longest !== data.streakState.longest ||
+    result.repairedDates.join(',') !== data.streakState.repairedDates.join(',');
+  if (changed) {
+    data.streakState = { longest: result.longest, repairedDates: result.repairedDates };
+    saveAppData(data);
   }
-  return streak;
+  return {
+    current: result.current,
+    longest: result.longest,
+    repairAvailable: result.repairAvailable,
+  };
+}
+
+/**
+ * Current consecutive-day streak. Counts "any-log" days (food OR workout OR
+ * weight OR water) on JST day boundaries; today is always grace. May consume
+ * this week's repair ticket (persisted) when exactly one gap day is bridged.
+ */
+export function getStreak(): number {
+  return refreshStreak().current;
+}
+
+/** Streak + longest + repair-ticket availability, for richer UI. */
+export function getStreakState(): StreakSummary {
+  return refreshStreak();
 }

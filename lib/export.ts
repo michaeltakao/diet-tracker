@@ -161,6 +161,17 @@ export async function importFromFile(file: File): Promise<ImportResult> {
       ),
       favoriteFoods: mergeById(current.favoriteFoods ?? [], incoming.favoriteFoods ?? []),
       mealTemplates: mergeById(current.mealTemplates ?? [], incoming.mealTemplates ?? []),
+      // Device-local streak bookkeeping: keep the higher longest; union the
+      // bridged gap days (both sides' repairs stay honored after a restore).
+      streakState: {
+        longest: Math.max(current.streakState?.longest ?? 0, incoming.streakState?.longest ?? 0),
+        repairedDates: Array.from(
+          new Set([
+            ...(current.streakState?.repairedDates ?? []),
+            ...(incoming.streakState?.repairedDates ?? []),
+          ]),
+        ).sort(),
+      },
     };
 
     saveAppData(merged);

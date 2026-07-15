@@ -101,7 +101,23 @@ export interface DailyGoals {
 export type BadgeType =
   | 'streak3' | 'streak7' | 'streak30'
   | 'water_goal' | 'calorie_goal'
-  | 'workout_master' | 'pr_achieved';
+  | 'workout_master' | 'pr_achieved'
+  | 'first_food' | 'first_workout';
+
+/**
+ * Per-device streak bookkeeping (localStorage-only — per-device UX state,
+ * not study data; server persistence of `longest` is a documented follow-up).
+ */
+export interface StreakState {
+  /** Highest streak ever observed on this device. */
+  longest: number;
+  /**
+   * Gap days (YYYY-MM-DD, JST) bridged by a repair ticket — at most one per
+   * ISO week. Persisted so recomputing the streak on later loads keeps
+   * bridging the same gaps (see lib/streak.ts).
+   */
+  repairedDates: string[];
+}
 
 export interface Badge {
   id: string;
@@ -130,6 +146,7 @@ export interface AppData {
   recommendationFeedback: RecommendationFeedback[]; // Phase B: preference signals
   favoriteFoods: FavoriteFood[];   // ♡ foods (Phase B signal + quick-add pills)
   mealTemplates: MealTemplate[];   // saved meals for one-tap re-log
+  streakState: StreakState;        // longest streak + repair-ticket memory (device-local)
 }
 
 // ── Health Profile (stored in localStorage + profiles table) ──

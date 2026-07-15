@@ -79,6 +79,11 @@ export const translations = {
     // Streak
     streak: '連続記録',
     streakDays: '日',
+    longestStreak: '最長',
+    // Weekly challenge
+    weeklyChallengeTitle: '今週のチャレンジ',
+    weeklyChallengeGoal: '記録した日数',
+    weeklyChallengeDone: '目標達成！今週もお疲れさま🎉',
     // Badges
     badgeEarned: 'バッジ獲得！',
     badgeYay: 'やった！🎉',
@@ -355,6 +360,11 @@ export const translations = {
     // Streak
     streak: 'Streak',
     streakDays: 'days',
+    longestStreak: 'Longest',
+    // Weekly challenge
+    weeklyChallengeTitle: 'Weekly Challenge',
+    weeklyChallengeGoal: 'Days logged this week',
+    weeklyChallengeDone: 'Challenge complete! Great week 🎉',
     // Badges
     badgeEarned: 'Badge Earned!',
     badgeYay: 'Awesome! 🎉',
