@@ -30,6 +30,7 @@ import type { ProfileRow } from '@/lib/database.types';
 import type { DailyGoals } from '@/lib/types';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase';
 import { getGoals, updateGoals as _updateLocalGoals } from '@/lib/data/profile';
+import { DEFAULT_GOALS } from '@/lib/storage';
 import {
   needsMigration,
   executeMigration,
@@ -37,16 +38,6 @@ import {
 } from '@/lib/migrate';
 import type { MigrationStatus, MigrationSummary } from '@/lib/migrate';
 import MigrationBanner from '@/components/MigrationBanner';
-
-// ── Defaults ──────────────────────────────────────────────────────────────────
-
-const DEFAULT_GOALS: DailyGoals = {
-  calories:   2000,
-  protein:    150,
-  fat:        60,
-  carbs:      200,
-  water:      2000,
-};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

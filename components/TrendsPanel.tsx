@@ -12,9 +12,10 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { TrendingDown, Flame, Scale, Target } from 'lucide-react';
-import { getAllWeightEntries, getAllFoodEntries, getGoals } from '@/lib/data';
+import { getAllWeightEntries, getAllFoodEntries, getRealGoals } from '@/lib/data';
 import { getJson } from '@/lib/httpClient';
 import { estimateTdee } from '@/lib/tdee';
 import {
@@ -77,7 +78,9 @@ export function TrendsPanel() {
   const [loaded, setLoaded] = useState(false);
   const [weightEntries, setWeightEntries] = useState<Array<{ date: string; weight: number }>>([]);
   const [foodEntries, setFoodEntries] = useState<Array<{ date: string; calories: number; protein: number; fat: number; carbs: number }>>([]);
-  const [goals, setGoals] = useState<DailyGoals>({ calories: 2000, protein: 150, fat: 60, carbs: 200, water: 2000 });
+  // null = no real goals set → goal-relative sections (adherence, macro
+  // shortfall) sit behind a set-goals CTA; weight/TDEE/balance charts stay.
+  const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [tdeeHistory, setTdeeHistory] = useState<TdeePoint[]>([]);
   const [tdeeIsLocal, setTdeeIsLocal] = useState(false);
 
@@ -88,7 +91,7 @@ export function TrendsPanel() {
     setFoodEntries(getAllFoodEntries().map(e => ({
       date: e.date, calories: e.calories, protein: e.protein, fat: e.fat, carbs: e.carbs,
     })));
-    setGoals(getGoals());
+    setGoals(getRealGoals());
     setLoaded(true);
   }, []);
 
@@ -134,26 +137,33 @@ export function TrendsPanel() {
   }, [weightEntries, today]);
 
   const weightSeries = useMemo(() => smoothWeightSeries(recentWeights), [recentWeights]);
+  // goalWeight is only ever present when the user set it, so optional
+  // chaining is enough here — no realness gate needed for the projection.
   const trend = useMemo(
-    () => projectGoalDate(recentWeights, goals.goalWeight ?? null),
-    [recentWeights, goals.goalWeight],
+    () => projectGoalDate(recentWeights, goals?.goalWeight ?? null),
+    [recentWeights, goals?.goalWeight],
   );
   const balance = useMemo(
     () => computeDailyBalance(axis, calorieLogs, tdeeHistory.map(p => ({ date: p.date, tdeeKcal: p.tdeeKcal }))),
     [axis, calorieLogs, tdeeHistory],
   );
+  // Goal-relative series only exist against real goals (null otherwise).
   const adherence = useMemo(
-    () => computeAdherenceSeries(axis, calorieLogs, goals.calories),
-    [axis, calorieLogs, goals.calories],
+    () => (goals ? computeAdherenceSeries(axis, calorieLogs, goals.calories) : null),
+    [axis, calorieLogs, goals],
   );
   const macros = useMemo(
-    () => computeMacroShortfall(axis, foodEntries, goals),
+    () => (goals ? computeMacroShortfall(axis, foodEntries, goals) : null),
     [axis, foodEntries, goals],
+  );
+  const loggedDaysInWindow = useMemo(
+    () => calorieLogs.filter(l => l.date >= axis[0] && l.date <= axis[axis.length - 1]).length,
+    [calorieLogs, axis],
   );
 
   if (!loaded) return <ChartSkeleton h={300} />;
 
-  const hasAnyData = weightSeries.length >= 2 || adherence.loggedDays > 0;
+  const hasAnyData = weightSeries.length >= 2 || loggedDaysInWindow > 0 || calorieLogs.length > 0;
   if (!hasAnyData) {
     return (
       <div className={`${CARD_CLASS} p-10 text-center`}>
@@ -178,7 +188,7 @@ export function TrendsPanel() {
           <>
             <WeightTrendChart
               series={weightSeries}
-              goalWeight={goals.goalWeight}
+              goalWeight={goals?.goalWeight}
               trend={trend}
               labels={{ raw: t.trendsRawLabel, trend: t.trendsTrendLabel, goal: t.trendsGoalLabel, projection: t.trendsProjectionLabel }}
             />
@@ -224,7 +234,7 @@ export function TrendsPanel() {
       {/* ── Intake vs expenditure ── */}
       <section className={`${CARD_CLASS} p-4`}>
         <h2 className="text-xs font-black text-faint uppercase tracking-widest mb-2">{t.trendsBalanceTitle}</h2>
-        {tdeeHistory.length > 0 || adherence.loggedDays > 0 ? (
+        {tdeeHistory.length > 0 || loggedDaysInWindow > 0 ? (
           <IntakeExpenditureChart
             points={balance}
             labels={{ intake: t.trendsIntakeLabel, expenditure: t.trendsExpenditureLabel }}
@@ -234,9 +244,30 @@ export function TrendsPanel() {
         )}
       </section>
 
-      {/* ── Adherence + macro shortfall ── */}
+      {/* ── Adherence + macro shortfall (goal-relative → needs real goals) ── */}
       <section className={`${CARD_CLASS} p-4`}>
         <h2 className="text-xs font-black text-faint uppercase tracking-widest mb-2">{t.trendsAdherenceTitle}</h2>
+        {!(goals && adherence && macros) ? (
+          <div className="bg-surface-2 rounded-2xl p-5 text-center">
+            <p className="text-2xl mb-2" aria-hidden="true">🎯</p>
+            <p className="text-xs text-faint mb-3">{t.aiNeedsGoals}</p>
+            <Link
+              href="/onboarding"
+              className="
+                inline-flex items-center justify-center
+                px-4 py-2 rounded-xl
+                bg-gradient-to-br from-brand-500 to-brand-600 text-white
+                text-xs font-bold shadow-card
+                hover:scale-[1.03] active:scale-95
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                transition-all duration-200
+              "
+            >
+              {t.noGoalsCta}
+            </Link>
+          </div>
+        ) : (
+        <>
         <AdherenceCard
           series={adherence}
           labels={{
@@ -273,6 +304,8 @@ export function TrendsPanel() {
               ))}
             </div>
           </div>
+        )}
+        </>
         )}
       </section>
     </div>

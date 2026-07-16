@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { Activity, Info } from 'lucide-react';
 import { getAppData, getHealthProfile } from '@/lib/data';
 import { postJson } from '@/lib/httpClient';
-import { tdeeConfidenceLabel } from '@/lib/tdee';
+import { tdeeConfidenceLabel, MIN_DATA_POINTS } from '@/lib/tdee';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { isMinor } from '@/lib/nutrition-standards';
 import { useProfile } from '@/contexts/ProfileContext';
 import { CARD_CLASS as CARD } from '@/components/ui/Card';
@@ -32,6 +33,7 @@ const GOAL_DEFICITS: GoalDeficit[] = [
 
 export default function TdeeCard() {
   const { isAuthenticated } = useProfile();
+  const { t } = useLanguage();
   const [estimate, setEstimate] = useState<TdeeEstimate | null>(null);
   const [loading,  setLoading]  = useState(false);
   const [showInfo, setShowInfo] = useState(false);
@@ -78,7 +80,37 @@ export default function TdeeCard() {
   }, [isAuthenticated]);
 
   if (!isAuthenticated || loading) return null;
-  if (!estimate || estimate.tdeeKcal == null) return null;
+  if (!estimate) return null;
+
+  // Insufficient data → honest progress toward the first estimate instead of
+  // silently vanishing (#5): 「あと n 日分の記録で代謝が見えます（いま k/7日）」.
+  if (estimate.tdeeKcal == null) {
+    const k = Math.min(estimate.dataPoints, MIN_DATA_POINTS);
+    const remaining = MIN_DATA_POINTS - k;
+    if (remaining <= 0) return null; // enough days but no estimate (e.g. degenerate fit)
+    return (
+      <div className={`${CARD} p-4 mb-3`}>
+        <div className="flex items-center gap-2 mb-2">
+          <Activity size={14} className="text-emerald-500" />
+          <span className="text-[10px] font-black text-faint uppercase tracking-widest">
+            代謝推定
+          </span>
+        </div>
+        <p className="text-xs text-muted">
+          {t.tdeeProgress
+            .replace('{n}', String(remaining))
+            .replace('{k}', String(k))
+            .replace('{total}', String(MIN_DATA_POINTS))}
+        </p>
+        <div className="mt-2 h-1.5 rounded-full bg-surface-2 overflow-hidden" aria-hidden="true">
+          <div
+            className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+            style={{ width: `${(k / MIN_DATA_POINTS) * 100}%` }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   const confidence = tdeeConfidenceLabel(estimate.rSquared);
   const tdee       = Math.round(estimate.tdeeKcal);

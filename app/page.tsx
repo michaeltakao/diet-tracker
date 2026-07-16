@@ -5,9 +5,8 @@ import Link from 'next/link';
 import { Plus, Settings, Flame, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import {
   getAppData, removeFoodEntry, updateFoodEntry, addWater, getWaterForDate, getStreakState,
-  checkAndAwardBadges, getBadges, addFoodEntry,
+  checkAndAwardBadges, getBadges, addFoodEntry, getRealGoals,
 } from '@/lib/data';
-import { getOnboardingRecord } from '@/lib/data/onboarding';
 import { FoodEntry, DailyGoals, Badge } from '@/lib/types';
 import CalorieBar from '@/components/CalorieBar';
 import PFCDonut from '@/components/PFCDonut';
@@ -24,23 +23,6 @@ import { Toast } from '@/components/ui/Toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
-
-// Deliberate mirror of the unexported DEFAULT_GOALS in lib/storage.ts. Kept in
-// sync by hand rather than exported (exporting it would touch a third file for
-// scope P0 #4a intentionally excludes). Used only to detect a device whose
-// goals are still the fabricated fresh-install defaults — see goalsEqualDefaults.
-const DEFAULT_GOALS_LITERAL: DailyGoals = { calories: 2000, protein: 150, fat: 60, carbs: 200, water: 2000 };
-
-/** True when goals are byte-for-byte the fabricated fresh-install defaults. */
-function goalsEqualDefaults(g: DailyGoals): boolean {
-  return (
-    g.calories === DEFAULT_GOALS_LITERAL.calories &&
-    g.protein === DEFAULT_GOALS_LITERAL.protein &&
-    g.fat === DEFAULT_GOALS_LITERAL.fat &&
-    g.carbs === DEFAULT_GOALS_LITERAL.carbs &&
-    g.water === DEFAULT_GOALS_LITERAL.water
-  );
-}
 
 function getTodayDate(): string {
   return new Date().toISOString().split('T')[0];
@@ -73,15 +55,7 @@ export default function HomePage() {
   const loadData = () => {
     const data = getAppData();
     setEntries(data.foodEntries.filter((e) => e.date === today));
-    // Show goals only when they are *real*, not the fabricated fresh-install
-    // defaults. Real = the user completed the wizard (record exists, not
-    // skipped) OR their goals differ from the defaults (covers a settings-only
-    // user who never onboarded). Accepted false-negative: someone who manually
-    // saves exactly 2000/150/60/200/2000 sees the empty state; false-positive
-    // is impossible for wizard completers.
-    const rec = getOnboardingRecord();
-    const goalsAreReal = (rec !== null && !rec.skipped) || !goalsEqualDefaults(data.goals);
-    setGoals(goalsAreReal ? data.goals : null);
+    setGoals(getRealGoals());
     setGoalsReady(true);
     setWater(getWaterForDate(today));
     const streakState = getStreakState();
@@ -329,7 +303,21 @@ export default function HomePage() {
         <div className="bg-card rounded-3xl shadow-card border border-line p-10 text-center">
           <p className="text-4xl mb-3" aria-hidden="true">🍽️</p>
           <p className="text-sm font-semibold text-muted">{t.noMeals}</p>
-          <p className="text-xs text-faint mt-1">{t.noMealsSub}</p>
+          <p className="text-xs text-faint mt-1 mb-4">{t.noMealsSub}</p>
+          <Link
+            href="/add"
+            className="
+              inline-flex items-center justify-center
+              px-5 py-2.5 rounded-2xl
+              bg-gradient-to-br from-brand-500 to-brand-600 text-white
+              text-sm font-bold
+              shadow-card hover:scale-[1.03] active:scale-95
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+              transition-all duration-200
+            "
+          >
+            {t.noMealsCta}
+          </Link>
         </div>
       ) : (
         <div className="space-y-3">

@@ -252,7 +252,25 @@ export default function WeightPage() {
       {entries.length === 0 ? (
         <div className={`${cardCls} p-10 text-center`}>
           <p className="text-4xl mb-3" aria-hidden="true">⚖️</p>
-          <p className="text-sm font-semibold text-faint">{t.noWeight}</p>
+          <p className="text-sm font-semibold text-faint mb-4">{t.noWeight}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setShowForm(true);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="
+              inline-flex items-center justify-center
+              px-5 py-2.5 rounded-2xl
+              bg-gradient-to-br from-brand-500 to-brand-600 text-white
+              text-sm font-bold
+              shadow-card hover:scale-[1.03] active:scale-95
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+              transition-all duration-200
+            "
+          >
+            {t.noWeightCta}
+          </button>
         </div>
       ) : (
         <div className="space-y-2">

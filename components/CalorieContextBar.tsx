@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { getAppData } from '@/lib/data';
+import { getAppData, getRealGoals } from '@/lib/data';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 // Pages that already show a full calorie breakdown
@@ -13,10 +13,11 @@ interface Snapshot {
   protein: number;
   fat: number;
   carbs: number;
-  goal: number;
+  /** null = no real goals set → bar hidden (never render fabricated numbers) */
+  goal: number | null;
 }
 
-const ZERO: Snapshot = { calories: 0, protein: 0, fat: 0, carbs: 0, goal: 2000 };
+const ZERO: Snapshot = { calories: 0, protein: 0, fat: 0, carbs: 0, goal: null };
 
 function readSnapshot(): Snapshot {
   try {
@@ -32,7 +33,7 @@ function readSnapshot(): Snapshot {
       }),
       { calories: 0, protein: 0, fat: 0, carbs: 0 },
     );
-    return { ...agg, goal: data.goals.calories };
+    return { ...agg, goal: getRealGoals()?.calories ?? null };
   } catch {
     return ZERO;
   }
@@ -52,8 +53,8 @@ export default function CalorieContextBar() {
   }, [pathname]);
 
   if (HIDDEN_PATHS.has(pathname)) return null;
-  // hide if user has never set goals or logged anything
-  if (snap.goal === 2000 && snap.calories === 0) return null;
+  // no real goals set → nothing meaningful to show against
+  if (snap.goal === null) return null;
 
   const remaining = snap.goal - snap.calories;
   const over = remaining < 0;

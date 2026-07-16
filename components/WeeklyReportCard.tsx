@@ -1,10 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { CalendarDays, RefreshCw, Trophy, TrendingDown, TrendingUp } from 'lucide-react';
-import { getAppData, getStreak, getWeightEntries, getHealthProfile } from '@/lib/data';
+import { getAppData, getStreak, getWeightEntries, getHealthProfile, getRealGoals } from '@/lib/data';
 import { postJson, HttpError } from '@/lib/httpClient';
 import { useProfile } from '@/contexts/ProfileContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import type { DailyGoals } from '@/lib/types';
 import { CARD_CLASS as CARD } from '@/components/ui/Card';
 
 interface WeeklyReport {
@@ -41,12 +44,23 @@ function scoreLabel(s: number): { grade: string; color: string; bg: string } {
 
 
 export default function WeeklyReportCard() {
-  const { isAuthenticated, goals } = useProfile();
+  const { isAuthenticated } = useProfile();
+  const { t } = useLanguage();
   const [report,  setReport]  = useState<WeeklyReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
+  // null = no real goals → goal-relative report generation is gated (P0 #4b).
+  const [goals,       setGoals]       = useState<DailyGoals | null>(null);
+  const [goalsLoaded, setGoalsLoaded] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only localStorage read on mount
+    setGoals(getRealGoals());
+    setGoalsLoaded(true);
+  }, []);
 
   const generate = async () => {
+    if (!goals) return; // gated in the UI; never report against fabricated goals
     setLoading(true);
     setError(null);
     try {
@@ -124,21 +138,23 @@ export default function WeeklyReportCard() {
               {sl.grade} {report.weekScore}点
             </span>
           )}
-          <button
-            onClick={generate}
-            disabled={loading}
-            className={`
-              flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold
-              transition-all duration-200 hover:scale-[1.03] active:scale-95
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-              ${loading
-                ? 'bg-surface-2 text-faint cursor-not-allowed'
-                : 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 hover:bg-teal-200'}
-            `}
-          >
-            <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
-            {loading ? '生成中...' : report ? '更新' : '生成'}
-          </button>
+          {goals && (
+            <button
+              onClick={generate}
+              disabled={loading}
+              className={`
+                flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold
+                transition-all duration-200 hover:scale-[1.03] active:scale-95
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                ${loading
+                  ? 'bg-surface-2 text-faint cursor-not-allowed'
+                  : 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 hover:bg-teal-200'}
+              `}
+            >
+              <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
+              {loading ? '生成中...' : report ? '更新' : '生成'}
+            </button>
+          )}
         </div>
       </div>
       <p className="text-xs text-faint mb-4 pl-8">過去7日間のAI分析レポート（1時間に3回まで）</p>
@@ -156,10 +172,32 @@ export default function WeeklyReportCard() {
         </div>
       )}
 
-      {!report && !loading && !error && (
-        <p className="text-xs text-faint text-center py-3">
-          「生成」をタップして今週の振り返りレポートを取得
-        </p>
+      {!report && !loading && !error && goalsLoaded && (
+        goals ? (
+          <p className="text-xs text-faint text-center py-3">
+            「生成」をタップして今週の振り返りレポートを取得
+          </p>
+        ) : (
+          /* No real goals → set-goals CTA instead of the generate flow (P0 #4b) */
+          <div className="bg-surface-2 rounded-2xl p-5 text-center">
+            <p className="text-2xl mb-2" aria-hidden="true">🎯</p>
+            <p className="text-xs text-faint mb-3">{t.aiNeedsGoals}</p>
+            <Link
+              href="/onboarding"
+              className="
+                inline-flex items-center justify-center
+                px-4 py-2 rounded-xl
+                bg-gradient-to-br from-brand-500 to-brand-600 text-white
+                text-xs font-bold shadow-card
+                hover:scale-[1.03] active:scale-95
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                transition-all duration-200
+              "
+            >
+              {t.noGoalsCta}
+            </Link>
+          </div>
+        )
       )}
 
       {report && (

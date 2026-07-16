@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import {
   getAppData, addWorkoutEntry, removeWorkoutEntry,
   checkAndUpdatePR, addBadge, checkAndAwardBadges, getStreak, getBadges,
-  getHealthProfile,
+  getHealthProfile, getRealGoals,
 } from '@/lib/data';
-import { WorkoutEntry, MusclePart, CoachMenu, FoodEntry, Badge, PersonalRecord } from '@/lib/types';
+import { WorkoutEntry, MusclePart, CoachMenu, FoodEntry, Badge, PersonalRecord, DailyGoals } from '@/lib/types';
 import {
   Dumbbell, Clock, Flame, ShieldAlert, CheckCircle,
   Trash2, ChevronRight, Sparkles,
@@ -173,6 +174,12 @@ export default function WorkoutPage() {
   const [allWorkouts,    setAllWorkouts]    = useState<WorkoutEntry[]>([]);
   const [personalRecords, setPersonalRecords] = useState<Record<string, PersonalRecord>>({});
   const [workoutWarnings, setWorkoutWarnings] = useState<string[]>([]);
+  // null = no real goals → AI coach is gated (P0 #4b: no fabricated goals to the LLM).
+  const [realGoals, setRealGoals] = useState<DailyGoals | null>(null);
+
+  // Entry form anchor for the empty-timeline CTA (#5).
+  const entryFormRef = useRef<HTMLElement | null>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadData = useCallback(() => {
     const data = getAppData();
@@ -181,6 +188,7 @@ export default function WorkoutPage() {
     setAllBadges(getBadges());
     setAllWorkouts(data.workoutEntries);
     setPersonalRecords(data.personalRecords ?? {});
+    setRealGoals(getRealGoals());
     const profile = getHealthProfile();
     setWorkoutWarnings(getWorkoutWarnings(profile.healthConditions, profile.medications ?? []));
   }, [today]);
@@ -252,6 +260,7 @@ export default function WorkoutPage() {
   const handleDelete = (id: string) => { removeWorkoutEntry(id); loadData(); };
 
   const handleGetAIAdvice = async () => {
+    if (!realGoals) return; // gated in the UI; never send fabricated goals to the LLM
     setAiLoading(true);
     setAiError('');
     try {
@@ -272,9 +281,9 @@ export default function WorkoutPage() {
 
       const advice = await postJson<CoachAdvice>('/api/coach', {
         today, ...totals,
-        calorieGoal: data.goals.calories, proteinGoal: data.goals.protein,
-        fatGoal: data.goals.fat, carbsGoal: data.goals.carbs,
-        waterConsumed: data.waterByDate[today] ?? 0, waterGoal: data.goals.water ?? 2000,
+        calorieGoal: realGoals.calories, proteinGoal: realGoals.protein,
+        fatGoal: realGoals.fat, carbsGoal: realGoals.carbs,
+        waterConsumed: data.waterByDate[today] ?? 0, waterGoal: realGoals.water ?? 2000,
         todayWorkouts: workouts.map((w) => ({ name: w.name, weight: w.weight ?? 0, reps: w.reps ?? 0, sets: w.sets ?? 0 })),
         recentFoodLog, recentWorkoutLog, streak: getStreak(),
         healthConditions: getHealthProfile().healthConditions,
@@ -412,7 +421,7 @@ export default function WorkoutPage() {
         </section>
 
         {/* 2 ── 入力フォーム ──────────────── */}
-        <section className={`${cardCls} space-y-4`}>
+        <section ref={entryFormRef} className={`${cardCls} space-y-4`}>
           {/* Coach tip */}
           <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-2xl p-3 border border-green-100 dark:border-green-800 flex gap-2 items-start">
             <ShieldAlert className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
@@ -422,7 +431,7 @@ export default function WorkoutPage() {
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
               <label className="block text-xs font-bold text-faint uppercase tracking-widest mb-1.5">{t.workoutName}</label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+              <input ref={nameInputRef} type="text" value={name} onChange={(e) => setName(e.target.value)}
                 placeholder="ベンチプレス、スクワットなど"
                 className="w-full text-sm bg-surface-2 border border-line-strong rounded-xl px-3 py-2.5 text-fg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-400" />
             </div>
@@ -495,7 +504,29 @@ export default function WorkoutPage() {
             </div>
           )}
 
-          {isSupabaseConfigured() && !aiAdvice && !aiLoading && (
+          {isSupabaseConfigured() && !aiAdvice && !aiLoading && !realGoals && (
+            /* No real goals → set-goals CTA instead of the coach button (P0 #4b) */
+            <div className="bg-surface-2 rounded-2xl p-5 text-center">
+              <p className="text-2xl mb-2" aria-hidden="true">🎯</p>
+              <p className="text-xs text-faint mb-3">{t.aiNeedsGoals}</p>
+              <Link
+                href="/onboarding"
+                className="
+                  inline-flex items-center justify-center
+                  px-4 py-2 rounded-xl
+                  bg-gradient-to-br from-brand-500 to-brand-600 text-white
+                  text-xs font-bold shadow-card
+                  hover:scale-[1.03] active:scale-95
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                  transition-all duration-200
+                "
+              >
+                {t.noGoalsCta}
+              </Link>
+            </div>
+          )}
+
+          {isSupabaseConfigured() && !aiAdvice && !aiLoading && realGoals && (
             <button onClick={handleGetAIAdvice}
               className="
                 w-full py-3.5
@@ -557,7 +588,28 @@ export default function WorkoutPage() {
           </h2>
           <p className="text-xs text-faint">{t.activityTimelineDesc}</p>
           {timeline.length === 0 ? (
-            <p className="text-center text-xs text-faint py-6">{t.noTimelineEntries}</p>
+            <div className="text-center py-6">
+              <p className="text-4xl mb-3" aria-hidden="true">💪</p>
+              <p className="text-xs text-faint mb-4">{t.noTimelineEntries}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  entryFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  nameInputRef.current?.focus({ preventScroll: true });
+                }}
+                className="
+                  inline-flex items-center justify-center
+                  px-5 py-2.5 rounded-2xl
+                  bg-gradient-to-br from-brand-500 to-brand-600 text-white
+                  text-sm font-bold
+                  shadow-card hover:scale-[1.03] active:scale-95
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                  transition-all duration-200
+                "
+              >
+                {t.noTimelineCta}
+              </button>
+            </div>
           ) : (
             <div className="relative border-l-2 border-line ml-3 pl-5 space-y-4 pt-1">
               {timeline.map((entry) => (

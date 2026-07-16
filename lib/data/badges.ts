@@ -17,6 +17,7 @@ import {
   type StreakSummary,
 } from '@/lib/storage';
 import { getWriteContext } from './_write';
+import { getRealGoals } from './profile';
 import type { Badge, BadgeType } from '@/lib/types';
 import type { BadgeTypeEnum } from '@/lib/database.types';
 
@@ -76,7 +77,8 @@ export async function addBadge(badge: Badge): Promise<void> {
  * @returns array of newly awarded badges (empty if none).
  */
 export async function checkAndAwardBadges(today: string): Promise<Badge[]> {
-  const newBadges = _checkAndAward(today);
+  // Fabricated fresh-install goals must never award goal badges (P0 #4b)
+  const newBadges = _checkAndAward(today, { goalsAreReal: getRealGoals() !== null });
 
   if (newBadges.length === 0) return [];
 

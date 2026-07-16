@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Sparkles, BarChart3, BookmarkPlus } from 'lucide-react';
-import { getAppData, removeFoodEntry, updateFoodEntry } from '@/lib/data';
+import { getAppData, getRealGoals, removeFoodEntry, updateFoodEntry } from '@/lib/data';
 import { saveMealTemplate } from '@/lib/data/meal-templates';
 import { FoodEntry, DailyGoals, MealTemplate } from '@/lib/types';
 import MealCard from '@/components/MealCard';
@@ -156,7 +157,8 @@ export default function LogPage() {
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
   const [weekOffset, setWeekOffset]     = useState(0);
   const [allEntries, setAllEntries]     = useState<FoodEntry[]>([]);
-  const [goals, setGoals]               = useState<DailyGoals>({ calories: 2000, protein: 150, fat: 60, carbs: 200, water: 2000 });
+  // null = no real goals set → goal-colored UI hidden, AI features gated
+  const [goals, setGoals]               = useState<DailyGoals | null>(null);
 
   // Habit report state
   const [habitReport, setHabitReport]     = useState<HabitReport | null>(null);
@@ -171,7 +173,7 @@ export default function LogPage() {
   const loadData = useCallback(() => {
     const data = getAppData();
     setAllEntries(data.foodEntries);
-    setGoals(data.goals);
+    setGoals(getRealGoals());
   }, []);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
@@ -244,6 +246,7 @@ export default function LogPage() {
   };
 
   const handleGenerateReport = async () => {
+    if (!goals) return; // gated in the UI; never send fabricated numbers to the LLM
     setHabitLoading(true);
     setHabitError('');
     setHabitInsuff(false);
@@ -262,7 +265,7 @@ export default function LogPage() {
         daysWithData,
         totalDays: 7,
         avgDailyCalories,
-        calorieGoal: data.goals.calories,
+        calorieGoal: goals.calories,
         lateNightEatingDays,
         noBreakfastDays,
         avgBreakfastHour,
@@ -375,7 +378,13 @@ export default function LogPage() {
       {/* ── Selected day summary ─────────────────── */}
       <div className={`${cardCls} p-4 mb-3`}>
         <p className="text-xs font-medium text-faint mb-3">{formatFull(selectedDate, locale)}</p>
-        <CalorieBar current={totals.calories} goal={goals.calories} />
+        {goals ? (
+          <CalorieBar current={totals.calories} goal={goals.calories} />
+        ) : (
+          <p className="text-lg font-black text-fg tabular-nums">
+            {totals.calories.toLocaleString()} <span className="text-xs font-bold text-faint">kcal</span>
+          </p>
+        )}
         <div className="flex gap-3 mt-3 text-xs font-semibold">
           <span className="text-emerald-600 dark:text-emerald-400">P {totals.protein}g</span>
           <span className="text-warning">F {totals.fat}g</span>
@@ -387,7 +396,21 @@ export default function LogPage() {
       {selectedEntries.length === 0 ? (
         <div className={`${cardCls} p-10 text-center mb-4`}>
           <p className="text-4xl mb-3" aria-hidden="true">📋</p>
-          <p className="text-sm font-semibold text-faint">{t.noData}</p>
+          <p className="text-sm font-semibold text-faint mb-4">{t.noData}</p>
+          <Link
+            href="/add"
+            className="
+              inline-flex items-center justify-center
+              px-5 py-2.5 rounded-2xl
+              bg-gradient-to-br from-brand-500 to-brand-600 text-white
+              text-sm font-bold shadow-card
+              hover:scale-[1.03] active:scale-95
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+              transition-all duration-200
+            "
+          >
+            {t.noMealsCta}
+          </Link>
         </div>
       ) : (
         <div className="space-y-4 mb-4">
@@ -442,8 +465,30 @@ export default function LogPage() {
           </div>
         )}
 
+        {/* No real goals → set-goals CTA instead of the generate button */}
+        {!goals && !habitReport && !habitLoading && (
+          <div className="bg-surface-2 rounded-2xl p-5 text-center">
+            <p className="text-2xl mb-2" aria-hidden="true">🎯</p>
+            <p className="text-xs text-faint mb-3">{t.aiNeedsGoals}</p>
+            <Link
+              href="/onboarding"
+              className="
+                inline-flex items-center justify-center
+                px-4 py-2 rounded-xl
+                bg-gradient-to-br from-brand-500 to-brand-600 text-white
+                text-xs font-bold shadow-card
+                hover:scale-[1.03] active:scale-95
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                transition-all duration-200
+              "
+            >
+              {t.noGoalsCta}
+            </Link>
+          </div>
+        )}
+
         {/* Generate button */}
-        {!habitReport && !habitLoading && (
+        {goals && !habitReport && !habitLoading && (
           <button
             onClick={handleGenerateReport}
             className="

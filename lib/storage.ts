@@ -3,13 +3,29 @@ import { activityDaysFrom, computeStreak, jstToday } from './streak';
 
 const STORAGE_KEY = 'diet-tracker-v1';
 
-const DEFAULT_GOALS: DailyGoals = {
+export const DEFAULT_GOALS: DailyGoals = {
   calories: 2000,
   protein: 150,
   fat: 60,
   carbs: 200,
   water: 2000,
 };
+
+/**
+ * True when goals are byte-for-byte the fabricated fresh-install defaults.
+ * Accepted false-negative: a user who manually saves exactly
+ * 2000/150/60/200/2000 is treated as "no real goals"; false-positive is
+ * impossible for wizard completers (goalWeight is deliberately ignored).
+ */
+export function goalsEqualDefaults(g: DailyGoals): boolean {
+  return (
+    g.calories === DEFAULT_GOALS.calories &&
+    g.protein === DEFAULT_GOALS.protein &&
+    g.fat === DEFAULT_GOALS.fat &&
+    g.carbs === DEFAULT_GOALS.carbs &&
+    g.water === DEFAULT_GOALS.water
+  );
+}
 
 const DEFAULT_DATA: AppData = {
   foodEntries: [],
@@ -288,8 +304,13 @@ export function checkAndUpdatePR(exerciseName: string, weight: number, date: str
 /**
  * Check all badge conditions and award any newly earned badges.
  * Returns array of newly awarded badges.
+ *
+ * `opts.goalsAreReal === false` skips the goal-dependent badges
+ * (water_goal, calorie_goal) so fabricated fresh-install defaults never
+ * award a "goal achieved" badge.
  */
-export function checkAndAwardBadges(today: string): Badge[] {
+export function checkAndAwardBadges(today: string, opts?: { goalsAreReal?: boolean }): Badge[] {
+  const goalsAreReal = opts?.goalsAreReal ?? true;
   const newBadges: Badge[] = [];
   const data = getAppData();
   const streak = getStreak();
@@ -314,20 +335,22 @@ export function checkAndAwardBadges(today: string): Badge[] {
   if (streak >= 7) award({ type: 'streak7', name: '🏆 1週間継続！', description: '7日間連続して記録しました！', icon: '🏆' });
   if (streak >= 30) award({ type: 'streak30', name: '💎 1ヶ月継続！', description: '30日間連続して記録しました！', icon: '💎' });
 
-  // Water goal (once per day)
-  const water = data.waterByDate[today] ?? 0;
-  const waterGoal = data.goals.water ?? 2000;
-  if (water >= waterGoal) {
-    award({ type: 'water_goal', name: '💧 水分目標達成！', description: '今日の水分目標をクリアしました！', icon: '💧' }, today);
-  }
+  // Water goal (once per day) — only against real, user-set goals
+  if (goalsAreReal) {
+    const water = data.waterByDate[today] ?? 0;
+    const waterGoal = data.goals.water ?? 2000;
+    if (water >= waterGoal) {
+      award({ type: 'water_goal', name: '💧 水分目標達成！', description: '今日の水分目標をクリアしました！', icon: '💧' }, today);
+    }
 
-  // Calorie goal within 200kcal below (once per day)
-  const todayCals = data.foodEntries
-    .filter((e) => e.date === today)
-    .reduce((s, e) => s + e.calories, 0);
-  const calGoal = data.goals.calories;
-  if (todayCals > 0 && todayCals <= calGoal && todayCals >= calGoal - 200) {
-    award({ type: 'calorie_goal', name: '🎯 カロリー目標達成！', description: 'カロリー目標をぴったりクリアしました！', icon: '🎯' }, today);
+    // Calorie goal within 200kcal below (once per day)
+    const todayCals = data.foodEntries
+      .filter((e) => e.date === today)
+      .reduce((s, e) => s + e.calories, 0);
+    const calGoal = data.goals.calories;
+    if (todayCals > 0 && todayCals <= calGoal && todayCals >= calGoal - 200) {
+      award({ type: 'calorie_goal', name: '🎯 カロリー目標達成！', description: 'カロリー目標をぴったりクリアしました！', icon: '🎯' }, today);
+    }
   }
 
   // Workout master: 5+ unique workout days in last 7 days (once ever)

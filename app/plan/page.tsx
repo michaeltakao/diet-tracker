@@ -598,6 +598,8 @@ export default function PlanPage() {
           })),
         } : null,
         fitnessGoal:      profile.fitnessGoal,
+        // goalWeight is only ever present when the user set it (never a fabricated
+        // default), so no getRealGoals() gate is needed here (P0 #4b).
         targetWeight:     goals.goalWeight,
         recentWorkouts,
         personalRecords,

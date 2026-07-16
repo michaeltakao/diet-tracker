@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Sparkles, RefreshCw, AlertTriangle, ChevronDown, ChevronUp, Heart, ThumbsUp, ThumbsDown } from 'lucide-react';
-import { getAppData, getHealthProfile, getWaterForDate, getStreak, getLatestWeightEntry, getRecommendationFeedback, addRecommendationFeedback } from '@/lib/data';
+import { getAppData, getHealthProfile, getWaterForDate, getStreak, getLatestWeightEntry, getRecommendationFeedback, addRecommendationFeedback, getRealGoals } from '@/lib/data';
 import { postJson } from '@/lib/httpClient';
 import { buildAffinityModel, rankRecommendation, type AffinityModel } from '@/lib/recommend-preference';
 import { explainFood, explainExercise, type ExplanationFactor } from '@/lib/recommend-explain';
 import { useProfile } from '@/contexts/ProfileContext';
-import type { Recommendation, FeedbackKind } from '@/lib/types';
+import { useLanguage } from '@/contexts/LanguageContext';
+import type { Recommendation, FeedbackKind, DailyGoals } from '@/lib/types';
 import { CARD_CLASS as CARD } from '@/components/ui/Card';
 
 function getTodayDate(): string {
@@ -131,6 +133,7 @@ function XaiBar({ factors }: { factors: ExplanationFactor[] }) {
 }
 
 export default function RecommendationCard() {
+  const { t } = useLanguage();
   const [rec,          setRec]          = useState<Recommendation | null>(null);
   const [model,        setModel]        = useState<AffinityModel | null>(null);
   const [loading,      setLoading]      = useState(false);
@@ -138,6 +141,15 @@ export default function RecommendationCard() {
   const [expanded,     setExpanded]     = useState(false);
   const [openDrawers,  setOpenDrawers]  = useState<Set<string>>(new Set());
   const [feedback,     setFeedback]     = useState<Record<string, FeedbackKind>>({});
+  // null = no real goals → never send fabricated defaults to the LLM (P0 #4b).
+  const [realGoals,    setRealGoals]    = useState<DailyGoals | null>(null);
+  const [goalsLoaded,  setGoalsLoaded]  = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only localStorage read on mount
+    setRealGoals(getRealGoals());
+    setGoalsLoaded(true);
+  }, []);
 
   const toggleDrawer = (key: string) =>
     setOpenDrawers(prev => {
@@ -149,6 +161,7 @@ export default function RecommendationCard() {
   const { isAuthenticated } = useProfile();
 
   const generate = async () => {
+    if (!realGoals) return; // gated in the UI; belt-and-braces against fabricated goals
     setLoading(true);
     setError(null);
     setExpanded(true);
@@ -178,7 +191,7 @@ export default function RecommendationCard() {
 
       const data = await postJson<Recommendation>('/api/recommend', {
         profile,
-        goals: appData.goals,
+        goals: realGoals,
         today,
         todayCalories,
         todayProtein,
@@ -262,22 +275,24 @@ export default function RecommendationCard() {
               {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
             </button>
           )}
-          <button
-            onClick={generate}
-            disabled={loading}
-            className={`
-              flex items-center gap-1.5 px-3 py-1.5 rounded-xl
-              text-xs font-bold transition-all duration-200
-              hover:scale-[1.03] active:scale-95
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-              ${loading
-                ? 'bg-surface-2 text-faint cursor-not-allowed'
-                : 'bg-ai-soft text-ai hover:opacity-80'}
-            `}
-          >
-            <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
-            {loading ? '生成中...' : rec ? '更新' : '生成'}
-          </button>
+          {realGoals && (
+            <button
+              onClick={generate}
+              disabled={loading}
+              className={`
+                flex items-center gap-1.5 px-3 py-1.5 rounded-xl
+                text-xs font-bold transition-all duration-200
+                hover:scale-[1.03] active:scale-95
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                ${loading
+                  ? 'bg-surface-2 text-faint cursor-not-allowed'
+                  : 'bg-ai-soft text-ai hover:opacity-80'}
+              `}
+            >
+              <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
+              {loading ? '生成中...' : rec ? '更新' : '生成'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -297,10 +312,32 @@ export default function RecommendationCard() {
       )}
 
       {/* ── Empty state ── */}
-      {!rec && !loading && !error && (
-        <p className="text-xs text-faint text-center py-3">
-          「生成」をタップして今日の推薦を取得
-        </p>
+      {!rec && !loading && !error && goalsLoaded && (
+        realGoals ? (
+          <p className="text-xs text-faint text-center py-3">
+            「生成」をタップして今日の推薦を取得
+          </p>
+        ) : (
+          /* No real goals → set-goals CTA instead of the generate flow (P0 #4b) */
+          <div className="bg-surface-2 rounded-2xl p-5 text-center">
+            <p className="text-2xl mb-2" aria-hidden="true">🎯</p>
+            <p className="text-xs text-faint mb-3">{t.aiNeedsGoals}</p>
+            <Link
+              href="/onboarding"
+              className="
+                inline-flex items-center justify-center
+                px-4 py-2 rounded-xl
+                bg-gradient-to-br from-brand-500 to-brand-600 text-white
+                text-xs font-bold shadow-card
+                hover:scale-[1.03] active:scale-95
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                transition-all duration-200
+              "
+            >
+              {t.noGoalsCta}
+            </Link>
+          </div>
+        )
       )}
 
       {/* ── Collapsed summary ── */}
