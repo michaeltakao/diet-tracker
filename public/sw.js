@@ -103,7 +103,17 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/';
+  // Same-origin guard: payload URLs are server-built ('/add' etc.), but the
+  // SW must be independently safe, not transitively — anything that resolves
+  // off-origin falls back to '/'.
+  let url = '/';
+  try {
+    const raw = (event.notification.data && event.notification.data.url) || '/';
+    const resolved = new URL(raw, location.origin);
+    if (resolved.origin === location.origin) url = resolved.href;
+  } catch {
+    // unparseable → keep '/'
+  }
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {

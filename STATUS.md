@@ -1,6 +1,24 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-17 COUNCIL REVIEW FIXES (#1/#2/#5)** — post-`93740eb` council run
+  (Claude-only; **Gemini/Copilot legs returned empty** — known [🔒user]
+  blocker: Gemini CLI IneligibleTierError, Copilot account has no GPT model)
+  found 2 Medium + 1 Low, all fixed: **#1** endpoint validation is now an
+  **allowlist** of real push services (new `lib/push-endpoint.ts`:
+  googleapis / mozilla autopush / mozaws / notify.windows / push.apple;
+  closes arbitrary-public-host SSRF beacon AND the DNS-rebinding hypothesis;
+  22 adversarial vectors unit-tested incl. decimal/hex loopback + suffix
+  spoofs); **#2** push-send no longer burns the JST day on total delivery
+  failure — subs-select moved BEFORE the dedupe insert (subscription-less
+  call never inserts) and `counts.sent === 0` best-effort deletes the dedupe
+  row (accepted trade-off: tiny double-send window under concurrency beats
+  losing a day to one FCM blip); **#5** sw.js `notificationclick` gains a
+  same-origin guard (off-origin/unparseable URL → '/') so the SW is
+  independently safe, not transitively via server payload construction.
+  Council also confirmed clean: RLS/policies, 401-first, push-phishing
+  structural guard, service-role scoping, JST boundary (15:00Z roll).
+  252/252 vitest (+22), lint+build green, anon probes still 401.
 - **2026-07-17 P0 #7 SECOND HALF DONE: Web Push notifications (frontend + API)**
   — nudges now reach opted-in users with the app closed. Migration **015
   applied to prod**: `push_subscriptions` (endpoint UNIQUE, RLS owner policy)
@@ -410,6 +428,11 @@
 - CI workflows hardened against script injection (`cac19bf`, 2026-06-12) — see vault `ADR-003`.
 
 ## Last verified state
+- 2026-07-17 (council fixes): `npm run lint` clean, `npx vitest run`
+  **252/252** (+22), `npm run build` green. Dev :3199 anon probes → 401 both
+  routes; served /sw.js contains the same-origin guard. NOT empirically
+  exercised: the sent===0 rollback (needs live Supabase + forced send
+  failure — same [🔒user] VAPID/auth blocker).
 - 2026-07-17 (web-push round): `npm run lint` clean, `npx vitest run`
   **230/230** (+17), `npm run build` green (35 routes, +2 push API).
   Migration **015 applied** to prod (`chkkpucuiyjdeqgyyszt`),

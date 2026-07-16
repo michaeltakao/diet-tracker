@@ -16,6 +16,8 @@
  *
  * "Max 1 nudge per JST day" is enforced atomically by push_send_log's
  * PRIMARY KEY (user_id, sent_date) — insert first, send only on success.
+ * If NOTHING is delivered (counts.sent === 0) the dedupe row is deleted
+ * again so a transient push-service outage can't burn the whole day.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -67,20 +69,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const supabase = await createServerSupabase();
 
-  // ⑤ atomic daily dedupe: PK (user_id, sent_date) — 23505 means already sent
-  const { error: logError } = await supabase
-    .from('push_send_log')
-    .insert({ user_id: user.id, sent_date: jstToday(), kind });
-
-  if (logError) {
-    if (logError.code === '23505') {
-      return NextResponse.json({ sent: false, reason: 'already-sent-today' });
-    }
-    console.error('[PUSH_SEND_LOG_ERROR]', logError);
-    return NextResponse.json({ error: 'Send failed. Please try again.' }, { status: 500 });
-  }
-
-  // ⑥ RLS select — a user can only ever reach their own subscriptions
+  // ⑤ RLS select — a user can only ever reach their own subscriptions.
+  // Before the dedupe insert so a subscription-less call never burns the day.
   const { data: subs, error: subsError } = await supabase
     .from('push_subscriptions')
     .select('endpoint, keys_auth, keys_p256dh')
@@ -92,6 +82,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
   if (!subs || subs.length === 0) {
     return NextResponse.json({ sent: false, reason: 'no-subscriptions' });
+  }
+
+  // ⑥ atomic daily dedupe: PK (user_id, sent_date) — 23505 means already sent
+  const sentDate = jstToday();
+  const { error: logError } = await supabase
+    .from('push_send_log')
+    .insert({ user_id: user.id, sent_date: sentDate, kind });
+
+  if (logError) {
+    if (logError.code === '23505') {
+      return NextResponse.json({ sent: false, reason: 'already-sent-today' });
+    }
+    console.error('[PUSH_SEND_LOG_ERROR]', logError);
+    return NextResponse.json({ error: 'Send failed. Please try again.' }, { status: 500 });
   }
 
   // ⑦ lazy VAPID setup (module scope would crash builds without env)
@@ -116,6 +120,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     buildNudgePayload(kind, lang),
   );
 
-  // ⑨ report counts (endpoint hosts only ever hit server logs, never clients)
+  // ⑨ nothing delivered (push-service outage, all endpoints dead) → free the
+  // day again instead of burning it: best-effort delete of the dedupe row.
+  // Accepted trade-off: a tiny double-send window if a concurrent call lands
+  // between the failure and this delete — better than losing a whole day's
+  // nudge to one transient blip (council review 2026-07-17 finding #2).
+  if (counts.sent === 0) {
+    const { error: rollbackError } = await supabase
+      .from('push_send_log')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('sent_date', sentDate);
+    if (rollbackError) {
+      // day stays burned — log it, still report honestly below
+      console.error('[PUSH_SEND_ROLLBACK_ERROR]', rollbackError);
+    }
+  }
+
+  // ⑩ report counts (endpoint hosts only ever hit server logs, never clients)
   return NextResponse.json({ sent: counts.sent > 0, counts });
 }

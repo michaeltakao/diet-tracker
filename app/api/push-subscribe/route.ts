@@ -11,49 +11,23 @@
  * RLS would block updating the previous owner's row.
  *
  * Endpoint validation is SSRF hygiene: the server later POSTs to this URL via
- * web-push, so only public https:// origins are accepted.
+ * web-push, so only known push-service hosts are accepted (allowlist in
+ * lib/push-endpoint.ts).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerUser, createServerSupabase, createServiceSupabase } from '@/lib/supabase-server';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { isAllowedPushEndpoint } from '@/lib/push-endpoint';
 
-const MAX_ENDPOINT_LENGTH = 1024;
 const MAX_KEY_LENGTH = 512;
-
-/** Reject localhost/private/link-local hosts — web-push will POST here. */
-function isForbiddenHost(hostname: string): boolean {
-  const host = hostname.toLowerCase();
-  if (host === 'localhost' || host === '0.0.0.0') return true;
-  // Real push services always use domain names — reject every IPv6 literal
-  // rather than enumerating private ranges (::1, fc00::/7, fe80::/10, …).
-  if (host.includes(':') || host.startsWith('[')) return true;
-  if (host.endsWith('.local') || host.endsWith('.internal')) return true;
-  // IPv4 private / loopback / link-local ranges
-  const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (m) {
-    const [a, b] = [Number(m[1]), Number(m[2])];
-    if (a === 127 || a === 10 || a === 0) return true;
-    if (a === 169 && b === 254) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-  }
-  return false;
-}
 
 /** Fail-closed body validation. Returns null when anything is off. */
 function parseSubscription(body: unknown): { endpoint: string; auth: string; p256dh: string } | null {
   if (typeof body !== 'object' || body === null) return null;
   const { endpoint, keys } = body as { endpoint?: unknown; keys?: unknown };
 
-  if (typeof endpoint !== 'string' || endpoint.length === 0 || endpoint.length > MAX_ENDPOINT_LENGTH) return null;
-  let url: URL;
-  try {
-    url = new URL(endpoint);
-  } catch {
-    return null;
-  }
-  if (url.protocol !== 'https:' || isForbiddenHost(url.hostname)) return null;
+  if (typeof endpoint !== 'string' || !isAllowedPushEndpoint(endpoint)) return null;
 
   if (typeof keys !== 'object' || keys === null) return null;
   const { auth, p256dh } = keys as { auth?: unknown; p256dh?: unknown };
