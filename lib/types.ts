@@ -89,6 +89,31 @@ export interface WeightEntry {
   addedAt: string;
 }
 
+// ── Vitals (record only — the app never interprets these values) ──────────
+
+export type GlucoseContext = 'fasting' | 'postprandial' | 'random';
+
+interface VitalEntryBase {
+  id: string;
+  date: string;    // YYYY-MM-DD (JST day)
+  addedAt: string; // ISO
+  notes?: string;
+}
+
+export interface BloodPressureEntry extends VitalEntryBase {
+  kind: 'blood_pressure';
+  systolic: number;  // mmHg, plausibility bounds 50–300 (matches SQL CHECK)
+  diastolic: number; // mmHg, plausibility bounds 30–200
+}
+
+export interface BloodGlucoseEntry extends VitalEntryBase {
+  kind: 'blood_glucose';
+  glucoseMgDl: number; // mg/dL, plausibility bounds 20–600
+  glucoseContext: GlucoseContext;
+}
+
+export type VitalEntry = BloodPressureEntry | BloodGlucoseEntry;
+
 export interface DailyGoals {
   calories: number;
   protein: number;
@@ -102,7 +127,8 @@ export type BadgeType =
   | 'streak3' | 'streak7' | 'streak30'
   | 'water_goal' | 'calorie_goal'
   | 'workout_master' | 'pr_achieved'
-  | 'first_food' | 'first_workout';
+  | 'first_food' | 'first_workout'
+  | 'vitals_week';
 
 /**
  * Per-device streak bookkeeping (localStorage-only — per-device UX state,
@@ -147,6 +173,7 @@ export interface AppData {
   favoriteFoods: FavoriteFood[];   // ♡ foods (Phase B signal + quick-add pills)
   mealTemplates: MealTemplate[];   // saved meals for one-tap re-log
   streakState: StreakState;        // longest streak + repair-ticket memory (device-local)
+  vitalEntries: VitalEntry[];      // BP / glucose measurements (record-only)
 }
 
 // ── Health Profile (stored in localStorage + profiles table) ──
@@ -336,6 +363,8 @@ export interface DailyCheckIn {
   sleepHours:    number;                    // 睡眠時間
   sorenessAreas: MusclePart[];             // 筋肉痛部位
   notes?:        string;
+  sleepQuality?: 1 | 2 | 3 | 4 | 5;        // 睡眠の質 (1=悪い … 5=良い)
+  stressLevel?:  1 | 2 | 3 | 4 | 5;        // ストレス (1=低い … 5=高い)
 }
 
 export interface WorkoutSuggestion {

@@ -115,7 +115,9 @@ export type Database = {
           mood: number
           notes: string | null
           sleep_hours: number
+          sleep_quality: number | null
           soreness_areas: string[]
+          stress_level: number | null
           user_id: string
         }
         Insert: {
@@ -126,7 +128,9 @@ export type Database = {
           mood: number
           notes?: string | null
           sleep_hours: number
+          sleep_quality?: number | null
           soreness_areas?: string[]
+          stress_level?: number | null
           user_id: string
         }
         Update: {
@@ -137,7 +141,9 @@ export type Database = {
           mood?: number
           notes?: string | null
           sleep_hours?: number
+          sleep_quality?: number | null
           soreness_areas?: string[]
+          stress_level?: number | null
           user_id?: string
         }
         Relationships: [
@@ -712,6 +718,53 @@ export type Database = {
           },
         ]
       }
+      vital_logs: {
+        Row: {
+          created_at: string
+          diastolic: number | null
+          glucose_context: string | null
+          glucose_mg_dl: number | null
+          id: string
+          kind: string
+          logged_date: string
+          notes: string | null
+          systolic: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          diastolic?: number | null
+          glucose_context?: string | null
+          glucose_mg_dl?: number | null
+          id: string
+          kind: string
+          logged_date: string
+          notes?: string | null
+          systolic?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          diastolic?: number | null
+          glucose_context?: string | null
+          glucose_mg_dl?: number | null
+          id?: string
+          kind?: string
+          logged_date?: string
+          notes?: string | null
+          systolic?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vital_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       weight_logs: {
         Row: {
           created_at: string
@@ -824,6 +877,7 @@ export type Database = {
         | "pr_achieved"
         | "first_food"
         | "first_workout"
+        | "vitals_week"
       meal_type: "breakfast" | "lunch" | "dinner" | "snack"
       muscle_part: "chest" | "back" | "legs" | "shoulders" | "arms" | "abs"
       workout_category: "strength" | "cardio" | "flexibility" | "other"

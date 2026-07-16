@@ -72,6 +72,12 @@ export default function WeightPage() {
           <h1 className="text-2xl font-black text-fg tracking-tight">
             {t.weightLog}
           </h1>
+          <Link
+            href="/vitals"
+            className="text-xs font-bold text-rose-500 bg-rose-50 dark:bg-rose-900/30 px-2.5 py-1.5 rounded-xl hover:scale-[1.04] active:scale-95 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+          >
+            🩺 {t.navVitals}
+          </Link>
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}

@@ -58,16 +58,18 @@ export function weekStartOf(date: string): string {
 }
 
 /**
- * Union of activity days across all four log types ("any-log" definition).
+ * Union of activity days across all log types ("any-log" definition).
  * Water only counts when > 0 ml (a zeroed-out day is not activity).
+ * Vitals count too: recording a BP/glucose measurement is logging activity.
  */
 export function activityDaysFrom(
-  data: Pick<AppData, 'foodEntries' | 'workoutEntries' | 'weightEntries' | 'waterByDate'>,
+  data: Pick<AppData, 'foodEntries' | 'workoutEntries' | 'weightEntries' | 'waterByDate' | 'vitalEntries'>,
 ): Set<string> {
   const days = new Set<string>();
   for (const e of data.foodEntries) days.add(e.date);
   for (const e of data.workoutEntries) days.add(e.date);
   for (const e of data.weightEntries) days.add(e.date);
+  for (const e of data.vitalEntries) days.add(e.date);
   for (const [date, ml] of Object.entries(data.waterByDate)) {
     if (ml > 0) days.add(date);
   }

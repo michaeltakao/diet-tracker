@@ -22,3 +22,4 @@ export * from './recommendation-feedback';
 export * from './favorites';
 export * from './meal-templates';
 export * from './weekly-challenge';
+export * from './vitals';

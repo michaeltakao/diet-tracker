@@ -47,6 +47,8 @@ export async function saveCheckIn(checkIn: DailyCheckIn): Promise<void> {
         sleep_hours:    checkIn.sleepHours,
         soreness_areas: checkIn.sorenessAreas,
         notes:          checkIn.notes ?? null,
+        sleep_quality:  checkIn.sleepQuality ?? null,
+        stress_level:   checkIn.stressLevel ?? null,
       },
       { onConflict: 'user_id,logged_date' },
     );

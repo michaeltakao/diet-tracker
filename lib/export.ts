@@ -161,6 +161,7 @@ export async function importFromFile(file: File): Promise<ImportResult> {
       ),
       favoriteFoods: mergeById(current.favoriteFoods ?? [], incoming.favoriteFoods ?? []),
       mealTemplates: mergeById(current.mealTemplates ?? [], incoming.mealTemplates ?? []),
+      vitalEntries:  mergeById(current.vitalEntries  ?? [], incoming.vitalEntries  ?? []),
       // Device-local streak bookkeeping: keep the higher longest; union the
       // bridged gap days (both sides' repairs stay honored after a restore).
       streakState: {

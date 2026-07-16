@@ -1,4 +1,4 @@
-import { AppData, Badge, BadgeType, DailyGoals, FavoriteFood, FoodEntry, MealTemplate, PersonalRecord, RecommendationFeedback, WeightEntry, WorkoutEntry } from './types';
+import { AppData, Badge, BadgeType, DailyGoals, FavoriteFood, FoodEntry, MealTemplate, PersonalRecord, RecommendationFeedback, VitalEntry, WeightEntry, WorkoutEntry } from './types';
 import { activityDaysFrom, computeStreak, jstToday } from './streak';
 
 const STORAGE_KEY = 'diet-tracker-v1';
@@ -39,6 +39,7 @@ const DEFAULT_DATA: AppData = {
   favoriteFoods: [],
   mealTemplates: [],
   streakState: { longest: 0, repairedDates: [] },
+  vitalEntries: [],
 };
 
 export function getAppData(): AppData {
@@ -62,6 +63,7 @@ export function getAppData(): AppData {
         longest: parsed.streakState?.longest ?? 0,
         repairedDates: parsed.streakState?.repairedDates ?? [],
       },
+      vitalEntries: parsed.vitalEntries ?? [],
     };
   } catch {
     return { ...DEFAULT_DATA, goals: { ...DEFAULT_GOALS } };
@@ -228,6 +230,27 @@ export function getLatestWeight(): WeightEntry | undefined {
   return data.weightEntries.at(-1);
 }
 
+// ── Vitals (per-measurement rows — record only, never interpreted) ──
+export function addVitalEntry(entry: VitalEntry): void {
+  const data = getAppData();
+  data.vitalEntries.push(entry);
+  saveAppData(data);
+}
+
+export function removeVitalEntry(id: string): void {
+  const data = getAppData();
+  data.vitalEntries = data.vitalEntries.filter((e) => e.id !== id);
+  saveAppData(data);
+}
+
+export function getAllVitalEntries(): VitalEntry[] {
+  return getAppData().vitalEntries;
+}
+
+export function getVitalEntriesForDate(date: string): VitalEntry[] {
+  return getAppData().vitalEntries.filter((e) => e.date === date);
+}
+
 // ── Water ────────────────────────────────────────────────
 export function getWaterForDate(date: string): number {
   const data = getAppData();
@@ -363,6 +386,16 @@ export function checkAndAwardBadges(today: string, opts?: { goalsAreReal?: boole
   );
   if (workoutDays.size >= 5) {
     award({ type: 'workout_master', name: '🏋️ ワークアウトマスター！', description: '7日間で5日以上トレーニングしました！', icon: '🏋️' });
+  }
+
+  // Vitals week: 5+ unique vital-log days in last 7 days (once ever)
+  const vitalDays = new Set(
+    data.vitalEntries
+      .filter((v) => v.date >= weekAgo.toISOString().split('T')[0])
+      .map((v) => v.date)
+  );
+  if (vitalDays.size >= 5) {
+    award({ type: 'vitals_week', name: '🩺 バイタル記録週間！', description: '7日間で5日以上バイタルを記録しました！', icon: '🩺' });
   }
 
   return newBadges;

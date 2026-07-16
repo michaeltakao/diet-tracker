@@ -15,7 +15,9 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { TrendingDown, Flame, Scale, Target } from 'lucide-react';
-import { getAllWeightEntries, getAllFoodEntries, getRealGoals } from '@/lib/data';
+import { getAllWeightEntries, getAllFoodEntries, getRealGoals, getAllVitalEntries } from '@/lib/data';
+// checkin.ts is not in the barrel — direct import.
+import { getRecentCheckIns } from '@/lib/data/checkin';
 import { getJson } from '@/lib/httpClient';
 import { estimateTdee } from '@/lib/tdee';
 import {
@@ -30,7 +32,7 @@ import { recordEvent } from '@/lib/telemetry';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { CARD_CLASS } from '@/components/ui/Card';
-import type { DailyGoals } from '@/lib/types';
+import type { DailyGoals, VitalEntry, DailyCheckIn } from '@/lib/types';
 import type { TdeePoint } from '@/components/trends/TdeeHistoryChart';
 
 function ChartSkeleton({ h = 190 }: { h?: number }) {
@@ -52,6 +54,18 @@ const IntakeExpenditureChart = dynamic(
 const AdherenceCard = dynamic(
   () => import('@/components/trends/AdherenceCard').then(m => m.AdherenceCard),
   { ssr: false, loading: () => <ChartSkeleton h={110} /> },
+);
+const BpChart = dynamic(
+  () => import('@/components/trends/VitalsChart').then(m => m.BpChart),
+  { ssr: false, loading: () => <ChartSkeleton h={180} /> },
+);
+const GlucoseChart = dynamic(
+  () => import('@/components/trends/VitalsChart').then(m => m.GlucoseChart),
+  { ssr: false, loading: () => <ChartSkeleton h={180} /> },
+);
+const WellnessChart = dynamic(
+  () => import('@/components/trends/VitalsChart').then(m => m.WellnessChart),
+  { ssr: false, loading: () => <ChartSkeleton h={140} /> },
 );
 
 /** Same "today" convention as the rest of the app (lib/data date stamps). */
@@ -83,6 +97,8 @@ export function TrendsPanel() {
   const [goals, setGoals] = useState<DailyGoals | null>(null);
   const [tdeeHistory, setTdeeHistory] = useState<TdeePoint[]>([]);
   const [tdeeIsLocal, setTdeeIsLocal] = useState(false);
+  const [vitalEntries, setVitalEntries] = useState<VitalEntry[]>([]);
+  const [recentCheckIns, setRecentCheckIns] = useState<DailyCheckIn[]>([]);
 
   useEffect(() => {
     recordEvent('trends_viewed');
@@ -92,6 +108,8 @@ export function TrendsPanel() {
       date: e.date, calories: e.calories, protein: e.protein, fat: e.fat, carbs: e.carbs,
     })));
     setGoals(getRealGoals());
+    setVitalEntries(getAllVitalEntries());
+    setRecentCheckIns(getRecentCheckIns(30));
     setLoaded(true);
   }, []);
 
@@ -243,6 +261,58 @@ export function TrendsPanel() {
           <p className="text-xs text-faint py-4 text-center">{t.trendsEmptyDesc}</p>
         )}
       </section>
+
+      {/* ── Vitals (record only — neutral display, no thresholds) ── */}
+      {(() => {
+        const bpPoints = vitalEntries
+          .filter((v): v is Extract<VitalEntry, { kind: 'blood_pressure' }> => v.kind === 'blood_pressure')
+          .map(v => ({ date: v.date, systolic: v.systolic, diastolic: v.diastolic }));
+        const glucosePoints = vitalEntries
+          .filter((v): v is Extract<VitalEntry, { kind: 'blood_glucose' }> => v.kind === 'blood_glucose')
+          .map(v => ({ date: v.date, glucoseMgDl: v.glucoseMgDl, context: v.glucoseContext }));
+        const wellnessPoints = recentCheckIns
+          .filter(c => c.sleepQuality != null || c.stressLevel != null)
+          .map(c => ({ date: c.date, sleepQuality: c.sleepQuality, stressLevel: c.stressLevel }));
+        if (bpPoints.length === 0 && glucosePoints.length === 0 && wellnessPoints.length === 0) return null;
+        const chartLabels = {
+          systolic: t.systolicLabel,
+          diastolic: t.diastolicLabel,
+          glucose: t.glucoseLabel,
+          sleepQuality: t.sleepQualityLabel,
+          stress: t.stressLevelLabel,
+          contextLabels: {
+            fasting: t.glucoseFasting,
+            postprandial: t.glucosePostprandial,
+            random: t.glucoseRandom,
+          },
+        };
+        return (
+          <section className={`${CARD_CLASS} p-4`}>
+            <h2 className="text-xs font-black text-faint uppercase tracking-widest mb-2">{t.trendsVitalsTitle}</h2>
+            <div className="space-y-4">
+              {bpPoints.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-muted mb-1">🫀 {t.vitalsBp}</p>
+                  <BpChart points={bpPoints} labels={chartLabels} />
+                </div>
+              )}
+              {glucosePoints.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-muted mb-1">🩸 {t.vitalsGlucose}</p>
+                  <GlucoseChart points={glucosePoints} labels={chartLabels} />
+                </div>
+              )}
+              {wellnessPoints.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-muted mb-1">😴 {t.sleepQualityLabel} / {t.stressLevelLabel}</p>
+                  <WellnessChart points={wellnessPoints} labels={chartLabels} />
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-faint leading-relaxed mt-3">{t.vitalsDisclaimer}</p>
+          </section>
+        );
+      })()}
 
       {/* ── Adherence + macro shortfall (goal-relative → needs real goals) ── */}
       <section className={`${CARD_CLASS} p-4`}>

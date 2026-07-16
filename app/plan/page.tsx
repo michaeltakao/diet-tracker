@@ -325,6 +325,48 @@ function CheckInWidget({
             </div>
           </div>
 
+          {/* Sleep quality (optional 1–5 self-rating — recorded, not judged) */}
+          <div>
+            <p className="text-xs font-black text-faint mb-2">{t.sleepQualityLabel}</p>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map(n => (
+                <button
+                  key={n}
+                  onClick={() => set({ sleepQuality: (value.sleepQuality === n ? undefined : n) as DailyCheckIn['sleepQuality'] })}
+                  aria-pressed={value.sleepQuality === n}
+                  className={`flex-1 py-2 rounded-xl border-2 text-sm font-black tabular-nums transition-all ${
+                    value.sleepQuality === n
+                      ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300'
+                      : 'border-line text-faint hover:border-line-strong'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Stress level (optional 1–5 self-rating) */}
+          <div>
+            <p className="text-xs font-black text-faint mb-2">{t.stressLevelLabel}</p>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map(n => (
+                <button
+                  key={n}
+                  onClick={() => set({ stressLevel: (value.stressLevel === n ? undefined : n) as DailyCheckIn['stressLevel'] })}
+                  aria-pressed={value.stressLevel === n}
+                  className={`flex-1 py-2 rounded-xl border-2 text-sm font-black tabular-nums transition-all ${
+                    value.stressLevel === n
+                      ? 'border-teal-400 bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-300'
+                      : 'border-line text-faint hover:border-line-strong'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Soreness */}
           <div>
             <p className="text-xs font-black text-faint mb-2 flex items-center gap-1.5">
