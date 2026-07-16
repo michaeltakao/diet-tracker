@@ -80,6 +80,25 @@ describe('buildHealthReport', () => {
     expect(r.vitals.bpRows).toHaveLength(3);
   });
 
+  it('orders BP rows and weight series by date (addedAt tie-break), so backfilled entries stay chronological', () => {
+    const data = emptyData();
+    // '2026-07-03' logged AFTER '2026-07-08' (backfill) — must still render first.
+    data.vitalEntries = [
+      { id: 'a', date: '2026-07-08', kind: 'blood_pressure', systolic: 126, diastolic: 82, addedAt: '2026-07-08T08:00:00Z' },
+      { id: 'b', date: '2026-07-03', kind: 'blood_pressure', systolic: 118, diastolic: 76, addedAt: '2026-07-10T22:00:00Z' },
+    ];
+    // Two same-day weigh-ins: the later addedAt is "last" for the delta.
+    data.weightEntries = [
+      { id: '1', date: '2026-07-02', weight: 70, addedAt: '2026-07-02T08:00:00Z' },
+      { id: '2', date: '2026-07-10', weight: 68, addedAt: '2026-07-10T21:00:00Z' },
+      { id: '3', date: '2026-07-10', weight: 69, addedAt: '2026-07-10T07:00:00Z' },
+    ];
+    const r = buildHealthReport(data, [], RANGE);
+    expect(r.vitals.bpRows.map((v) => v.date)).toEqual(['2026-07-03', '2026-07-08']);
+    expect(r.weight.series.map((w) => w.weight)).toEqual([70, 69, 68]);
+    expect(r.weight.deltaKg).toBe(-2); // last by addedAt on 07-10 is 68
+  });
+
   it('counts symptoms by name, most frequent first', () => {
     const data = emptyData();
     const sym = (date: string, name: string) => ({

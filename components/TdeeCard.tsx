@@ -93,7 +93,7 @@ export default function TdeeCard() {
         <div className="flex items-center gap-2 mb-2">
           <Activity size={14} className="text-emerald-500" />
           <span className="text-[10px] font-black text-faint uppercase tracking-widest">
-            代謝推定
+            {t.tdeeHeading}
           </span>
         </div>
         <p className="text-xs text-muted">
@@ -121,7 +121,7 @@ export default function TdeeCard() {
         <div className="flex items-center gap-2">
           <Activity size={14} className="text-emerald-500" />
           <span className="text-[10px] font-black text-faint uppercase tracking-widest">
-            代謝推定 ({estimate.dataPoints}日間データ)
+            {t.tdeeHeading} ({t.tdeeDataDays.replace('{n}', String(estimate.dataPoints))})
           </span>
         </div>
         <button

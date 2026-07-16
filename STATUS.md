@@ -2,8 +2,9 @@
 
 ## Now
 - **2026-07-16 BETA-P0 COMPLETION + HEALTH-LOG ROUND DONE (7 workstreams, 6
-  commits `f4fed70…`)** — Beta P0 #4b/#5/#7/#8 all closed + vitals + symptom
-  log + doctor report:
+  commits `f4fed70…`)** — Beta P0 #4b/#5/#8 closed, #7 in-app half done
+  (web-push send/SW/permissions still open) + vitals + symptom log + doctor
+  report:
   1. **P0 #4b fake-default goals killed everywhere** (`f4fed70`) — single source
      of truth: `lib/storage.ts` exports `DEFAULT_GOALS` + `goalsEqualDefaults()`;
      `lib/data/profile.ts#getRealGoals()` = (onboarded && !skipped) || 

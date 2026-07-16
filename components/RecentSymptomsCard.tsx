@@ -56,7 +56,7 @@ export default function RecentSymptomsCard() {
       <ul className="space-y-1.5">
         {recent.map((e) => (
           <li key={e.id} className="flex items-center gap-2 text-xs">
-            <span className="font-bold text-fg truncate">{e.name}</span>
+            <span className="min-w-0 flex-1 font-bold text-fg truncate">{e.name}</span>
             <span className="text-faint tabular-nums flex-shrink-0">{e.severity}/10</span>
             <span className="ml-auto text-faint flex-shrink-0">{relativeTime(e.onsetAt, lang)}</span>
           </li>

@@ -25,12 +25,11 @@ type SectionKey = 'symptoms' | 'meals' | 'workouts' | 'vitals' | 'weight' | 'wel
 
 const ALL_SECTIONS: SectionKey[] = ['symptoms', 'meals', 'workouts', 'vitals', 'weight', 'wellness'];
 
-const CATEGORY_JA: Record<string, string> = {
-  strength: '筋トレ', cardio: '有酸素', flexibility: 'ストレッチ', other: 'その他',
-};
-
 export default function ReportPage() {
   const { t } = useLanguage();
+  const categoryLabel: Record<string, string> = {
+    strength: t.catStrength, cardio: t.catCardio, flexibility: t.catFlexibility, other: t.catOther,
+  };
   const today = jstToday();
   const [period, setPeriod] = useState<Period>('2w');
   const [customFrom, setCustomFrom] = useState(shiftDate(today, -13));
@@ -229,12 +228,12 @@ export default function ReportPage() {
                     <table className="w-full border-collapse">
                       <thead>
                         <tr>
-                          <th className={thCls}>日付</th>
+                          <th className={thCls}>{t.reportColDate}</th>
                           <th className={thCls}>{t.symptomName}</th>
                           <th className={thCls}>{t.symptomSeverity}</th>
-                          <th className={thCls}>持続</th>
-                          <th className={thCls}>きっかけ</th>
-                          <th className={thCls}>対処</th>
+                          <th className={thCls}>{t.reportColDuration}</th>
+                          <th className={thCls}>{t.reportColTrigger}</th>
+                          <th className={thCls}>{t.reportColAction}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -252,7 +251,7 @@ export default function ReportPage() {
                               {/* Neutral CSS severity bar — deterministic print, no recharts */}
                               <span aria-hidden="true" className="inline-block ml-1.5 h-1.5 rounded-full bg-fg/60 align-middle" style={{ width: `${r.severity * 4}px` }} />
                             </td>
-                            <td className={tdCls}>{r.durationMin != null ? `${r.durationMin}分` : '—'}</td>
+                            <td className={tdCls}>{r.durationMin != null ? `${r.durationMin}${t.reportMinUnit}` : '—'}</td>
                             <td className={tdCls}>{r.trigger ? (triggerLabelMap[r.trigger] ?? r.trigger) : '—'}</td>
                             <td className={tdCls}>{r.actionTaken ?? '—'}</td>
                           </tr>
@@ -276,7 +275,7 @@ export default function ReportPage() {
                   <tbody>
                     <tr>
                       <td className={tdCls}>{t.reportDaysLogged}</td>
-                      <td className={tdCls}>{report.meals.daysLogged}日</td>
+                      <td className={tdCls}>{report.meals.daysLogged}{t.reportDayUnit}</td>
                     </tr>
                     <tr>
                       <td className={tdCls}>{t.reportAvgPerDay}</td>
@@ -304,7 +303,7 @@ export default function ReportPage() {
                       <td className={tdCls}>
                         {report.workouts.sessions}
                         <span className="text-faint">
-                          {' '}({report.workouts.sessionsByCategory.map((c) => `${CATEGORY_JA[c.category] ?? c.category}×${c.count}`).join('、')})
+                          {' '}({report.workouts.sessionsByCategory.map((c) => `${categoryLabel[c.category] ?? c.category}×${c.count}`).join('、')})
                         </span>
                       </td>
                     </tr>
@@ -363,7 +362,7 @@ export default function ReportPage() {
                     <tr>
                       <td className={tdCls}>{t.reportDaysLogged}</td>
                       <td className={tdCls}>
-                        {report.weight.series.length}日
+                        {report.weight.series.length}{t.reportDayUnit}
                         <span className="text-faint">
                           {' '}({report.weight.series[0].weight}kg → {report.weight.series[report.weight.series.length - 1].weight}kg)
                         </span>
@@ -385,7 +384,10 @@ export default function ReportPage() {
           {show('wellness') && (
             <section>
               <h3 className={secTitleCls}>{t.reportSecWellness}</h3>
-              {report.wellness.avgSleepHours == null && report.wellness.avgWaterMl == null ? (
+              {report.wellness.avgSleepHours == null &&
+              report.wellness.avgSleepQuality == null &&
+              report.wellness.avgStressLevel == null &&
+              report.wellness.avgWaterMl == null ? (
                 <p className="text-xs text-faint">{t.reportNoData}</p>
               ) : (
                 <table className="w-full border-collapse">
@@ -400,7 +402,7 @@ export default function ReportPage() {
                       <tr><td className={tdCls}>{t.stressLevelLabel}</td><td className={tdCls}>{report.wellness.avgStressLevel} / 5</td></tr>
                     )}
                     {report.wellness.avgWaterMl != null && (
-                      <tr><td className={tdCls}>💧</td><td className={tdCls}>{report.wellness.avgWaterMl} ml/日</td></tr>
+                      <tr><td className={tdCls}>💧</td><td className={tdCls}>{report.wellness.avgWaterMl} {t.reportWaterPerDay}</td></tr>
                     )}
                   </tbody>
                 </table>

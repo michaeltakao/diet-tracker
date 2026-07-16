@@ -397,7 +397,7 @@ export function checkAndAwardBadges(today: string, opts?: { goalsAreReal?: boole
 
   // Workout master: 5+ unique workout days in last 7 days (once ever)
   const weekAgo = new Date(today);
-  weekAgo.setDate(weekAgo.getDate() - 7);
+  weekAgo.setDate(weekAgo.getDate() - 6); // inclusive 7-day window: today + preceding 6 days
   const workoutDays = new Set(
     data.workoutEntries
       .filter((w) => w.date >= weekAgo.toISOString().split('T')[0])

@@ -149,7 +149,7 @@ export function buildHealthReport(
   const glucoseContexts = [...new Set(glucose.map((g) => g.glucoseContext))].sort();
   const vitals = {
     bpRows: bp
-      .sort((a, b) => a.addedAt.localeCompare(b.addedAt))
+      .sort((a, b) => a.date.localeCompare(b.date) || a.addedAt.localeCompare(b.addedAt))
       .map((v) => ({ date: v.date, systolic: v.systolic, diastolic: v.diastolic })),
     systolic:  stats(bp.map((v) => v.systolic)),
     diastolic: stats(bp.map((v) => v.diastolic)),
@@ -162,7 +162,7 @@ export function buildHealthReport(
   // ── Weight ──
   const weightSeries = data.weightEntries
     .filter((e) => inRange(e.date, range))
-    .sort((a, b) => a.date.localeCompare(b.date))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.addedAt.localeCompare(b.addedAt))
     .map((e) => ({ date: e.date, weight: e.weight }));
   const weight = {
     series: weightSeries,
