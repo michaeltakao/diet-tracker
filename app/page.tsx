@@ -16,6 +16,7 @@ import WaterTracker from '@/components/WaterTracker';
 import BadgeShelf from '@/components/BadgeShelf';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
+import NudgeBanner from '@/components/NudgeBanner';
 import RecommendationCard from '@/components/RecommendationCard';
 import TdeeCard from '@/components/TdeeCard';
 import BottomNav from '@/components/BottomNav';
@@ -193,6 +194,9 @@ export default function HomePage() {
           </Link>
         </div>
       </div>
+
+      {/* ── Streak nudge (max 1/day, dismissible) ───── */}
+      <NudgeBanner />
 
       {/* ── Goal-dependent section (real goals vs empty state) ───────────
           Gated on goalsReady so the first paint never flashes fabricated
