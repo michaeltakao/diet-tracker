@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { Stethoscope, Trash2 } from 'lucide-react';
 import {
   addSymptomEntry, removeSymptomEntry, getAllSymptomEntries,
@@ -118,11 +119,19 @@ export default function SymptomsPage() {
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
       {/* ── Header ────────────────────────────── */}
-      <div className="flex items-center gap-2.5 pt-6 pb-5">
-        <div className="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-2xl">
-          <Stethoscope size={20} className="text-amber-600 dark:text-amber-400" />
+      <div className="flex items-center justify-between pt-6 pb-5">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-2xl">
+            <Stethoscope size={20} className="text-amber-600 dark:text-amber-400" />
+          </div>
+          <h1 className="text-2xl font-black text-fg tracking-tight">{t.symptomsTitle}</h1>
         </div>
-        <h1 className="text-2xl font-black text-fg tracking-tight">{t.symptomsTitle}</h1>
+        <Link
+          href="/report"
+          className="flex items-center gap-1.5 text-xs font-bold text-teal-600 dark:text-teal-300 bg-teal-50 dark:bg-teal-900/30 px-2.5 py-1.5 rounded-xl hover:scale-[1.04] active:scale-95 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        >
+          📋 {t.navReport}
+        </Link>
       </div>
 
       {/* ── Entry form ────────────────────────── */}

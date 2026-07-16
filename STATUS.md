@@ -1,6 +1,83 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-16 BETA-P0 COMPLETION + HEALTH-LOG ROUND DONE (7 workstreams, 6
+  commits `f4fed70…`)** — Beta P0 #4b/#5/#7/#8 all closed + vitals + symptom
+  log + doctor report:
+  1. **P0 #4b fake-default goals killed everywhere** (`f4fed70`) — single source
+     of truth: `lib/storage.ts` exports `DEFAULT_GOALS` + `goalsEqualDefaults()`;
+     `lib/data/profile.ts#getRealGoals()` = (onboarded && !skipped) || 
+     customized, else null. ALL consumers fixed (log page, TrendsPanel
+     adherence/macros, RecommendationCard, WeeklyReportCard, workout AI coach —
+     missed by the ticket, CalorieContextBar, ProfileContext 3rd mirror).
+     **No fabricated goals ever reach an LLM**: every AI surface gates behind a
+     🎯 set-goals CTA. Badge engine takes `{goalsAreReal}` — water/calorie-goal
+     badges can't fire off defaults (wrapper in `lib/data/badges.ts` passes it).
+     Residual (intended): WaterTracker 2000ml = generic hydration heuristic.
+  2. **P0 #5 empty-state CTAs** (same commit) — dashboard/log 「📷 最初の1枚」→
+     /add; workout timeline → scroll+focus entry form; weight → open quick-form;
+     TdeeCard insufficient-data now shows k/7-day progress bar instead of
+     `return null`ing (MIN_DATA_POINTS=7 from lib/tdee, not FTUE doc's 3).
+  3. **P0 #7 streak nudges** (`e309275`) — pure `lib/notifications.ts`
+     `decideNudge()` (date/hour injected): streak-at-risk (JST≥18時, no log
+     today, streak≥1, repair-first copy) > decay (≤1 activity day in last 4,
+     ≥3 lifetime days guard); max 1/day, dismissal (JST day in
+     `diet-tracker-nudge-dismissed`) silences all until tomorrow. In-app
+     `NudgeBanner` on dashboard only — **no push/SW/permissions** (that's the
+     remaining #7-web-push follow-up). Templates keyed for future server reuse.
+  4. **P0 #8 Gemini responseSchema ×6 + raw-echo kill** (`f55c00f`) —
+     `lib/gemini.ts` gains `jsonConfig(schema)` + `parseGeminiJson<T>` /
+     `GeminiParseError` (fence-strip belt; withRetry stays transport-only).
+     All 6 AI routes constrain decoding via `responseSchema` (suggest-workout
+     merges into existing config; weekly-report = orchestrator only,
+     specialists stay free-prose; recommend keeps `filterRecommendation` —
+     schema ≠ safety). Every failure response is generic — no `{error, raw}`
+     echo, no `error.message` internals (audit P1 #1 closed; consent route's
+     DB error.message leak fixed as drive-by). NOT live-tested against real
+     Gemini (needs authed session + key) — schema-mode output quality
+     spot-check = [🔒user] follow-up.
+  5. **Vitals** (`b59b41d`, migration **013 applied to prod** + SQL-verified:
+     enum value, RLS, XOR CHECK + bounds CHECK both reject) — `vital_logs`
+     per-measurement rows (BP 50–300/30–200, glucose 20–600 + context enum;
+     wide plausibility only, **record-never-interpret** everywhere: no
+     thresholds/colors/verdicts in UI or charts); `checkins` +sleep_quality/
+     stress_level 1–5. New /vitals page (toggle forms, date-grouped neutral
+     history, disclaimer), SideNav entry + /weight header link, check-in
+     widget 2 optional 1–5 pickers, Trends BP/glucose/wellness charts
+     (next/dynamic, render only with data). vitals_week 🩺 badge (5 days in
+     rolling 7, mirrors workout_master).
+  6. **Symptom log** (`6fdb58b`, migration **014 applied to prod** +
+     SQL-verified: severity/duration CHECKs fire, RLS on) — `symptom_logs`
+     per-event rows; `trigger_tag` (not `trigger`); related_meal/workout ids =
+     **plain UUIDs, no FKs** (client-generated ids + guest mode) with names
+     **denormalized at link time** so reports survive deletion. /symptoms page
+     (datalist autocomplete common+past names, onset datetime-local, severity
+     1–10 slider w/ neutral display, trigger chips, today's meal/workout link
+     pickers), dashboard 最近の症状 widget (last 5), `lib/symptoms.ts` pure
+     validation.
+  7. **Doctor report** (this commit) — pure `lib/report.ts`
+     `buildHealthReport(data, checkIns, range)` (symptom rows+counts, per-
+     logged-day meal averages, workout sessions/categories/minutes, vitals
+     min/median/max — summary stats only, weight series+delta, sleep/stress/
+     water averages). `/report` page: 期間 selector (1週/2週/1ヶ月/custom JST),
+     section include-chips, print-CSS A4 (`visibility` trick prints exactly
+     `#print-report`, `break-inside: avoid`, `@page A4`) → `window.print()` =
+     PDF保存. **Zero new packages** (no jspdf/@react-pdf). Header = 期間+作成日+
+     匿名 only (no PII). CSS-bar severity timeline (no recharts in print path).
+  **Streak semantics widened twice (intended)**: an activity day is now food OR
+  workout OR weight OR water>0 OR **vitals OR symptom** (any-log); nudge/decay/
+  weekly-challenge/badges inherit automatically. Verified: lint clean,
+  **213/213 vitest** (+29 this round), build green (33 routes), browser E2E on
+  dev :3000 (fresh-install dashboard = 🎯 CTA + no fabricated numbers +
+  ContextBar absent; streak-at-risk banner fires at seeded 20:30 JST w/ streak
+  + dismiss persists day-key; BP+glucose same-day entry → grouped history +
+  vitals-only day ticks streak 3 + challenge 3/5; check-in sleepQuality=4/
+  stressLevel=2 round-trip; symptom w/ trigger+severity → history + dashboard
+  widget; report 2週間 all sections + section-toggle hides + empty range →
+  honest no-data ×6 + print rules audited in CSSOM).
+  **Deferred follow-ups**: symptom↔meal correlation analysis; CSV import for
+  old-app symptom data; web-push sending (P0 #7 second half); live Gemini
+  schema-mode spot-check.
 - **2026-07-15 ENGAGEMENT ROUND DONE (Beta P0 #6 + extras)** — any-log streak +
   weekly repair ticket + first-log badges + fixed weekly challenge.
   **Streak redefined**: `getStreak()` now counts *any-log* days (food OR workout
@@ -209,17 +286,23 @@
   fix~~ **DONE 07-14** (`e7852dc`); 2) ~~🔴 `recommendation_feedback` dual-write
   to Supabase~~ **DONE 07-14**; 3) ~~`suggest-workout` behind
   `guardAiRoute` + durable `ai_usage` per-user daily quotas~~ **DONE 07-15**
-  (migration 011 in prod); 4) kill fake
-  default goals + ~~60-s 4-chip onboarding~~ **wizard DONE 07-14** (fake-default
-  rework of `app/page.tsx` still open); 5) empty states → single next-action
-  CTAs; 6) ~~streak redefinition (any-log day) + weekly repair ticket~~
-  **DONE 07-15** (+ first-log badges + weekly challenge; migration 012 in
-  prod); 7) web push; 8) Gemini `responseSchema` migration ×6; 9) session-start flow
-  (env/time/equipment/energy; CheckInWidget merged /plan → /workout); 10)
-  cohort auto-assignment + SUS surface. Enablers carried from the 07-13
-  roadmap: exercise DB seed (free-exercise-db → ~120–150 curated, +pattern/JP
-  names); `workout_sessions`+`workout_sets` per-set schema; environment-aware
-  deterministic generation v1; ghost-text set-logging ergonomics.
+  (migration 011 in prod); 4) ~~kill fake default goals~~ **DONE: #4a 07-14
+  wizard + dashboard, #4b 07-16 all consumers + AI gating** (`f4fed70`);
+  5) ~~empty states → single next-action CTAs~~ **DONE 07-16**; 6) ~~streak
+  redefinition (any-log day) + weekly repair ticket~~ **DONE 07-15** (+
+  first-log badges + weekly challenge; migration 012 in prod); 7) web push —
+  **trigger module + templates + in-app banner DONE 07-16** (`e309275`);
+  actual push sending/SW/permissions still open; 8) ~~Gemini `responseSchema`
+  migration ×6~~ **DONE 07-16** (`f55c00f`; live schema-mode spot-check =
+  [🔒user]); 9) session-start flow (env/time/equipment/energy; CheckInWidget
+  merged /plan → /workout); 10) cohort auto-assignment + SUS surface. Enablers
+  carried from the 07-13 roadmap: exercise DB seed (free-exercise-db →
+  ~120–150 curated, +pattern/JP names); `workout_sessions`+`workout_sets`
+  per-set schema; environment-aware deterministic generation v1; ghost-text
+  set-logging ergonomics.
+- **[auto] Health-log follow-ups (07-16 round)**: symptom↔meal correlation
+  analysis; CSV import for old symptom-memo-app data; Supabase→local hydration
+  for vitals/symptoms (same gap as food — second device sees empty logs).
 - **[🔒user] to finish production**:
   1. Vercel env (Production): add `SUPABASE_SERVICE_ROLE_KEY` (enables export +
      participant self-delete) and confirm `GEMINI_API_KEY` value is current
@@ -280,6 +363,14 @@
 - CI workflows hardened against script injection (`cac19bf`, 2026-06-12) — see vault `ADR-003`.
 
 ## Last verified state
+- 2026-07-16 (beta-P0 completion + health-log round): `npm run lint` clean,
+  `npx vitest run` **213/213**, `npm run build` green (33 routes). Migrations
+  **013 + 014 applied** to prod (`chkkpucuiyjdeqgyyszt`) with negative-case SQL
+  sanity (XOR/bounds/severity/duration CHECKs all reject; RLS on both tables;
+  badge_type 10 values). Dev :3000 browser E2E: 8 scenario checks pass (see
+  Now). NOT verified live: Gemini schema-mode output quality (needs authed
+  session + GEMINI_API_KEY), authed dual-write rows for vital_logs/
+  symptom_logs (guest-mode E2E only — same [🔒user] auth blocker as before).
 - 2026-07-15 (engagement round): `npm run lint` clean, `npx vitest run`
   **184/184**, `npm run build` green. Migration **012 applied** to prod
   (`chkkpucuiyjdeqgyyszt`) + SQL sanity (badge_type 9 values, weekly_challenges
