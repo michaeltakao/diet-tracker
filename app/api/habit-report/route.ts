@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-import { generateWithRetry } from '@/lib/gemini';
+import { GoogleGenAI, Type, type Schema } from '@google/genai';
+import { generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
@@ -33,16 +33,21 @@ interface HabitRequest {
 }
 
 const SYSTEM_PROMPT = `You are a compassionate Japanese chronobiological nutrition coach.
-Analyze the user's 7-day behavioral data and return ONLY valid JSON (no markdown fences):
-{
-  "strengths": ["string", "string", "string"],
-  "frictions": ["string", "string", "string"],
-  "nextWeekTarget": "string (one specific, measurable action for next week)"
-}
+Analyze the user's 7-day behavioral data.
 - strengths: 2-3 things the user did well (be specific with data points)
 - frictions: 2-3 behavioral patterns to fix (reference specific days/times)
 - nextWeekTarget: one clear, achievable goal with a concrete metric
-Be warm, encouraging, and precise. Reference actual numbers from the data.`;
+Be warm, encouraging, and precise. Reference actual numbers from the data. Respond in Japanese.`;
+
+const RESPONSE_SCHEMA: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    strengths:      { type: Type.ARRAY, items: { type: Type.STRING } },
+    frictions:      { type: Type.ARRAY, items: { type: Type.STRING } },
+    nextWeekTarget: { type: Type.STRING, description: 'one specific, measurable action for next week' },
+  },
+  required: ['strengths', 'frictions', 'nextWeekTarget'],
+};
 
 export async function POST(request: Request): Promise<NextResponse> {
   const guard = await guardAiRoute(request, 'habit-report');
@@ -95,27 +100,22 @@ ${body.dailySummary.map((d) => {
     const ai = new GoogleGenAI({ apiKey });
     const response = await generateWithRetry(ai, {
       model: 'gemini-2.5-flash',
+      config: jsonConfig(RESPONSE_SCHEMA),
       contents: [{ role: 'user', parts: [{ text: SYSTEM_PROMPT + '\n\n' + userMessage }] }],
     });
 
     await recordAiUsage(guard.userId, 'habit-report', response.usageMetadata?.totalTokenCount);
 
-    const raw = (response.text ?? '').trim();
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return NextResponse.json({ error: 'Could not parse JSON from Gemini', raw }, { status: 500 });
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]) as {
+    const parsed = parseGeminiJson<{
       strengths: string[];
       frictions: string[];
       nextWeekTarget: string;
-    };
+    }>(response.text);
 
     return NextResponse.json(parsed);
   } catch (error) {
+    // Generic message only — never echo raw model output or error internals.
     console.error('Habit report API error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: `Habit report failed: ${message}` }, { status: 500 });
+    return NextResponse.json({ error: 'Habit report failed. Please try again.' }, { status: 500 });
   }
 }

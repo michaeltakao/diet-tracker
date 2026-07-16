@@ -61,7 +61,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     .select('id');
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Generic message only — never echo DB error internals to the client.
+    console.error('[CONSENT_UPDATE_ERROR]', error);
+    return NextResponse.json({ error: 'Consent update failed. Please try again.' }, { status: 500 });
   }
 
   // Zero rows matched → the profiles row is missing (trigger failure or

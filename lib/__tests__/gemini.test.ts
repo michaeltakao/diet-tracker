@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { withRetry } from '../gemini';
+import { Type } from '@google/genai';
+import { withRetry, jsonConfig, parseGeminiJson, GeminiParseError } from '../gemini';
 
 const transient = (status: number, msg = 'UNAVAILABLE') =>
   Object.assign(new Error(msg), { status });
@@ -38,5 +39,39 @@ describe('withRetry', () => {
       .mockResolvedValue('ok');
     expect(await withRetry(fn, { baseMs: 0 })).toBe('ok');
     expect(fn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('parseGeminiJson', () => {
+  it('parses bare JSON', () => {
+    expect(parseGeminiJson<{ a: number }>('{"a": 1}')).toEqual({ a: 1 });
+  });
+
+  it('strips markdown code fences', () => {
+    expect(parseGeminiJson<{ a: number }>('```json\n{"a": 1}\n```')).toEqual({ a: 1 });
+    expect(parseGeminiJson<{ a: number }>('```\n{"a": 1}\n```')).toEqual({ a: 1 });
+  });
+
+  it('throws GeminiParseError on surrounding prose', () => {
+    expect(() => parseGeminiJson('Here is the JSON: {"a": 1}')).toThrow(GeminiParseError);
+  });
+
+  it('throws GeminiParseError on undefined/empty input', () => {
+    expect(() => parseGeminiJson(undefined)).toThrow(GeminiParseError);
+    expect(() => parseGeminiJson('   ')).toThrow(GeminiParseError);
+  });
+
+  it('throws GeminiParseError on truncated JSON', () => {
+    expect(() => parseGeminiJson('{"a": 1, "b": ')).toThrow(GeminiParseError);
+  });
+});
+
+describe('jsonConfig', () => {
+  it('returns a structured-output config wrapping the schema', () => {
+    const schema = { type: Type.OBJECT, properties: { a: { type: Type.NUMBER } } };
+    expect(jsonConfig(schema)).toEqual({
+      responseMimeType: 'application/json',
+      responseSchema: schema,
+    });
   });
 });

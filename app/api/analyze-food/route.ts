@@ -1,24 +1,28 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-import { generateWithRetry } from '@/lib/gemini';
+import { GoogleGenAI, Type, type Schema } from '@google/genai';
+import { generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
 const apiKey = process.env.GEMINI_API_KEY;
 
 const PROMPT = `Analyze the food in this image and estimate its nutritional content.
-Return ONLY valid JSON in this exact format:
-{
-  "name": "food name in English or Japanese",
-  "calories": <number>,
-  "protein": <number in grams>,
-  "fat": <number in grams>,
-  "carbs": <number in grams>,
-  "confidence": "high|medium|low",
-  "notes": "brief note about the estimate"
-}
 Assume a typical single serving. Be realistic and conservative with estimates.
-Do not include markdown code block formatting in your response, just the raw JSON.`;
+Put a brief note about the estimate in "notes".`;
+
+const RESPONSE_SCHEMA: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    name:       { type: Type.STRING, description: 'food name in English or Japanese' },
+    calories:   { type: Type.NUMBER },
+    protein:    { type: Type.NUMBER, description: 'grams' },
+    fat:        { type: Type.NUMBER, description: 'grams' },
+    carbs:      { type: Type.NUMBER, description: 'grams' },
+    confidence: { type: Type.STRING, enum: ['high', 'medium', 'low'] },
+    notes:      { type: Type.STRING },
+  },
+  required: ['name', 'calories', 'protein', 'fat', 'carbs', 'confidence', 'notes'],
+};
 
 export async function POST(request: Request): Promise<NextResponse> {
   const guard = await guardAiRoute(request, 'analyze-food');
@@ -79,6 +83,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const response = await generateWithRetry(ai, {
       model: 'gemini-2.5-flash',
+      config: jsonConfig(RESPONSE_SCHEMA),
       contents: [
         {
           role: 'user',
@@ -97,18 +102,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     await recordAiUsage(guard.userId, 'analyze-food', response.usageMetadata?.totalTokenCount);
 
-    const raw = (response.text ?? '').trim();
-
-    // Strip markdown code fences if Gemini adds them
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return NextResponse.json(
-        { error: 'Could not parse JSON from Gemini response', raw },
-        { status: 500 }
-      );
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]) as {
+    const parsed = parseGeminiJson<{
       name: string;
       calories: number;
       protein: number;
@@ -116,14 +110,14 @@ export async function POST(request: Request): Promise<NextResponse> {
       carbs: number;
       confidence: string;
       notes: string;
-    };
+    }>(response.text);
 
     return NextResponse.json(parsed);
   } catch (error) {
+    // Generic message only — never echo raw model output or error internals.
     console.error('Error analyzing food with Gemini:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: `Analysis failed: ${message}` },
+      { error: 'Analysis failed. Please try again.' },
       { status: 500 }
     );
   }

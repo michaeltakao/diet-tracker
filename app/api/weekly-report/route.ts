@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-import { generateWithRetry } from '@/lib/gemini';
+import { GoogleGenAI, Type, type Schema } from '@google/genai';
+import { generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildHealthContextPrompt } from '@/lib/medication-rules';
@@ -158,18 +158,24 @@ ${resultMap['behavior'] ?? '（分析なし）'}
 【目標設定専門家の提案】
 ${resultMap['goal'] ?? '（提案なし）'}
 
-【週スコア】${weekScore}/100
+【週スコア】${weekScore}/100`;
 
-以下のJSONのみを返してください（マークダウン不可）:
-{
-  "summary": "今週全体のパフォーマンスを具体的な数値を使って2〜3文でまとめた総評",
-  "highlight": "今週の最も称えるべき1つの成果",
-  "improvement": "来週に向けて改善すべき具体的な1点",
-  "nextWeekGoal": "数値目標を含む、達成可能な来週の目標"
-}`;
+    // Orchestrator only gets the schema — the 4 parallel specialists above
+    // stay free-prose (their text is intermediate input, never client-facing).
+    const orchestratorSchema: Schema = {
+      type: Type.OBJECT,
+      properties: {
+        summary:      { type: Type.STRING, description: '今週全体のパフォーマンスを具体的な数値を使って2〜3文でまとめた総評' },
+        highlight:    { type: Type.STRING, description: '今週の最も称えるべき1つの成果' },
+        improvement:  { type: Type.STRING, description: '来週に向けて改善すべき具体的な1点' },
+        nextWeekGoal: { type: Type.STRING, description: '数値目標を含む、達成可能な来週の目標' },
+      },
+      required: ['summary', 'highlight', 'improvement', 'nextWeekGoal'],
+    };
 
     const orchestratorResponse = await generateWithRetry(ai, {
       model: 'gemini-2.5-flash',
+      config: jsonConfig(orchestratorSchema),
       contents: [{ role: 'user', parts: [{ text: orchestratorPrompt }] }],
     });
 
@@ -177,18 +183,12 @@ ${resultMap['goal'] ?? '（提案なし）'}
     // 4 parallel agents + 1 orchestrator internally.
     await recordAiUsage(guard.userId, 'weekly-report', orchestratorResponse.usageMetadata?.totalTokenCount);
 
-    const raw = (orchestratorResponse.text ?? '').trim();
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return NextResponse.json({ error: 'Could not parse JSON from orchestrator', raw }, { status: 500 });
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]) as {
+    const parsed = parseGeminiJson<{
       summary:      string;
       highlight:    string;
       improvement:  string;
       nextWeekGoal: string;
-    };
+    }>(orchestratorResponse.text);
 
     return NextResponse.json({
       ...parsed,
@@ -202,8 +202,8 @@ ${resultMap['goal'] ?? '（提案なし）'}
     });
 
   } catch (error) {
+    // Generic message only — never echo raw model output or error internals.
     console.error('[WEEKLY_REPORT_ERROR]', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: `Weekly report failed: ${message}` }, { status: 500 });
+    return NextResponse.json({ error: 'Weekly report failed. Please try again.' }, { status: 500 });
   }
 }

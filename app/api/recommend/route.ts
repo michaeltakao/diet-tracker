@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-import { generateWithRetry } from '@/lib/gemini';
+import { GoogleGenAI, Type, type Schema } from '@google/genai';
+import { generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildSafetyReport, filterRecommendation } from '@/lib/recommend-safety';
@@ -42,43 +42,63 @@ const ACTIVITY_LABELS: Record<string, string> = {
 const SYSTEM_PROMPT = `You are a personalized health coach AI built into a diet tracking app.
 Given the user's health profile, today's nutrition intake, and recent logs, generate concrete recommendations.
 
-Respond ONLY in JSON with this exact structure (no markdown, no code block):
-{
-  "foods": [
-    {
-      "name": "food name in Japanese",
-      "reason": "one sentence, health-condition-aware",
-      "calories": approximate_kcal_as_number,
-      "macroHighlight": "short label e.g. 高タンパク・低脂質",
-      "macroFit": "short label tying it to the remaining macro budget, e.g. 残りタンパク質を補える"
-    }
-  ],
-  "exercises": [
-    {
-      "name": "exercise name in Japanese",
-      "category": "strength or cardio or flexibility or other",
-      "duration": "e.g. 30分",
-      "reason": "one sentence tailored to fitness goal and activity level"
-    }
-  ],
-  "warnings": ["condition-specific warnings, e.g. 高血圧の方は塩分に注意"],
-  "adjustedMacros": {
-    "calories": number,
-    "protein": number,
-    "fat": number,
-    "carbs": number,
-    "water": number
-  }
-}
-
 Rules:
 - SAFETY (highest priority): NEVER recommend any food listed under 禁忌 in the 【安全制約】 section, and never exceed any limit stated there. A deterministic safety filter will reject violations, so comply exactly.
 - foods: 3-5 specific food recommendations covering the user's remaining macro budget
 - exercises: 2-3 recommendations appropriate for their activity level and fitness goal
 - warnings: only if health conditions require dietary caution; empty array [] if no relevant conditions
-- adjustedMacros: only if current goals are clearly misaligned with the user's age/conditions/goal (e.g. 70-year-old with 150g protein target); null otherwise — return the literal null value, not an object
-- All text must be in Japanese
-- Return only raw JSON, no extra text`;
+- adjustedMacros: only if current goals are clearly misaligned with the user's age/conditions/goal (e.g. 70-year-old with 150g protein target); null otherwise
+- All text must be in Japanese`;
+
+const RESPONSE_SCHEMA: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    foods: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name:           { type: Type.STRING, description: 'food name in Japanese' },
+          reason:         { type: Type.STRING, description: 'one sentence, health-condition-aware' },
+          calories:       { type: Type.NUMBER, description: 'approximate kcal' },
+          macroHighlight: { type: Type.STRING, description: 'short label e.g. 高タンパク・低脂質' },
+          macroFit:       { type: Type.STRING, description: 'short label tying it to the remaining macro budget, e.g. 残りタンパク質を補える' },
+        },
+        required: ['name', 'reason', 'calories', 'macroHighlight', 'macroFit'],
+      },
+    },
+    exercises: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name:     { type: Type.STRING, description: 'exercise name in Japanese' },
+          category: { type: Type.STRING, enum: ['strength', 'cardio', 'flexibility', 'other'] },
+          duration: { type: Type.STRING, description: 'e.g. 30分' },
+          reason:   { type: Type.STRING, description: 'one sentence tailored to fitness goal and activity level' },
+        },
+        required: ['name', 'category', 'duration', 'reason'],
+      },
+    },
+    warnings: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING, description: 'condition-specific warning, e.g. 高血圧の方は塩分に注意' },
+    },
+    adjustedMacros: {
+      type: Type.OBJECT,
+      nullable: true,
+      properties: {
+        calories: { type: Type.NUMBER },
+        protein:  { type: Type.NUMBER },
+        fat:      { type: Type.NUMBER },
+        carbs:    { type: Type.NUMBER },
+        water:    { type: Type.NUMBER },
+      },
+      required: ['calories', 'protein', 'fat', 'carbs', 'water'],
+    },
+  },
+  required: ['foods', 'exercises', 'warnings'],
+};
 
 export async function POST(request: Request): Promise<NextResponse> {
   const guard = await guardAiRoute(request, 'recommend');
@@ -147,6 +167,7 @@ ${body.recentWorkoutLog.length > 0
     const ai = new GoogleGenAI({ apiKey });
     const response = await generateWithRetry(ai, {
       model: 'gemini-2.5-flash',
+      config: jsonConfig(RESPONSE_SCHEMA),
       contents: [
         { role: 'user', parts: [{ text: SYSTEM_PROMPT + '\n\n' + userMessage }] },
       ],
@@ -154,16 +175,7 @@ ${body.recentWorkoutLog.length > 0
 
     await recordAiUsage(guard.userId, 'recommend', response.usageMetadata?.totalTokenCount);
 
-    const raw = (response.text ?? '').trim();
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return NextResponse.json(
-        { error: 'Could not parse JSON from Gemini response', raw },
-        { status: 500 },
-      );
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]) as Partial<Recommendation>;
+    const parsed = parseGeminiJson<Partial<Recommendation>>(response.text);
     const rawRec: Recommendation = {
       foods:          parsed.foods          ?? [],
       exercises:      parsed.exercises       ?? [],
@@ -177,8 +189,8 @@ ${body.recentWorkoutLog.length > 0
     return NextResponse.json(safeRec);
 
   } catch (error) {
+    // Generic message only — never echo raw model output or error internals.
     console.error('[RECOMMEND_API_ERROR]', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: `Recommend failed: ${message}` }, { status: 500 });
+    return NextResponse.json({ error: 'Recommendation failed. Please try again.' }, { status: 500 });
   }
 }

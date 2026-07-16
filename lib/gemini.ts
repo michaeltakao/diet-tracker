@@ -1,5 +1,6 @@
 /**
- * Gemini call helpers: transient-failure retry with exponential backoff.
+ * Gemini call helpers: transient-failure retry with exponential backoff,
+ * structured-output config, and defensive JSON parsing.
  *
  * `gemini-2.5-flash` intermittently returns 503 ``UNAVAILABLE`` ("high demand")
  * or 429. These are transient, so a couple of backed-off retries absorb them
@@ -7,7 +8,7 @@
  * are re-thrown immediately so they surface fast.
  */
 
-import type { GoogleGenAI } from '@google/genai';
+import type { GoogleGenAI, Schema } from '@google/genai';
 
 type GenerateRequest = Parameters<GoogleGenAI['models']['generateContent']>[0];
 
@@ -65,6 +66,46 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
     }
   }
   throw lastErr; // unreachable: the loop either returns or throws
+}
+
+/**
+ * Structured-output config for ``generateContent``: constrains decoding to
+ * the given JSON schema (P0 #8). Spread it into an existing ``config`` object
+ * so route-specific fields (systemInstruction, temperature) survive.
+ */
+export function jsonConfig(schema: Schema): {
+  responseMimeType: string;
+  responseSchema: Schema;
+} {
+  return { responseMimeType: 'application/json', responseSchema: schema };
+}
+
+/** Raised when a Gemini response cannot be parsed as JSON. */
+export class GeminiParseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'GeminiParseError';
+  }
+}
+
+/**
+ * Parse a Gemini response body as JSON.
+ *
+ * With responseSchema the body should already be bare JSON; the code-fence
+ * strip is a defensive belt for model regressions. No semantic reparse retry
+ * — {@link withRetry} stays transport-only, and a parse failure surfaces as
+ * a {@link GeminiParseError} for the route to map to a generic 500 (never
+ * echo the raw model output to the client).
+ */
+export function parseGeminiJson<T>(raw: string | undefined): T {
+  const text = (raw ?? '').trim();
+  if (!text) throw new GeminiParseError('Empty Gemini response');
+  const unfenced = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  try {
+    return JSON.parse(unfenced) as T;
+  } catch {
+    throw new GeminiParseError('Gemini response is not valid JSON');
+  }
 }
 
 /**

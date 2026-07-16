@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-import { generateWithRetry } from '@/lib/gemini';
+import { GoogleGenAI, Type, type Schema } from '@google/genai';
+import { generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
@@ -42,16 +42,6 @@ Your job: analyze all this data and give a personalized training recommendation 
 
 Health constraints (medical conditions/medications) MUST be respected — never recommend exercises or intensities that conflict with them.
 
-Return ONLY raw JSON (no markdown) with this exact shape:
-{
-  "proceed": "full" | "reduced" | "alternative" | "rest",
-  "sessionName": "string — today's recommended session name",
-  "adjustments": ["string", ...],
-  "intensityNote": "string",
-  "motivationMessage": "string",
-  "recoveryTips": ["string", ...]
-}
-
 Guidelines:
 - mood ≥ 4 + energy ≥ 4 + sleep ≥ 7 → "full"
 - energy ≤ 2 OR sleep ≤ 4 → "rest" or "reduced"
@@ -59,6 +49,19 @@ Guidelines:
 - Respect the user's fitnessGoal
 - If no planned session: suggest an appropriate session from scratch based on goal + recent history
 - Keep all text in Japanese. Be warm, specific, and actionable.`;
+
+const RESPONSE_SCHEMA: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    proceed:           { type: Type.STRING, enum: ['full', 'reduced', 'alternative', 'rest'] },
+    sessionName:       { type: Type.STRING, description: "today's recommended session name" },
+    adjustments:       { type: Type.ARRAY, items: { type: Type.STRING } },
+    intensityNote:     { type: Type.STRING },
+    motivationMessage: { type: Type.STRING },
+    recoveryTips:      { type: Type.ARRAY, items: { type: Type.STRING } },
+  },
+  required: ['proceed', 'sessionName', 'adjustments', 'intensityNote', 'motivationMessage', 'recoveryTips'],
+};
 
 const MOOD_LABELS   = ['', '最悪', '悪い', '普通', '良い', '最高'];
 const ENERGY_LABELS = ['', '完全消耗', '疲れ気味', '普通', '元気', '絶好調'];
@@ -240,24 +243,19 @@ export async function POST(request: Request): Promise<NextResponse> {
   const ai = new GoogleGenAI({ apiKey });
   const result = await generateWithRetry(ai, {
     model: 'gemini-2.5-flash',
-    config: { systemInstruction: SYSTEM_PROMPT, temperature: 0.7 },
+    // Merge into the existing config: systemInstruction/temperature survive.
+    config: { systemInstruction: SYSTEM_PROMPT, temperature: 0.7, ...jsonConfig(RESPONSE_SCHEMA) },
     contents: [{ role: 'user', parts: [{ text: userMessage }] }],
   });
 
   await recordAiUsage(userId, 'suggest-workout', result.usageMetadata?.totalTokenCount);
 
-  const raw = result.text?.trim() ?? '';
-  const jsonStr = raw.startsWith('{') ? raw : raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
-
-    try {
-      const suggestion = JSON.parse(jsonStr);
-      suggestion.generatedAt = new Date().toISOString();
-      return NextResponse.json(suggestion);
-    } catch {
-      return NextResponse.json({ error: 'Failed to parse AI response', raw }, { status: 500 });
-    }
+  const suggestion = parseGeminiJson<Record<string, unknown>>(result.text);
+  suggestion.generatedAt = new Date().toISOString();
+  return NextResponse.json(suggestion);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Suggestion request failed';
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Generic message only — never echo raw model output or error internals.
+    console.error('[SUGGEST_WORKOUT_ERROR]', err);
+    return NextResponse.json({ error: 'Suggestion request failed. Please try again.' }, { status: 500 });
   }
 }

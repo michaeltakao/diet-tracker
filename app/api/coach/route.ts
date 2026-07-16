@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-import { generateWithRetry } from '@/lib/gemini';
+import { GoogleGenAI, Type, type Schema } from '@google/genai';
+import { generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildHealthContextPrompt } from '@/lib/medication-rules';
@@ -31,16 +31,18 @@ const SYSTEM_PROMPT = `You are a friendly, encouraging Japanese personal health 
 The user will provide today's nutrition data, workout records, and recent history.
 If the user has chronic conditions or takes medications, tailor your advice accordingly — reference specific constraints or interactions relevant to their situation.
 
-Respond in Japanese. Structure your response as JSON with these fields:
-{
-  "todayAdvice": "string (2-3 sentences about today's nutrition & workouts, specific praise or correction)",
-  "habitInsight": "string (1-2 sentences analyzing eating/workout time patterns — e.g. late-night snacking, skipping breakfast, workout timing vs meals)",
-  "tomorrowTip": "string (1 actionable tip for tomorrow, condition-aware if applicable)",
-  "motivationMessage": "string (short energetic motivational line)"
-}
+Respond in Japanese. Be specific and personalized. Reference actual numbers from the data. Keep it warm, encouraging, and practical.`;
 
-Be specific and personalized. Reference actual numbers from the data. Keep it warm, encouraging, and practical.
-Do not include markdown code block formatting. Return only raw JSON.`;
+const RESPONSE_SCHEMA: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    todayAdvice:       { type: Type.STRING, description: "2-3 sentences about today's nutrition & workouts, specific praise or correction" },
+    habitInsight:      { type: Type.STRING, description: '1-2 sentences analyzing eating/workout time patterns — e.g. late-night snacking, skipping breakfast, workout timing vs meals' },
+    tomorrowTip:       { type: Type.STRING, description: '1 actionable tip for tomorrow, condition-aware if applicable' },
+    motivationMessage: { type: Type.STRING, description: 'short energetic motivational line' },
+  },
+  required: ['todayAdvice', 'habitInsight', 'tomorrowTip', 'motivationMessage'],
+};
 
 export async function POST(request: Request): Promise<NextResponse> {
   const guard = await guardAiRoute(request, 'coach');
@@ -99,6 +101,7 @@ ${body.recentWorkoutLog.length === 0
     const ai = new GoogleGenAI({ apiKey });
     const response = await generateWithRetry(ai, {
       model: 'gemini-2.5-flash',
+      config: jsonConfig(RESPONSE_SCHEMA),
       contents: [
         { role: 'user', parts: [{ text: SYSTEM_PROMPT + '\n\n' + userMessage }] },
       ],
@@ -106,26 +109,17 @@ ${body.recentWorkoutLog.length === 0
 
     await recordAiUsage(guard.userId, 'coach', response.usageMetadata?.totalTokenCount);
 
-    const raw = (response.text ?? '').trim();
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return NextResponse.json(
-        { error: 'Could not parse JSON from Gemini response', raw },
-        { status: 500 }
-      );
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]) as {
+    const parsed = parseGeminiJson<{
       todayAdvice: string;
       habitInsight: string;
       tomorrowTip: string;
       motivationMessage: string;
-    };
+    }>(response.text);
 
     return NextResponse.json(parsed);
   } catch (error) {
+    // Generic message only — never echo raw model output or error internals.
     console.error('Coach API error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: `Coach failed: ${message}` }, { status: 500 });
+    return NextResponse.json({ error: 'Coach request failed. Please try again.' }, { status: 500 });
   }
 }
