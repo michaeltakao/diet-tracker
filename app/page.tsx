@@ -17,6 +17,7 @@ import BadgeShelf from '@/components/BadgeShelf';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
 import NudgeBanner from '@/components/NudgeBanner';
+import PushPermissionCard from '@/components/PushPermissionCard';
 import RecentSymptomsCard from '@/components/RecentSymptomsCard';
 import RecommendationCard from '@/components/RecommendationCard';
 import TdeeCard from '@/components/TdeeCard';
@@ -198,6 +199,9 @@ export default function HomePage() {
 
       {/* ── Streak nudge (max 1/day, dismissible) ───── */}
       <NudgeBanner />
+
+      {/* ── Web Push opt-in (authed users, sticky dismissal) ───── */}
+      <PushPermissionCard />
 
       {/* ── Goal-dependent section (real goals vs empty state) ───────────
           Gated on goalsReady so the first paint never flashes fabricated

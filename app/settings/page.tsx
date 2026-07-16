@@ -13,6 +13,7 @@ import {
 } from '@/lib/export';
 import BottomNav from '@/components/BottomNav';
 import AccountSection from '@/components/AccountSection';
+import PushSettingsRow from '@/components/PushSettingsRow';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useWeightUnit } from '@/lib/units';
 
@@ -218,6 +219,9 @@ export default function SettingsPage() {
 
       {/* ── Account ───────────────────────────── */}
       <AccountSection cardCls={cardCls} />
+
+      {/* ── Web Push (authed users only; hidden for guests) ── */}
+      <PushSettingsRow cardCls={cardCls} />
 
       {/* ── Language ──────────────────────────── */}
       <div className={`${cardCls} mb-3`}>

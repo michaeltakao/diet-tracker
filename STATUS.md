@@ -1,6 +1,37 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-17 P0 #7 SECOND HALF DONE: Web Push notifications (frontend + API)**
+  — nudges now reach opted-in users with the app closed. Migration **015
+  applied to prod**: `push_subscriptions` (endpoint UNIQUE, RLS owner policy)
+  + `push_send_log` (PK `(user_id, sent_date)` = atomic max-1-nudge/JST-day —
+  server-enforced, the localStorage marker is courtesy only). New
+  `lib/push-send.ts` (DI core: `buildNudgePayload` from NUDGE_TEMPLATES +
+  translations — payload 100% server-built, client controls only two enums =
+  push-phishing guard; `sendPushNotifications` never throws, 404/410 →
+  subscription self-heal delete, logs endpoint host only). `public/sw.js`
+  +`push`/`notificationclick` handlers (focus-or-open same-origin). New
+  `lib/push-client.ts` (subscribe/unsubscribe/`maybeSendSelfPush`; unsupported
+  detect hides everything on plain iOS Safari). API: `POST/DELETE
+  /api/push-subscribe` (401-first — never 403 so httpClient's access-code
+  prompt can't fire; endpoint validated https/public-host/length = SSRF
+  hygiene; **service-role upsert ON CONFLICT (endpoint)** so shared-device
+  account switches rebind the row — user_id always session-derived; DELETE =
+  RLS client, idempotent) + `POST /api/push-send` (env fail-closed 503 →
+  enum-validate 400 → in-memory 10/min 429 → `push_send_log` insert-first
+  23505 = already-sent-today → RLS-select own subs → lazy `setVapidDetails`
+  → fan out). UI: `PushPermissionCard` on dashboard (authed + supported +
+  permission=default only; explicit opt-in, sticky dismissal) +
+  `PushSettingsRow` in /settings (permanent re-entry: on/off/denied/iOS-note
+  states); `NudgeBanner` fires `maybeSendSelfPush` when a nudge is decided
+  (client-triggered send-to-self validates the pipeline E2E until a server
+  cron exists). Deps: `web-push` + `@types/web-push` (npm audit: the 2
+  moderates are pre-existing @google/genai→protobufjs + eslint→js-yaml, not
+  from web-push). i18n +10 keys ja/en. 17 new vitest (DI + vi.fn, repo idiom —
+  no vi.mock). **Future server cron design**: `vercel.json` crons +
+  CRON_SECRET-gated service-role route reusing `sendPushNotifications` +
+  `push_send_log`; iOS requires Home-Screen install (unsupported-detect
+  already handles it).
 - **2026-07-16 BETA-P0 COMPLETION + HEALTH-LOG ROUND DONE (7 workstreams, 6
   commits `f4fed70…`)** — Beta P0 #4b/#5/#8 closed, #7 in-app half done
   (web-push send/SW/permissions still open) + vitals + symptom log + doctor
@@ -291,9 +322,10 @@
   wizard + dashboard, #4b 07-16 all consumers + AI gating** (`f4fed70`);
   5) ~~empty states → single next-action CTAs~~ **DONE 07-16**; 6) ~~streak
   redefinition (any-log day) + weekly repair ticket~~ **DONE 07-15** (+
-  first-log badges + weekly challenge; migration 012 in prod); 7) web push —
+  first-log badges + weekly challenge; migration 012 in prod); 7) ~~web push~~ —
   **trigger module + templates + in-app banner DONE 07-16** (`e309275`);
-  actual push sending/SW/permissions still open; 8) ~~Gemini `responseSchema`
+  **push sending/SW/permissions DONE 07-17** (migration 015 in prod; VAPID
+  keys = [🔒user], server cron deferred by design); 8) ~~Gemini `responseSchema`
   migration ×6~~ **DONE 07-16** (`f55c00f`; live schema-mode spot-check =
   [🔒user]); 9) session-start flow (env/time/equipment/energy; CheckInWidget
   merged /plan → /workout); 10) cohort auto-assignment + SUS surface. Enablers
@@ -304,10 +336,24 @@
 - **[auto] Health-log follow-ups (07-16 round)**: symptom↔meal correlation
   analysis; CSV import for old symptom-memo-app data; Supabase→local hydration
   for vitals/symptoms (same gap as food — second device sees empty logs).
+- **[🔒user] Web Push VAPID keys (07-17)** — run `npx web-push
+  generate-vapid-keys` locally, then add to `.env.local` AND Vercel
+  (Production + Preview): `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PUBLIC_KEY`
+  (same value), `VAPID_PRIVATE_KEY` (server-only, never NEXT_PUBLIC),
+  `VAPID_SUBJECT=mailto:<contact email>`. All code fail-closes without them
+  (503 / UI hidden). Then post-keys E2E: enable on dashboard card → row in
+  `push_subscriptions` → evening nudge → OS notification → click focuses
+  dashboard → same-day repeat = already-sent-today → settings disable → row
+  gone.
+- **[auto] Web Push server cron** (design in Now 07-17): Vercel Cron +
+  CRON_SECRET route so nudges fire without the user opening the app — the
+  actual point of push; the current client-triggered send mostly mirrors
+  in-app banners.
 - **[🔒user] to finish production**:
   1. Vercel env (Production): add `SUPABASE_SERVICE_ROLE_KEY` (enables export +
-     participant self-delete) and confirm `GEMINI_API_KEY` value is current
-     (photo AI). `APP_ACCESS_CODE` already set.
+     participant self-delete + **push-subscribe upsert**) and confirm
+     `GEMINI_API_KEY` value is current (photo AI). `APP_ACCESS_CODE` already
+     set.
   2. Supabase dashboard → Auth → URL Configuration: add
      `https://diet-tracker-two-blue.vercel.app` to Site URL / Redirect URLs
      (Google OAuth + magic link won't round-trip until then).
@@ -364,6 +410,16 @@
 - CI workflows hardened against script injection (`cac19bf`, 2026-06-12) — see vault `ADR-003`.
 
 ## Last verified state
+- 2026-07-17 (web-push round): `npm run lint` clean, `npx vitest run`
+  **230/230** (+17), `npm run build` green (35 routes, +2 push API).
+  Migration **015 applied** to prod (`chkkpucuiyjdeqgyyszt`),
+  `database.types.ts` regenerated (MCP). Pre-keys fail-closed verified on dev
+  :3199: anon POST push-send/push-subscribe + DELETE all → **401** (never 403);
+  dashboard card + settings row hidden (guest, no VAPID env); served /sw.js
+  contains push+notificationclick handlers; console clean. NOT verified
+  (blocked on [🔒user] VAPID keys + authed session): authed 503, real
+  subscribe→OS-notification E2E, already-sent-today dedupe live, Vercel
+  preview.
 - 2026-07-16 (beta-P0 completion + health-log round): `npm run lint` clean,
   `npx vitest run` **213/213**, `npm run build` green (33 routes). Migrations
   **013 + 014 applied** to prod (`chkkpucuiyjdeqgyyszt`) with negative-case SQL

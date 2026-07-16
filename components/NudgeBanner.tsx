@@ -12,12 +12,13 @@ import { X } from 'lucide-react';
 import { getAppData, getStreak } from '@/lib/data';
 import { activityDaysFrom, jstToday } from '@/lib/streak';
 import { decideNudge, jstHour, type NudgeDecision } from '@/lib/notifications';
+import { maybeSendSelfPush } from '@/lib/push-client';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const DISMISS_KEY = 'diet-tracker-nudge-dismissed';
 
 export default function NudgeBanner() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [decision, setDecision] = useState<NudgeDecision>({ kind: 'none' });
 
   useEffect(() => {
@@ -28,15 +29,19 @@ export default function NudgeBanner() {
     } catch {
       // storage unavailable → treat as never dismissed
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only localStorage read on mount
-    setDecision(decideNudge({
+    const d = decideNudge({
       activityDays: activityDaysFrom(data),
       streak: { current: getStreak() },
       today: jstToday(),
       hour: jstHour(),
       lastDismissedDay,
-    }));
-  }, []);
+    });
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only localStorage read on mount
+    setDecision(d);
+    // Mirror the nudge as an OS notification for opted-in users (fire-and-
+    // forget; all guards + max-1/day dedupe live in maybeSendSelfPush/server).
+    if (d.kind !== 'none') void maybeSendSelfPush(d.kind, lang);
+  }, [lang]);
 
   if (decision.kind === 'none') return null;
 

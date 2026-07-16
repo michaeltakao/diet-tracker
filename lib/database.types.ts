@@ -1,6 +1,6 @@
 /**
  * Auto-generated Supabase database types.
- * Generated 2026-07-09 via the Supabase MCP `generate_typescript_types` (project chkkpucuiyjdeqgyyszt).
+ * Generated 2026-07-17 via the Supabase MCP `generate_typescript_types` (project chkkpucuiyjdeqgyyszt).
  * DO NOT hand-edit the Database type below — regenerate with:
  *   npx supabase gen types typescript --project-id chkkpucuiyjdeqgyyszt > lib/database.types.ts
  *
@@ -433,6 +433,70 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      push_send_log: {
+        Row: {
+          created_at: string
+          kind: string
+          sent_date: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          kind: string
+          sent_date: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          kind?: string
+          sent_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_send_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_subscriptions: {
+        Row: {
+          created_at: string
+          endpoint: string
+          id: string
+          keys_auth: string
+          keys_p256dh: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          endpoint: string
+          id?: string
+          keys_auth: string
+          keys_p256dh: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string
+          id?: string
+          keys_auth?: string
+          keys_p256dh?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       recommendation_feedback: {
         Row: {
@@ -978,6 +1042,7 @@ export type RecommendationFeedbackRow = Database["public"]["Tables"]["recommenda
 export type FavoriteFoodRow      = Database["public"]["Tables"]["favorite_foods"]["Row"]
 export type MealTemplateRow      = Database["public"]["Tables"]["meal_templates"]["Row"]
 export type AiUsageRow           = Database["public"]["Tables"]["ai_usage"]["Row"]
+export type PushSubscriptionRow  = Database["public"]["Tables"]["push_subscriptions"]["Row"]
 
 export type FoodLogInsert           = Database["public"]["Tables"]["food_logs"]["Insert"]
 export type WorkoutLogInsert        = Database["public"]["Tables"]["workout_logs"]["Insert"]

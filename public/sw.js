@@ -78,6 +78,48 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(staleWhileRevalidate(request, PAGES_CACHE));
 });
 
+// ── Web Push (FTUE P0 #7) ──────────────────────────────────
+// Payloads are built server-side (app/api/push-send) from static templates:
+// { title, body, url }. Malformed payloads are dropped silently.
+
+self.addEventListener('push', (event) => {
+  let payload = null;
+  try {
+    payload = event.data ? event.data.json() : null;
+  } catch {
+    // non-JSON push (e.g. DevTools test box with plain text) → generic body
+    payload = { title: 'Diet Tracker', body: event.data ? event.data.text() : '', url: '/' };
+  }
+  if (!payload || !payload.title) return;
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body || '',
+      icon: '/icon',
+      data: { url: payload.url || '/' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      for (const win of windows) {
+        // Reuse any same-origin window: focus it and navigate to the target.
+        if (new URL(win.url).origin === location.origin) {
+          return win.focus().then((focused) =>
+            'navigate' in focused ? focused.navigate(url) : focused
+          );
+        }
+      }
+      return clients.openWindow(url);
+    })
+  );
+});
+
 // ── Strategies ─────────────────────────────────────────────
 
 async function cacheFirst(request, cacheName) {
