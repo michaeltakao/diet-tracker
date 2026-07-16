@@ -23,3 +23,4 @@ export * from './favorites';
 export * from './meal-templates';
 export * from './weekly-challenge';
 export * from './vitals';
+export * from './symptoms';

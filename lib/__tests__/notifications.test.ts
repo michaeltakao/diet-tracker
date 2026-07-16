@@ -104,6 +104,7 @@ describe('decideNudge', () => {
       workoutEntries: [],
       weightEntries: [],
       vitalEntries: [],
+      symptomEntries: [],
       waterByDate: { [TODAY]: 200 },
     });
     const d = decideNudge(input({

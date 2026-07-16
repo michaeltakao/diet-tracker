@@ -718,6 +718,68 @@ export type Database = {
           },
         ]
       }
+      symptom_logs: {
+        Row: {
+          action_taken: string | null
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          logged_date: string
+          note: string | null
+          onset_at: string
+          related_meal_id: string | null
+          related_meal_name: string | null
+          related_workout_id: string | null
+          related_workout_name: string | null
+          severity: number
+          symptom_name: string
+          trigger_tag: string | null
+          user_id: string
+        }
+        Insert: {
+          action_taken?: string | null
+          created_at?: string
+          duration_minutes?: number | null
+          id: string
+          logged_date: string
+          note?: string | null
+          onset_at: string
+          related_meal_id?: string | null
+          related_meal_name?: string | null
+          related_workout_id?: string | null
+          related_workout_name?: string | null
+          severity: number
+          symptom_name: string
+          trigger_tag?: string | null
+          user_id: string
+        }
+        Update: {
+          action_taken?: string | null
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          logged_date?: string
+          note?: string | null
+          onset_at?: string
+          related_meal_id?: string | null
+          related_meal_name?: string | null
+          related_workout_id?: string | null
+          related_workout_name?: string | null
+          severity?: number
+          symptom_name?: string
+          trigger_tag?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "symptom_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vital_logs: {
         Row: {
           created_at: string

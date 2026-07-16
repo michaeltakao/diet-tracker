@@ -17,6 +17,7 @@ import BadgeShelf from '@/components/BadgeShelf';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
 import NudgeBanner from '@/components/NudgeBanner';
+import RecentSymptomsCard from '@/components/RecentSymptomsCard';
 import RecommendationCard from '@/components/RecommendationCard';
 import TdeeCard from '@/components/TdeeCard';
 import BottomNav from '@/components/BottomNav';
@@ -292,6 +293,9 @@ export default function HomePage() {
 
       {/* ── Weekly challenge (any-log, both goal states) ── */}
       <WeeklyChallengeCard />
+
+      {/* ── Recent symptoms (renders only when any exist) ── */}
+      <RecentSymptomsCard />
 
       {/* ── Badge shelf ─────────────────────────────── */}
       {earnedBadges.length > 0 && (

@@ -1,4 +1,4 @@
-import { AppData, Badge, BadgeType, DailyGoals, FavoriteFood, FoodEntry, MealTemplate, PersonalRecord, RecommendationFeedback, VitalEntry, WeightEntry, WorkoutEntry } from './types';
+import { AppData, Badge, BadgeType, DailyGoals, FavoriteFood, FoodEntry, MealTemplate, PersonalRecord, RecommendationFeedback, SymptomEntry, VitalEntry, WeightEntry, WorkoutEntry } from './types';
 import { activityDaysFrom, computeStreak, jstToday } from './streak';
 
 const STORAGE_KEY = 'diet-tracker-v1';
@@ -40,6 +40,7 @@ const DEFAULT_DATA: AppData = {
   mealTemplates: [],
   streakState: { longest: 0, repairedDates: [] },
   vitalEntries: [],
+  symptomEntries: [],
 };
 
 export function getAppData(): AppData {
@@ -64,6 +65,7 @@ export function getAppData(): AppData {
         repairedDates: parsed.streakState?.repairedDates ?? [],
       },
       vitalEntries: parsed.vitalEntries ?? [],
+      symptomEntries: parsed.symptomEntries ?? [],
     };
   } catch {
     return { ...DEFAULT_DATA, goals: { ...DEFAULT_GOALS } };
@@ -249,6 +251,23 @@ export function getAllVitalEntries(): VitalEntry[] {
 
 export function getVitalEntriesForDate(date: string): VitalEntry[] {
   return getAppData().vitalEntries.filter((e) => e.date === date);
+}
+
+// ── Symptoms (per-event rows — record + display only, never diagnostic) ──
+export function addSymptomEntry(entry: SymptomEntry): void {
+  const data = getAppData();
+  data.symptomEntries.push(entry);
+  saveAppData(data);
+}
+
+export function removeSymptomEntry(id: string): void {
+  const data = getAppData();
+  data.symptomEntries = data.symptomEntries.filter((e) => e.id !== id);
+  saveAppData(data);
+}
+
+export function getAllSymptomEntries(): SymptomEntry[] {
+  return getAppData().symptomEntries;
 }
 
 // ── Water ────────────────────────────────────────────────

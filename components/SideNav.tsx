@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, BookOpen, PlusCircle, Dumbbell, Scale, Settings, ScanLine, CalendarDays, HeartPulse } from 'lucide-react';
+import { Home, BookOpen, PlusCircle, Dumbbell, Scale, Settings, ScanLine, CalendarDays, HeartPulse, Stethoscope } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function SideNav() {
@@ -19,6 +19,7 @@ export default function SideNav() {
     { href: '/plan',     label: 'プラン',     icon: CalendarDays },
     { href: '/weight',   label: t.navWeight,  icon: Scale },
     { href: '/vitals',   label: t.navVitals,  icon: HeartPulse },
+    { href: '/symptoms', label: t.navSymptoms, icon: Stethoscope },
     { href: '/settings', label: t.settings,   icon: Settings },
   ];
 

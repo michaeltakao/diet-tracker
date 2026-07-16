@@ -74,16 +74,17 @@ describe('weekStartOf', () => {
 // ── Any-log union ─────────────────────────────────────────────
 
 describe('activityDaysFrom', () => {
-  it('unions food, workout, weight, vitals, and water>0 days; excludes water=0', () => {
+  it('unions food, workout, weight, vitals, symptoms, and water>0 days; excludes water=0', () => {
     const days = activityDaysFrom({
       foodEntries:    [{ date: '2026-07-10' } as never],
       workoutEntries: [{ date: '2026-07-11' } as never],
       weightEntries:  [{ date: '2026-07-12' } as never],
       vitalEntries:   [{ date: '2026-07-09' } as never],
+      symptomEntries: [{ date: '2026-07-08' } as never],
       waterByDate:    { '2026-07-13': 500, '2026-07-14': 0 },
     });
     expect(days).toEqual(
-      new Set(['2026-07-09', '2026-07-10', '2026-07-11', '2026-07-12', '2026-07-13']),
+      new Set(['2026-07-08', '2026-07-09', '2026-07-10', '2026-07-11', '2026-07-12', '2026-07-13']),
     );
   });
 });

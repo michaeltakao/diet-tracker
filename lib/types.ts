@@ -114,6 +114,27 @@ export interface BloodGlucoseEntry extends VitalEntryBase {
 
 export type VitalEntry = BloodPressureEntry | BloodGlucoseEntry;
 
+// ── Symptom log (record + display only — never diagnostic) ────────────────
+
+export interface SymptomEntry {
+  id: string;
+  date: string;               // YYYY-MM-DD (JST day of onset)
+  onsetAt: string;            // ISO
+  name: string;               // e.g. 頭痛
+  durationMin?: number;       // 1–10080 (one week), matches SQL CHECK
+  severity: number;           // 1–10 self-rating (recorded, not judged)
+  trigger?: string;           // free chip value: 食事/運動/ストレス/天候/睡眠不足/不明
+  actionTaken?: string;
+  note?: string;
+  // Plain id links (no FK — client-generated ids + guest mode); names are
+  // denormalized at link time so the doctor report survives log deletion.
+  relatedMealId?: string;
+  relatedMealName?: string;
+  relatedWorkoutId?: string;
+  relatedWorkoutName?: string;
+  addedAt: string;            // ISO
+}
+
 export interface DailyGoals {
   calories: number;
   protein: number;
@@ -174,6 +195,7 @@ export interface AppData {
   mealTemplates: MealTemplate[];   // saved meals for one-tap re-log
   streakState: StreakState;        // longest streak + repair-ticket memory (device-local)
   vitalEntries: VitalEntry[];      // BP / glucose measurements (record-only)
+  symptomEntries: SymptomEntry[];  // symptom log (record-only, non-diagnostic)
 }
 
 // ── Health Profile (stored in localStorage + profiles table) ──
