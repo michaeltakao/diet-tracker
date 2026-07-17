@@ -213,7 +213,7 @@ export default function WeightPage() {
           href="/settings"
           className="
             flex items-center justify-between
-            rounded-3xl p-4 mb-3
+            rounded-2xl p-4 mb-3
             bg-gradient-to-r from-indigo-50 to-purple-50
             dark:from-indigo-900/20 dark:to-purple-900/20
             border border-indigo-100 dark:border-indigo-800
@@ -232,7 +232,7 @@ export default function WeightPage() {
       {/* ── Goal banner ───────────────────────── */}
       {goalWeight && latest && (
         <div className={`
-          rounded-3xl p-4 mb-3
+          rounded-2xl p-4 mb-3
           ${goalAchieved
             ? 'bg-gradient-to-r from-brand-500 to-brand-600 shadow-[0_8px_24px_rgba(88,204,2,0.3)]'
             : 'bg-gradient-to-r from-indigo-500 to-purple-600 shadow-[0_8px_24px_rgba(99,102,241,0.25)]'}

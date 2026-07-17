@@ -7,13 +7,13 @@
  */
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { X } from 'lucide-react';
 import { getAppData, getStreak } from '@/lib/data';
 import { activityDaysFrom, jstToday } from '@/lib/streak';
 import { decideNudge, jstHour, type NudgeDecision } from '@/lib/notifications';
 import { maybeSendSelfPush } from '@/lib/push-client';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { Button } from '@/components/ui/Button';
 
 const DISMISS_KEY = 'diet-tracker-nudge-dismissed';
 
@@ -57,24 +57,13 @@ export default function NudgeBanner() {
   const { template } = decision;
 
   return (
-    <div className="bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-3xl p-4 mb-3 flex items-start gap-3 animate-fade-in">
+    <div className="bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-2xl p-4 mb-3 flex items-start gap-3 animate-fade-in">
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-fg">{t[template.titleKey]}</p>
         <p className="text-xs text-muted mt-0.5 leading-relaxed">{t[template.bodyKey]}</p>
-        <Link
-          href={template.href}
-          className="
-            inline-flex items-center justify-center mt-2.5
-            px-4 py-2 rounded-xl
-            bg-gradient-to-br from-brand-500 to-brand-600 text-white
-            text-xs font-bold shadow-card
-            hover:scale-[1.03] active:scale-95
-            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-            transition-all duration-200
-          "
-        >
+        <Button href={template.href} size="sm" className="mt-2.5">
           {t[template.ctaKey]}
-        </Link>
+        </Button>
       </div>
       <button
         type="button"

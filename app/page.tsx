@@ -23,6 +23,7 @@ import RecommendationCard from '@/components/RecommendationCard';
 import TdeeCard from '@/components/TdeeCard';
 import BottomNav from '@/components/BottomNav';
 import { Toast } from '@/components/ui/Toast';
+import { Button } from '@/components/ui/Button';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
@@ -210,7 +211,7 @@ export default function HomePage() {
         <>
           {/* ── Hero calorie card ──────────────────────── */}
           <div className={`
-            rounded-3xl p-5 mb-3
+            rounded-2xl p-5 mb-3
             ${over
               ? 'bg-gradient-to-br from-amber-500 to-red-600'
               : 'bg-gradient-to-br from-brand-500 to-brand-600'}
@@ -231,12 +232,12 @@ export default function HomePage() {
           </div>
 
           {/* ── Calorie bar ─────────────────────────────── */}
-          <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
+          <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
             <CalorieBar current={totals.calories} goal={goals.calories} />
           </div>
 
           {/* ── PFC Donut ───────────────────────────────── */}
-          <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
+          <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
             <h2 className="text-sm font-bold text-muted mb-2">{t.macroBreakdown}</h2>
             <PFCDonut
               protein={totals.protein} fat={totals.fat} carbs={totals.carbs}
@@ -245,7 +246,7 @@ export default function HomePage() {
           </div>
 
           {/* ── Macro bars ──────────────────────────────── */}
-          <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
+          <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
             <h2 className="text-sm font-bold text-muted mb-3">{t.macros}</h2>
             <MacroBar
               protein={totals.protein} fat={totals.fat} carbs={totals.carbs}
@@ -255,24 +256,13 @@ export default function HomePage() {
         </>
       ) : (
         /* ── Empty state: no real goals set ─────────────── */
-        <div className="bg-card rounded-3xl shadow-card border border-line p-10 text-center mb-3">
+        <div className="bg-card rounded-2xl shadow-card border border-line p-10 text-center mb-3">
           <p className="text-4xl mb-3" aria-hidden="true">🎯</p>
           <p className="text-sm font-semibold text-muted">{t.noGoalsTitle}</p>
           <p className="text-xs text-faint mt-1 mb-4">{t.noGoalsSub}</p>
-          <Link
-            href="/onboarding"
-            className="
-              inline-flex items-center justify-center
-              px-5 py-2.5 rounded-2xl
-              bg-gradient-to-br from-brand-500 to-brand-600 text-white
-              text-sm font-bold
-              shadow-card hover:scale-[1.03] active:scale-95
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-              transition-all duration-200
-            "
-          >
+          <Button href="/onboarding" size="lg">
             {t.noGoalsCta}
-          </Link>
+          </Button>
           <div className="mt-3">
             <Link
               href="/settings"
@@ -291,7 +281,7 @@ export default function HomePage() {
       <TdeeCard />
 
       {/* ── Water Tracker ───────────────────────────── */}
-      <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
+      <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
         <WaterTracker current={water} goal={goals?.water ?? 2000} onAdd={handleAddWater} />
       </div>
 
@@ -303,7 +293,7 @@ export default function HomePage() {
 
       {/* ── Badge shelf ─────────────────────────────── */}
       {earnedBadges.length > 0 && (
-        <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
+        <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
           <BadgeShelf badges={earnedBadges} title="🏅 獲得バッジ" />
         </div>
       )}
@@ -312,7 +302,7 @@ export default function HomePage() {
       <h2 className="text-sm font-bold text-muted mb-3 mt-1">{t.todayMeals}</h2>
 
       {entries.length === 0 ? (
-        <div className="bg-card rounded-3xl shadow-card border border-line p-10 text-center">
+        <div className="bg-card rounded-2xl shadow-card border border-line p-10 text-center">
           <p className="text-4xl mb-3" aria-hidden="true">🍽️</p>
           <p className="text-sm font-semibold text-muted">{t.noMeals}</p>
           <p className="text-xs text-faint mt-1 mb-4">{t.noMealsSub}</p>
@@ -339,7 +329,7 @@ export default function HomePage() {
             const sectionCals = typeEntries.reduce((s, e) => s + e.calories, 0);
             const collapsed = collapsedMeals.has(type);
             return (
-              <div key={type} className="bg-card rounded-3xl shadow-card border border-line overflow-hidden">
+              <div key={type} className="bg-card rounded-2xl shadow-card border border-line overflow-hidden">
                 <button
                   onClick={() => toggleMeal(type)}
                   aria-expanded={!collapsed}

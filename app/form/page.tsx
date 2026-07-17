@@ -247,7 +247,7 @@ export default function FormPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const cardCls = 'bg-card rounded-3xl border border-line p-4 shadow-[0_4px_16px_rgb(0,0,0,0.04)]';
+  const cardCls = 'bg-card rounded-2xl border border-line p-4 shadow-[0_4px_16px_rgb(0,0,0,0.04)]';
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
@@ -280,7 +280,7 @@ export default function FormPage() {
 
       {/* Camera / Canvas */}
       <div className={`${cardCls} mb-3 overflow-hidden p-0`}>
-        <div className="relative bg-black rounded-3xl overflow-hidden" style={{ aspectRatio: '4/3' }}>
+        <div className="relative bg-black rounded-2xl overflow-hidden" style={{ aspectRatio: '4/3' }}>
           <video
             ref={videoRef}
             className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"

@@ -52,7 +52,7 @@ export function FoodEntryForm({
   onSubmit,
 }: FoodEntryFormProps) {
   return (
-    <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-4 space-y-4">
+    <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-4 space-y-4">
       {showConfirmHeading && (
         <h2 className="text-sm font-bold text-muted">{t.confirmAdd}</h2>
       )}

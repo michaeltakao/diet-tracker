@@ -385,7 +385,7 @@ export default function AddPage() {
 
       {/* ── Recent tab ──────────────────────────── */}
       {tab === 'recent' && (
-        <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-4">
+        <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-4">
           <h2 className="text-sm font-bold text-muted mb-3">{t.recentFoods}</h2>
           {recentFoods.length === 0 ? (
             <p className="text-sm text-faint text-center py-4">{t.noRecentFoods}</p>
@@ -459,7 +459,7 @@ export default function AddPage() {
 
       {/* ── Photo tab ───────────────────────────── */}
       {tab === 'photo' && (
-        <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-4">
+        <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-4">
           <PhotoUpload onAnalysisComplete={handleAnalysisComplete} />
         </div>
       )}

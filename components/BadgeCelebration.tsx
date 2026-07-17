@@ -99,7 +99,7 @@ export default function BadgeCelebration({ badges, onClose }: Props) {
           bg-card/85
           backdrop-blur-md
           border border-line-strong
-          rounded-3xl
+          rounded-2xl
           shadow-[0_24px_64px_rgb(0,0,0,0.20)]
           p-8 text-center
           animate-badge-pop

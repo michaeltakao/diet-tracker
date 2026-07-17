@@ -92,7 +92,7 @@ export default function PwaInstallBanner() {
           bg-card/90
           backdrop-blur-md
           border border-line
-          rounded-3xl
+          rounded-2xl
           shadow-elevated
           p-4
           animate-slide-in-up
@@ -160,7 +160,7 @@ export default function PwaInstallBanner() {
           <div
             className="
               bg-card
-              rounded-3xl w-full max-w-md
+              rounded-2xl w-full max-w-md
               shadow-elevated
               p-6
               animate-badge-pop

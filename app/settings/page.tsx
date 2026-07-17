@@ -14,6 +14,7 @@ import {
 import BottomNav from '@/components/BottomNav';
 import AccountSection from '@/components/AccountSection';
 import PushSettingsRow from '@/components/PushSettingsRow';
+import { Button } from '@/components/ui/Button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useWeightUnit } from '@/lib/units';
 
@@ -190,7 +191,7 @@ export default function SettingsPage() {
     setTextScaleState(scale);
   };
 
-  const cardCls = 'bg-card rounded-3xl shadow-card border border-line p-4';
+  const cardCls = 'bg-card rounded-2xl shadow-card border border-line p-4';
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
@@ -700,19 +701,7 @@ export default function SettingsPage() {
       </div>
 
       {/* ── Save button ───────────────────────── */}
-      <button
-        onClick={handleSave}
-        className={`
-          w-full font-black py-4 rounded-2xl
-          flex items-center justify-center gap-2.5
-          transition-all duration-300
-          hover:scale-[1.01] active:scale-[0.98]
-          text-sm
-          ${saved
-            ? 'bg-brand-600 text-white shadow-[0_4px_14px_rgba(88,204,2,0.4)]'
-            : 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_14px_rgba(88,204,2,0.35)] hover:from-brand-600 hover:to-brand-700'}
-        `}
-      >
+      <Button size="lg" className="w-full" onClick={handleSave}>
         {saved ? (
           <>
             <Check size={18} strokeWidth={3} />
@@ -724,7 +713,7 @@ export default function SettingsPage() {
             {t.saveSettings}
           </>
         )}
-      </button>
+      </Button>
 
       {/* ── Data & Storage ────────────────────── */}
       <div className={`${cardCls} mt-5 mb-3`}>

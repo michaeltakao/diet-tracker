@@ -16,6 +16,7 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { isPushSupported, subscribeToPush } from '@/lib/push-client';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { Button } from '@/components/ui/Button';
 
 const PROMPT_DISMISS_KEY = 'diet-tracker-push-prompt-dismissed';
 
@@ -75,7 +76,7 @@ export default function PushPermissionCard() {
   };
 
   return (
-    <div className="bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-3xl p-4 mb-3 flex items-start gap-3 animate-fade-in">
+    <div className="bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-2xl p-4 mb-3 flex items-start gap-3 animate-fade-in">
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-fg flex items-center gap-1.5">
           <Bell size={14} aria-hidden="true" />
@@ -86,29 +87,12 @@ export default function PushPermissionCard() {
           <p className="text-xs text-red-500 mt-1">{t.pushError}</p>
         )}
         <div className="flex items-center gap-2 mt-2.5">
-          <button
-            type="button"
-            onClick={enable}
-            disabled={state === 'busy'}
-            className="
-              inline-flex items-center justify-center
-              px-4 py-2 rounded-xl
-              bg-gradient-to-br from-brand-500 to-brand-600 text-white
-              text-xs font-bold shadow-card
-              hover:scale-[1.03] active:scale-95 disabled:opacity-60
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-              transition-all duration-200
-            "
-          >
+          <Button size="sm" onClick={enable} disabled={state === 'busy'}>
             {t.pushEnable}
-          </button>
-          <button
-            type="button"
-            onClick={dismiss}
-            className="px-3 py-2 rounded-xl text-xs font-semibold text-muted hover:text-fg hover:bg-surface-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-          >
+          </Button>
+          <Button variant="ghost" size="sm" onClick={dismiss}>
             {t.pushCardDismiss}
-          </button>
+          </Button>
         </div>
       </div>
       <button

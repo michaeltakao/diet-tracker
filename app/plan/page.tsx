@@ -234,7 +234,7 @@ function CheckInWidget({
   };
 
   return (
-    <div className="bg-card rounded-3xl border border-line overflow-hidden shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
+    <div className="bg-card rounded-2xl border border-line overflow-hidden shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
       <button
         onClick={() => setExpanded(v => !v)}
         className="w-full flex items-center gap-3 p-4 hover:bg-surface-2 transition-colors"
@@ -437,7 +437,7 @@ function SuggestionCard({
   } as Record<string, { bg: string; text: string; label: string }>;
   if (loading) {
     return (
-      <div className="bg-card rounded-3xl border border-line p-4 shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
+      <div className="bg-card rounded-2xl border border-line p-4 shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center animate-pulse shrink-0">
             <Zap size={17} className="text-indigo-500" />
@@ -458,7 +458,7 @@ function SuggestionCard({
 
   if (error === 'auth') {
     return (
-      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-3xl border border-blue-200 dark:border-blue-800 p-4">
+      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-200 dark:border-blue-800 p-4">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
             <Zap size={17} className="text-blue-500" />
@@ -474,7 +474,7 @@ function SuggestionCard({
 
   if (error === 'error') {
     return (
-      <div className="bg-red-50 dark:bg-red-900/20 rounded-3xl border border-red-200 dark:border-red-800 p-4 flex items-center justify-between gap-3">
+      <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-200 dark:border-red-800 p-4 flex items-center justify-between gap-3">
         <p className="text-sm font-bold text-red-600 dark:text-red-400">{t.aiSuggestionFailed}</p>
         <button onClick={onRefresh} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-100 dark:bg-red-900/40 text-red-500 text-xs font-bold hover:bg-red-200 transition-colors">
           <RefreshCw size={12} />
@@ -489,7 +489,7 @@ function SuggestionCard({
   const style = PROCEED_STYLES[suggestion.proceed] ?? PROCEED_STYLES.full;
 
   return (
-    <div className={`rounded-3xl border p-4 ${style.bg} shadow-[0_4px_16px_rgb(0,0,0,0.04)]`}>
+    <div className={`rounded-2xl border p-4 ${style.bg} shadow-[0_4px_16px_rgb(0,0,0,0.04)]`}>
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
@@ -721,7 +721,7 @@ export default function PlanPage() {
     reload();
   };
 
-  const cardCls = 'bg-card rounded-3xl border border-line p-4 shadow-[0_4px_16px_rgb(0,0,0,0.04)]';
+  const cardCls = 'bg-card rounded-2xl border border-line p-4 shadow-[0_4px_16px_rgb(0,0,0,0.04)]';
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">

@@ -302,7 +302,7 @@ export default function WorkoutPage() {
     ...workouts.map((w)    => ({ ...w, _type: 'workout' as const })),
   ].sort((a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime());
 
-  const cardCls = 'bg-card rounded-3xl p-4 shadow-card border border-line';
+  const cardCls = 'bg-card rounded-2xl p-4 shadow-card border border-line';
 
   return (
     <main className="min-h-screen bg-[var(--background)] pb-28 lg:pb-8 max-w-md lg:max-w-2xl mx-auto lg:px-6">

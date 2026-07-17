@@ -42,7 +42,7 @@ export default function RecentSymptomsCard() {
   if (recent.length === 0) return null;
 
   return (
-    <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
+    <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
       <Link
         href="/symptoms"
         className="flex items-center justify-between mb-2 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] rounded-lg"

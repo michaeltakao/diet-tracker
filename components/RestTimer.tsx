@@ -88,7 +88,7 @@ export default function RestTimer() {
     <section
       role="group"
       aria-label={tr('インターバルタイマー', 'Rest timer')}
-      className="bg-card rounded-3xl p-4 shadow-card border border-line space-y-3"
+      className="bg-card rounded-2xl p-4 shadow-card border border-line space-y-3"
     >
       <h2 className="font-black text-fg flex items-center gap-1.5">
         <Timer className="w-5 h-5 text-brand-600 dark:text-brand-400" aria-hidden="true" />

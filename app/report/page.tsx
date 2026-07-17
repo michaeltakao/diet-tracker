@@ -190,7 +190,7 @@ export default function ReportPage() {
 
       {/* ── Report body (screen + print) ─────────────── */}
       {report && (
-        <div id="print-report" className="bg-card print:bg-transparent rounded-3xl print:rounded-none border border-line print:border-0 shadow-card print:shadow-none p-5 print:p-0 space-y-5 text-fg">
+        <div id="print-report" className="bg-card print:bg-transparent rounded-2xl print:rounded-none border border-line print:border-0 shadow-card print:shadow-none p-5 print:p-0 space-y-5 text-fg">
           {/* Header: 期間 + 作成日 + anonymous participant only (no PII) */}
           <header>
             <h2 className="text-lg font-black">{t.reportTitle}</h2>

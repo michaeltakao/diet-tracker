@@ -88,7 +88,7 @@ function ConfirmDialogBody({
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
         aria-describedby={description ? 'confirm-dialog-desc' : undefined}
-        className="w-full max-w-sm bg-card rounded-3xl shadow-elevated border border-line p-5 animate-slide-in-up"
+        className="w-full max-w-sm bg-card rounded-2xl shadow-elevated border border-line p-5 animate-slide-in-up"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >

@@ -45,7 +45,7 @@ export default function MedsPage() {
   const allTaken = medications.length > 0 && medications.every(m => takenToday.includes(m));
   const todayStr = fmtMonthDayDowShortJa(getTodayStr());
 
-  const cardCls = 'bg-card rounded-3xl shadow-card border border-line p-4';
+  const cardCls = 'bg-card rounded-2xl shadow-card border border-line p-4';
 
   if (medications.length === 0) {
     return (

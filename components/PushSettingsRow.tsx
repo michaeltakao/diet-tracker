@@ -20,6 +20,7 @@ import {
 } from '@/lib/push-client';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { Button } from '@/components/ui/Button';
 
 type RowState =
   | 'hidden'      // guest / unconfigured / pre-mount
@@ -89,14 +90,6 @@ export default function PushSettingsRow({ cardCls }: { cardCls: string }) {
     setState(ok ? 'off' : 'error');
   };
 
-  const buttonCls = `
-    w-full py-3 rounded-2xl text-sm font-bold
-    flex items-center justify-center gap-2
-    transition-all duration-200
-    hover:scale-[1.02] active:scale-95 disabled:opacity-60
-    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-  `;
-
   return (
     <div className={`${cardCls} mb-3`}>
       <label className="block text-xs font-black text-faint uppercase tracking-widest mb-3">
@@ -116,28 +109,19 @@ export default function PushSettingsRow({ cardCls }: { cardCls: string }) {
           {state === 'error' && (
             <p className="text-xs text-red-500 mb-2">{t.pushError}</p>
           )}
-          <button
-            type="button"
-            onClick={enable}
-            disabled={state === 'busy'}
-            className={`${buttonCls} bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(88,204,2,0.35)]`}
-          >
+          <Button className="w-full" onClick={enable} disabled={state === 'busy'}>
             <Bell size={16} aria-hidden="true" />
             {t.pushEnable}
-          </button>
+          </Button>
         </>
       )}
 
       {state === 'on' && (
         <>
           <p className="text-xs text-muted mb-3">{t.pushSettingsOn}</p>
-          <button
-            type="button"
-            onClick={disable}
-            className={`${buttonCls} bg-surface-2 text-muted hover:bg-line`}
-          >
+          <Button variant="ghost" className="w-full" onClick={disable}>
             {t.pushDisable}
-          </button>
+          </Button>
         </>
       )}
     </div>

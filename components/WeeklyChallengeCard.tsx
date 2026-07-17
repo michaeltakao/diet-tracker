@@ -7,6 +7,7 @@ import {
   type WeeklyChallenge,
 } from '@/lib/data';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 
 /** "07/13 – 07/19" from the challenge's JST week bounds. */
 function weekLabel(c: WeeklyChallenge): string {
@@ -31,12 +32,8 @@ export default function WeeklyChallengeCard() {
 
   if (!challenge) return null;
 
-  const pct = challenge.goalDays > 0
-    ? Math.min((challenge.progressDays / challenge.goalDays) * 100, 100)
-    : 0;
-
   return (
-    <div className="bg-card rounded-3xl shadow-card border border-line p-4 mb-3">
+    <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-sm font-bold text-muted">🎯 {t.weeklyChallengeTitle}</h2>
         <span className="text-[10px] font-semibold text-faint tabular-nums">
@@ -52,24 +49,11 @@ export default function WeeklyChallengeCard() {
         </span>
       </div>
 
-      {/* Track (mirrors CalorieBar's semantic-token bar) */}
-      <div
-        className="h-3 w-full bg-surface-2 rounded-full overflow-hidden"
-        role="progressbar"
-        aria-valuenow={challenge.progressDays}
-        aria-valuemin={0}
-        aria-valuemax={challenge.goalDays}
-        aria-label={t.weeklyChallengeTitle}
-      >
-        <div
-          className={`h-full rounded-full transition-all duration-700 ease-out ${
-            challenge.completed
-              ? 'bg-gradient-to-r from-brand-500 to-teal-500'
-              : 'bg-gradient-to-r from-brand-400 to-brand-500'
-          }`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+      <ProgressBar
+        value={challenge.progressDays}
+        max={challenge.goalDays}
+        label={`${challenge.progressDays}/${challenge.goalDays}${t.streakDays}`}
+      />
 
       {challenge.completed && (
         <p className="text-xs font-semibold text-brand-600 dark:text-brand-400 mt-1.5 text-right animate-slide-in-up">

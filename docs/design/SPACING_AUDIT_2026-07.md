@@ -30,15 +30,23 @@ mechanically swept — each is a visual decision that belongs to the component
 redesign (phase 4) and dashboard relayout (phase 5), where every touched
 component gets its spacing normalized as it is restyled.
 
-| Utility | px | Count | Normalize to |
-|---|---|---|---|
-| `*-0.5` | 2 | 93 | `*-1` (4px) or remove |
-| `*-1.5` | 6 | 170 | `*-2` (8px), `*-1` where tight |
-| `*-2.5` | 10 | 82 | `*-2` (8px) or `*-3` (12px) |
-| `*-3.5` | 14 | 24 | `*-4` (16px) |
-| `*-5` | 20 | 42 | `*-4` (16px) or `*-6` (24px) |
-| `*-9` | 36 | 1 | `*-8` (32px) or `*-10` (40→48 case-by-case) |
-| `*-10` | 40 | 10 | keep (5 grid) or `*-12` (48px) |
+| Utility | px | Count (phase 3) | Count (after phase 4) | Normalize to |
+|---|---|---|---|---|
+| `*-0.5` | 2 | 93 | 93 | `*-1` (4px) or remove |
+| `*-1.5` | 6 | 170 | 159 | `*-2` (8px), `*-1` where tight |
+| `*-2.5` | 10 | 82 | 74 | `*-2` (8px) or `*-3` (12px) |
+| `*-3.5` | 14 | 24 | 21 | `*-4` (16px) |
+| `*-5` | 20 | 42 | 41 | `*-4` (16px) or `*-6` (24px) |
+| `*-9` | 36 | 1 | 1 | `*-8` (32px) or `*-10` (40→48 case-by-case) |
+| `*-10` | 40 | 10 | 10 | keep (5 grid) or `*-12` (48px) |
+
+Phase 4 (2026-07-17) normalized the CTA/bar blocks it restyled — Button
+sizes are grid-true (`px-6 py-3` / `px-4 py-2` / `px-3 py-1`; the spec's
+`py-1.5` = 6px was rejected as off-grid) and the swapped-in call sites in
+`app/page.tsx`, `app/settings/page.tsx`, `NudgeBanner`, `PushPermissionCard`,
+`PushSettingsRow`, `WeeklyChallengeCard` dropped their `py-2.5`/`px-5`
+one-offs. `rounded-3xl` (32px) card shells were swept to `rounded-2xl`
+(24px) repo-wide — all cards now sit on `--radius-card`.
 
 Already grid-compliant (no action): all even steps ≤4px-unit scale
 (`*-1/2/3/4/6/8/12/16/20/24/28/56` etc.), `rounded-full`, w/h sizing

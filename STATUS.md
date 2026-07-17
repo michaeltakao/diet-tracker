@@ -1,6 +1,29 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-17 DESIGN PHASE 4: Duolingo-style Button/Card/ProgressBar** —
+  new `components/ui/Button.tsx` (primary/secondary/outline/ghost ×
+  lg/md/sm; `href` renders next/link; Duolingo press mechanics = hard
+  `0 4px 0` bottom edge → `translate-y-[2px]` + 2px edge on :active) and
+  `components/ui/ProgressBar.tsx` (token track, brand/warning fill, optional
+  gamified white overlay label — real value always via aria-value*).
+  **Contrast corrections vs the pasted spec** (its math was wrong): primary
+  fill = `--brand-strong` #378700 (white 4.54:1 AA ✓; spec's #46A302 is
+  3.23:1 ✗), secondary fill = new constant `--info-strong` #2b70c9 (white
+  4.93:1 ✓; dark-mode `--info` flips to macaw #1cb0f6 = 2.45:1, decor only —
+  hence the new theme-constant token). `CARD_CLASS` → rounded-2xl (24px) +
+  border-2; repo-wide `rounded-3xl`→`rounded-2xl` sweep (36 uses, 19 files)
+  so every card sits on 24px; light `--shadow-card` → tight `0 2px 8px
+  rgb(0 0 0 / 0.08)` (border carries the edge now). Swap-ins: dashboard
+  goal-CTA, settings 保存, NudgeBanner CTA, PushPermissionCard,
+  PushSettingsRow, WeeklyChallengeCard bar (stray `to-teal-500` killed).
+  M PLUS Rounded 1c added via next/font (400/700/800, preload:false,
+  unicode-range chunked) between Nunito and Hiragino → Windows gets rounded
+  JP. Verified: lint + 252 vitest + build green; Chrome computed-style check
+  (fill #378700, edge #225400, 16px radius, press rules compiled, bar
+  aria 0/5 + h-6 + brand-500 fill) + light/dark screenshots. Next: phase 5
+  dashboard relayout + remaining CTA/off-grid sweep
+  (docs/design/SPACING_AUDIT_2026-07.md has post-phase-4 counts).
 - **2026-07-17 DESIGN PHASE 3: 8px-grid spacing/radius tokens** — the pasted
   phase-3 spec was Tailwind-v3-shaped (tailwind.config.js spacing remap);
   repo is **v4** and a literal remap would silently re-mean 227 spacing
