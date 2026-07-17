@@ -59,9 +59,22 @@
   /* Focus ring */
   --ring: #58cc02;
 
-  /* Radii */
-  --radius-field: 0.875rem;
-  --radius-card:  1.5rem;
+  /* 8px-grid spacing tokens (design phase 3). Steps: 4 (half-grid min),
+     8, 12 (1.5), 16, 24, 32, 48, 64. Use for custom offsets/arbitrary
+     values; Tailwind's numeric utilities (4px-per-unit) stay untouched —
+     even steps are already grid-compliant. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Radii — snapped to the 8px grid (was 14px/24px) */
+  --radius-field: 16px;
+  --radius-card:  24px;
 
   /* Elevation */
   --shadow-card:     0 6px 24px rgb(2 6 23 / 0.06);
@@ -150,6 +163,18 @@
 
   --radius-field: var(--radius-field);
   --radius-card:  var(--radius-card);
+
+  /* Border-radius scale snapped to the 8px grid (design phase 3).
+     Overrides v4 defaults (sm 4 / md 6 / lg 8 / xl 12 / 2xl 16 / 3xl 24)
+     with a monotonic 4/8/12/16/24/32 series — every rounded-* utility
+     keeps working, corners get the rounder Duolingo-style look. */
+  --radius:     8px;
+  --radius-sm:  4px;
+  --radius-md:  8px;
+  --radius-lg:  12px;
+  --radius-xl:  16px;
+  --radius-2xl: 24px;
+  --radius-3xl: 32px;
 
   /* Nunito (next/font, --font-nunito on <html>) covers Latin + digits;
      Japanese falls back to ROUNDED JP system faces first (Maru Gothic) so

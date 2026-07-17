@@ -1,6 +1,20 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-17 DESIGN PHASE 3: 8px-grid spacing/radius tokens** — the pasted
+  phase-3 spec was Tailwind-v3-shaped (tailwind.config.js spacing remap);
+  repo is **v4** and a literal remap would silently re-mean 227 spacing
+  usages + delete `rounded-2xl/3xl` (183 uses) + kill 369 fractional
+  utilities → user chose the v4-native adaptation via AskUserQuestion.
+  Shipped: `--space-1…8` tokens (4/8/12/16/24/32/48/64) in :root; radius
+  scale snapped on-grid via @theme overrides (`rounded` 4→8, md 6→8, lg
+  8→12, xl 12→16, **2xl 16→24, 3xl 24→32** — the rounder Duolingo look,
+  intentional global visual change), `--radius-field` 14→16;
+  `docs/design/SPACING_AUDIT_2026-07.md` = off-grid inventory (0.5×93,
+  1.5×170, 2.5×82, 3.5×24, *-5×42…) with normalize-to mapping — phases 4/5
+  burn it down file-by-file as components are redesigned. Verified: lint +
+  252 vitest + build green; browser probe of computed radii (8/12/16/24/32)
+  + --space-* live; screenshot eyeballed, no layout breakage.
 - **2026-07-17 DESIGN PHASE 2: Nunito typography** — `app/layout.tsx` swaps
   Inter → Nunito via next/font (self-hosted, **variable axis 200–1000** per
   next/font docs recommendation instead of enumerating static 400–900 —
