@@ -14,7 +14,7 @@ function statusBadge(lastFoodLog: string | null): { label: string; color: string
   const diffDays = Math.floor(
     (new Date(today).getTime() - new Date(lastFoodLog).getTime()) / 86_400_000,
   );
-  if (diffDays === 0) return { label: '活発', color: 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30' };
+  if (diffDays === 0) return { label: '活発', color: 'text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-900/30' };
   if (diffDays <= 2)  return { label: '注意', color: 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30' };
   return { label: '離脱リスク', color: 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30' };
 }
@@ -169,7 +169,7 @@ export default function ResearchPage() {
                           <td className="px-3 py-2 tabular-nums text-center">{p.food_log_count}</td>
                           <td className="px-3 py-2 tabular-nums text-center">{p.weight_log_count}</td>
                           <td className="px-3 py-2 tabular-nums text-center text-faint">
-                            <span className="text-emerald-600 dark:text-emerald-400">{p.accept_count}</span>
+                            <span className="text-brand-600 dark:text-brand-400">{p.accept_count}</span>
                             {' / '}
                             <span className="text-red-500">{p.reject_count}</span>
                             {fbTotal > 0 && (

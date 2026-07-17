@@ -106,7 +106,7 @@ export default function MedsPage() {
             {t.todayMedCheck}
           </p>
           {allTaken && (
-            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-1 rounded-full">
+            <span className="text-xs font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 px-2.5 py-1 rounded-full">
               ✓ {t.allTakenLabel}
             </span>
           )}
@@ -130,16 +130,16 @@ export default function MedsPage() {
                     w-full flex items-center gap-3 p-3 rounded-2xl
                     transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]
                     ${taken
-                      ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800'
+                      ? 'bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800'
                       : 'bg-surface-2 border border-line-strong hover:bg-line'}
                   `}
                 >
                   {taken
-                    ? <CheckCircle2 size={20} className="text-emerald-500 shrink-0" />
+                    ? <CheckCircle2 size={20} className="text-brand-500 shrink-0" />
                     : <Circle size={20} className="text-faint shrink-0" />
                   }
                   <div className="flex-1 text-left">
-                    <p className={`text-sm font-bold ${taken ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted'}`}>
+                    <p className={`text-sm font-bold ${taken ? 'text-brand-700 dark:text-brand-400' : 'text-muted'}`}>
                       {med}
                     </p>
                     {rule?.timingNote && (
@@ -150,7 +150,7 @@ export default function MedsPage() {
                     )}
                   </div>
                   {taken && (
-                    <span className="text-xs font-semibold text-emerald-500">{t.takenLabel}</span>
+                    <span className="text-xs font-semibold text-brand-500">{t.takenLabel}</span>
                   )}
                 </button>
               </div>
@@ -261,7 +261,7 @@ export default function MedsPage() {
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <span className={`text-xs font-bold w-10 text-right ${pct === 100 ? 'text-emerald-500' : 'text-faint'}`}>
+                  <span className={`text-xs font-bold w-10 text-right ${pct === 100 ? 'text-brand-500' : 'text-faint'}`}>
                     {pct}%
                   </span>
                 </div>

@@ -358,7 +358,7 @@ export default function LogPage() {
                   hover:scale-[1.04] active:scale-95
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
                   ${isSelected
-                    ? 'bg-gradient-to-b from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                    ? 'bg-gradient-to-b from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(88,204,2,0.35)]'
                     : 'hover:bg-surface-2 text-muted'}
                 `}
               >
@@ -386,7 +386,7 @@ export default function LogPage() {
           </p>
         )}
         <div className="flex gap-3 mt-3 text-xs font-semibold">
-          <span className="text-emerald-600 dark:text-emerald-400">P {totals.protein}g</span>
+          <span className="text-brand-600 dark:text-brand-400">P {totals.protein}g</span>
           <span className="text-warning">F {totals.fat}g</span>
           <span className="text-blue-600 dark:text-blue-400">C {totals.carbs}g</span>
         </div>

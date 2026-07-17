@@ -37,7 +37,7 @@ export function ChipGroup<T extends string>({
             transition-all duration-200 hover:scale-[1.02] active:scale-95
             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
             ${value === opt.value
-              ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+              ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(88,204,2,0.35)]'
               : 'bg-surface-2 text-muted hover:bg-line'}
           `}
         >

@@ -91,7 +91,7 @@ export default function TdeeCard() {
     return (
       <div className={`${CARD} p-4 mb-3`}>
         <div className="flex items-center gap-2 mb-2">
-          <Activity size={14} className="text-emerald-500" />
+          <Activity size={14} className="text-brand-500" />
           <span className="text-[10px] font-black text-faint uppercase tracking-widest">
             {t.tdeeHeading}
           </span>
@@ -104,7 +104,7 @@ export default function TdeeCard() {
         </p>
         <div className="mt-2 h-1.5 rounded-full bg-surface-2 overflow-hidden" aria-hidden="true">
           <div
-            className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+            className="h-full rounded-full bg-brand-500 transition-all duration-500"
             style={{ width: `${(k / MIN_DATA_POINTS) * 100}%` }}
           />
         </div>
@@ -119,7 +119,7 @@ export default function TdeeCard() {
     <div className={`${CARD} p-4 mb-3`}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Activity size={14} className="text-emerald-500" />
+          <Activity size={14} className="text-brand-500" />
           <span className="text-[10px] font-black text-faint uppercase tracking-widest">
             {t.tdeeHeading} ({t.tdeeDataDays.replace('{n}', String(estimate.dataPoints))})
           </span>
@@ -150,7 +150,7 @@ export default function TdeeCard() {
         <div className="mb-1">
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
             confidence === '高'
-              ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30'
+              ? 'text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-900/30'
               : confidence === '中'
               ? 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30'
               : 'text-faint bg-surface-2'

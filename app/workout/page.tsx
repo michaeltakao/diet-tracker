@@ -315,7 +315,7 @@ export default function WorkoutPage() {
       <Toast message={prToast} variant="celebrate" />
 
       {/* Header */}
-      <div className="bg-gradient-to-br from-brand-600 via-emerald-600 to-teal-600 text-white px-4 pt-12 pb-8 rounded-b-[2.5rem] shadow-[0_16px_48px_rgba(16,185,129,0.25)]">
+      <div className="bg-gradient-to-br from-brand-500 via-brand-600 to-brand-700 text-white px-4 pt-12 pb-8 rounded-b-[2.5rem] shadow-[0_16px_48px_rgba(88,204,2,0.25)]">
         <h1 className="text-2xl font-black flex items-center gap-2 tracking-tight">
           <Dumbbell className="w-6 h-6" /> {t.aiCoach}
         </h1>
@@ -343,14 +343,14 @@ export default function WorkoutPage() {
                 days === null  ? null :
                 days === 0     ? <span className="block text-[9px] font-bold leading-none text-red-400/90">{t.todayShort}</span> :
                 days === 1     ? <span className="block text-[9px] font-bold leading-none text-amber-400">{lang === 'en' ? '1d ago' : '1日前'}</span> :
-                                 <span className="block text-[9px] font-bold leading-none text-emerald-400">{lang === 'en' ? `${days}d ago` : `${days}日前`}</span>;
+                                 <span className="block text-[9px] font-bold leading-none text-brand-400">{lang === 'en' ? `${days}d ago` : `${days}日前`}</span>;
               return (
                 <button key={p.id} type="button" onClick={() => setSelectedPart(p.id)}
                   className={`
                     flex flex-col items-center px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap
                     transition-all duration-200 hover:scale-[1.04] active:scale-95
                     ${selectedPart === p.id
-                      ? 'bg-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                      ? 'bg-brand-600 text-white shadow-[0_4px_12px_rgba(88,204,2,0.35)]'
                       : 'bg-surface-2 text-muted'}
                   `}
                 >
@@ -423,7 +423,7 @@ export default function WorkoutPage() {
         {/* 2 ── 入力フォーム ──────────────── */}
         <section ref={entryFormRef} className={`${cardCls} space-y-4`}>
           {/* Coach tip */}
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-2xl p-3 border border-green-100 dark:border-green-800 flex gap-2 items-start">
+          <div className="bg-gradient-to-r from-green-50 to-brand-50 dark:from-green-900/20 dark:to-brand-900/20 rounded-2xl p-3 border border-green-100 dark:border-green-800 flex gap-2 items-start">
             <ShieldAlert className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
             <p className="text-xs text-green-800 dark:text-green-300 leading-relaxed font-medium">{coachAdvice}</p>
           </div>
@@ -474,7 +474,7 @@ export default function WorkoutPage() {
               className="
                 w-full py-3.5 rounded-2xl font-black text-sm text-white
                 bg-gradient-to-r from-brand-500 to-brand-600
-                shadow-[0_4px_14px_rgba(16,185,129,0.4)]
+                shadow-[0_4px_14px_rgba(88,204,2,0.4)]
                 hover:from-brand-600 hover:to-brand-700
                 hover:scale-[1.01] active:scale-[0.98]
                 transition-all duration-200

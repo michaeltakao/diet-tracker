@@ -13,48 +13,51 @@
    =================================================================== */
 
 :root {
-  /* Brand ramp (emerald) */
-  --brand-50:  #ecfdf5;
-  --brand-100: #d1fae5;
-  --brand-200: #a7f3d0;
-  --brand-300: #6ee7b7;
-  --brand-400: #34d399;
-  --brand-500: #10b981;
-  --brand-600: #059669;
-  --brand-700: #047857;
-  --brand-800: #065f46;
-  --brand-900: #064e3b;
+  /* Brand ramp (feather green — Duolingo-inspired palette, 2026-07-17).
+     500 is the hero accent; text-bearing fills should use --brand-strong. */
+  --brand-50:  #f2fce4;
+  --brand-100: #e2f8c7;
+  --brand-200: #c8f19b;
+  --brand-300: #a3e660;
+  --brand-400: #7bd82f;
+  --brand-500: #58cc02;
+  --brand-600: #47a302;
+  --brand-700: #378700;
+  --brand-800: #2b6a00;
+  --brand-900: #225400;
   --brand:        var(--brand-500);
-  --brand-strong: var(--brand-600); /* AA white-on-brand for text/buttons */
+  --brand-strong: var(--brand-700); /* AA white-on-brand for text/buttons (4.5:1) */
 
-  /* Surfaces */
-  --surface:     #f7f9fc;
-  --surface-2:   #eef2f8;
+  /* Surfaces (neutral "polar" grays — no blue cast) */
+  --surface:     #f7f7f7;
+  --surface-2:   #efefef;
   --card:        #ffffff;
-  --line:        rgba(2, 6, 23, 0.08);
-  --line-strong: rgba(2, 6, 23, 0.14);
+  --line:        rgba(0, 0, 0, 0.10);
+  --line-strong: rgba(0, 0, 0, 0.16);
 
-  /* Text (AA on light surfaces) */
-  --fg:    #0f172a; /* primary  */
-  --muted: #475569; /* secondary ~7.5:1 */
-  --faint: #64748b; /* tertiary ~4.7:1 (still AA) */
+  /* Text (neutral grays, AA on light surfaces) */
+  --fg:    #3c3c3c; /* primary ~10.9:1 */
+  --muted: #575757; /* secondary ~7.2:1 */
+  --faint: #6f6f6f; /* tertiary ~5.0:1 (still AA) */
 
-  /* Semantic — foreground colors meet AA on light surfaces */
-  --success:      #059669;
-  --success-soft: #ecfdf5;
+  /* Semantic — foreground colors meet AA on light surfaces.
+     Hues follow the playful palette (green/orange/red/blue) but are
+     darkened where the raw accent would fail 4.5:1 as text. */
+  --success:      #378700;
+  --success-soft: #f2fce4;
   --warning:      #b45309;
-  --warning-soft: #fffbeb;
-  --danger:       #dc2626;
-  --danger-soft:  #fef2f2;
-  --info:         #2563eb;
-  --info-soft:    #eff6ff;
+  --warning-soft: #fff3d9;
+  --danger:       #e02b2b;
+  --danger-soft:  #ffdfe0;
+  --info:         #2b70c9;
+  --info-soft:    #ddf4ff;
 
-  /* AI-driven features (recommendations, coach, analysis) — violet family */
-  --ai:           #7c3aed;
-  --ai-soft:      #f5f3ff;
+  /* AI-driven features (recommendations, coach, analysis) — purple family */
+  --ai:           #8549ba;
+  --ai-soft:      #f6edff;
 
   /* Focus ring */
-  --ring: #10b981;
+  --ring: #58cc02;
 
   /* Radii */
   --radius-field: 0.875rem;
@@ -72,29 +75,30 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --surface:     #0b1220;
-    --surface-2:   #131c2e;
-    --card:        #1a2336;
-    --line:        rgba(255, 255, 255, 0.09);
-    --line-strong: rgba(255, 255, 255, 0.16);
+    /* Dark surfaces: deep blue-green "night owl" neutrals */
+    --surface:     #131f24;
+    --surface-2:   #1a2b33;
+    --card:        #202f36;
+    --line:        rgba(255, 255, 255, 0.10);
+    --line-strong: rgba(255, 255, 255, 0.18);
 
-    --fg:    #f1f5f9;
-    --muted: #cbd5e1; /* slate-300 */
-    --faint: #94a3b8; /* slate-400 ~4.9:1 on card */
+    --fg:    #f1f7fb;
+    --muted: #cfdde5; /* ~11:1 on card */
+    --faint: #9db3bf; /* ~6:1 on card (AA) */
 
-    --success:      #34d399;
-    --success-soft: rgb(16 185 129 / 0.14);
-    --warning:      #fbbf24;
-    --warning-soft: rgb(251 191 36 / 0.14);
-    --danger:       #f87171;
-    --danger-soft:  rgb(248 113 113 / 0.14);
-    --info:         #60a5fa;
-    --info-soft:    rgb(96 165 250 / 0.14);
+    --success:      #79d633;
+    --success-soft: rgb(88 204 2 / 0.16);
+    --warning:      #ffc800;
+    --warning-soft: rgb(255 200 0 / 0.14);
+    --danger:       #ff5c5c;
+    --danger-soft:  rgb(255 75 75 / 0.14);
+    --info:         #1cb0f6;
+    --info-soft:    rgb(28 176 246 / 0.14);
 
-    --ai:           #a78bfa;
-    --ai-soft:      rgb(139 92 246 / 0.14);
+    --ai:           #ce82ff;
+    --ai-soft:      rgb(206 130 255 / 0.16);
 
-    --ring: #34d399;
+    --ring: #79d633;
 
     --shadow-card:     0 6px 24px rgb(0 0 0 / 0.35);
     --shadow-elevated: 0 16px 48px rgb(0 0 0 / 0.5);

@@ -316,7 +316,7 @@ export default function OnboardingPage() {
         <button
           onClick={() => router.replace('/workout')}
           className="w-full py-4 rounded-2xl text-sm font-black text-white
-            bg-gradient-to-r from-brand-500 to-brand-600 shadow-[0_4px_14px_rgba(16,185,129,0.35)]
+            bg-gradient-to-r from-brand-500 to-brand-600 shadow-[0_4px_14px_rgba(88,204,2,0.35)]
             hover:from-brand-600 hover:to-brand-700 transition-all active:scale-95
             flex items-center justify-center gap-2"
         >
@@ -407,7 +407,7 @@ export default function OnboardingPage() {
         <button
           onClick={() => advance(false)}
           className="w-full py-4 rounded-2xl text-sm font-black text-white
-            bg-gradient-to-r from-brand-500 to-brand-600 shadow-[0_4px_14px_rgba(16,185,129,0.35)]
+            bg-gradient-to-r from-brand-500 to-brand-600 shadow-[0_4px_14px_rgba(88,204,2,0.35)]
             hover:from-brand-600 hover:to-brand-700 transition-all active:scale-95
             flex items-center justify-center gap-2"
         >

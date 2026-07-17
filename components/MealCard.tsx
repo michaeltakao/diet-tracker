@@ -15,7 +15,7 @@ interface MealCardProps {
 
 const MEAL_BADGE: Record<FoodEntry['mealType'], { bg: string; text: string }> = {
   breakfast: { bg: 'bg-amber-100 dark:bg-amber-900/30',   text: 'text-amber-700 dark:text-amber-400' },
-  lunch:     { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-400' },
+  lunch:     { bg: 'bg-brand-100 dark:bg-brand-900/30', text: 'text-brand-700 dark:text-brand-400' },
   dinner:    { bg: 'bg-blue-100 dark:bg-blue-900/30',     text: 'text-blue-700 dark:text-blue-400' },
   snack:     { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-400' },
 };
@@ -123,7 +123,7 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
         <div className="grid grid-cols-4 gap-1.5 mb-3">
           {[
             { label: 'kcal', field: 'calories' as const, color: 'text-muted' },
-            { label: 'P(g)', field: 'protein'  as const, color: 'text-emerald-600 dark:text-emerald-400' },
+            { label: 'P(g)', field: 'protein'  as const, color: 'text-brand-600 dark:text-brand-400' },
             { label: 'F(g)', field: 'fat'      as const, color: 'text-warning' },
             { label: 'C(g)', field: 'carbs'    as const, color: 'text-blue-600 dark:text-blue-400' },
           ].map(({ label, field, color }) => (
@@ -266,7 +266,7 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
             {entry.calories.toLocaleString()} kcal
           </span>
           <div className="flex gap-2 text-xs">
-            <span className="font-medium text-emerald-600 dark:text-emerald-400">P {entry.protein}g</span>
+            <span className="font-medium text-brand-600 dark:text-brand-400">P {entry.protein}g</span>
             <span className="font-medium text-warning">F {entry.fat}g</span>
             <span className="font-medium text-blue-600 dark:text-blue-400">C {entry.carbs}g</span>
           </div>

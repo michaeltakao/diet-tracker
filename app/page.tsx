@@ -213,7 +213,7 @@ export default function HomePage() {
             rounded-3xl p-5 mb-3
             ${over
               ? 'bg-gradient-to-br from-amber-500 to-red-600'
-              : 'bg-gradient-to-br from-brand-500 to-teal-600'}
+              : 'bg-gradient-to-br from-brand-500 to-brand-600'}
             shadow-elevated
           `}>
             <p className="text-xs font-bold uppercase tracking-widest text-white/85 mb-1">
@@ -378,7 +378,7 @@ export default function HomePage() {
           fixed bottom-20 right-4 z-40
           w-14 h-14 rounded-full
           bg-gradient-to-br from-brand-500 to-brand-600
-          shadow-[0_8px_24px_rgba(16,185,129,0.5)]
+          shadow-[0_8px_24px_rgba(88,204,2,0.5)]
           flex items-center justify-center text-white
           hover:scale-110 active:scale-95
           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]

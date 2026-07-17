@@ -49,7 +49,7 @@ export default function ConsentPage() {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-3 text-center">
-          <CheckCircle2 size={48} className="text-emerald-500" />
+          <CheckCircle2 size={48} className="text-brand-500" />
           <p className="text-sm font-bold text-fg">同意を記録しました</p>
           <p className="text-xs text-faint">ダッシュボードに移動します…</p>
         </div>
@@ -134,7 +134,7 @@ export default function ConsentPage() {
 
         {/* Privacy badge */}
         <div className="flex items-center gap-2 text-xs text-faint">
-          <Shield size={12} className="text-emerald-500 flex-shrink-0" />
+          <Shield size={12} className="text-brand-500 flex-shrink-0" />
           <span>あなたのデータはRow Level Securityで保護され、第三者に提供されません</span>
         </div>
 

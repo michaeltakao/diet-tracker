@@ -38,7 +38,7 @@ const MUSCLE_COLORS: Record<string, string> = {
   back:      'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
   legs:      'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
   shoulders: 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400',
-  arms:      'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
+  arms:      'bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400',
   abs:       'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
 };
 
@@ -57,7 +57,7 @@ const ENERGY_LABELS_JA = ['', '消耗', '疲れ', '普通', '元気', '絶好調
 const ENERGY_LABELS_EN = ['', 'Drained', 'Tired', 'Normal', 'Energized', 'Peak'];
 
 const PROCEED_STYLES_BG: Record<string, { bg: string; text: string }> = {
-  full:        { bg: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800', text: 'text-green-700 dark:text-green-300' },
+  full:        { bg: 'bg-brand-50 dark:bg-brand-900/20 border-brand-200 dark:border-brand-800', text: 'text-brand-700 dark:text-brand-300' },
   reduced:     { bg: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800', text: 'text-amber-700 dark:text-amber-300' },
   alternative: { bg: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',    text: 'text-blue-700 dark:text-blue-300'  },
   rest:        { bg: 'bg-surface-2 border-line',     text: 'text-muted'  },
@@ -145,7 +145,7 @@ function ProgramCard({
   return (
     <div className={`rounded-2xl border-2 overflow-hidden transition-all ${
       isActive
-        ? 'border-green-400 dark:border-green-600 shadow-[0_0_0_2px_rgba(34,197,94,0.15)]'
+        ? 'border-brand-400 dark:border-brand-600 shadow-[0_0_0_2px_rgba(88,204,2,0.15)]'
         : 'border-line'
     }`}>
       <div className="p-3">
@@ -174,7 +174,7 @@ function ProgramCard({
           {!isActive && (
             <button
               onClick={onActivate}
-              className="flex-1 py-2 rounded-xl text-xs font-bold bg-brand-600 text-white hover:bg-green-600 transition-colors"
+              className="flex-1 py-2 rounded-xl text-xs font-bold bg-brand-600 text-white hover:bg-brand-600 transition-colors"
             >
               {t.startProgram}
             </button>
@@ -253,7 +253,7 @@ function CheckInWidget({
           )}
         </div>
         {value.mood > 0 && (
-          <span className="text-xs font-black text-brand bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">{t.recordedLabel}</span>
+          <span className="text-xs font-black text-brand bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full">{t.recordedLabel}</span>
         )}
         {expanded ? <ChevronUp size={15} className="text-faint" /> : <ChevronDown size={15} className="text-faint" />}
       </button>
@@ -813,7 +813,7 @@ export default function PlanPage() {
                   </div>
                   <button
                     onClick={() => router.push('/workout')}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold bg-gradient-to-r from-brand-500 to-emerald-600 text-white shadow-[0_4px_12px_rgba(34,197,94,0.35)] hover:opacity-90 transition-all"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(88,204,2,0.35)] hover:opacity-90 transition-all"
                   >
                     <Zap size={13} />
                     {lang === 'en' ? 'Start' : '開始'}

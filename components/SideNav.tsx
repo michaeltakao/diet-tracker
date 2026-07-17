@@ -53,7 +53,7 @@ export default function SideNav() {
                 text-sm font-semibold transition-all duration-200
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
                 ${accent
-                  ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)] hover:shadow-[0_4px_18px_rgba(16,185,129,0.5)] hover:scale-[1.02]'
+                  ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(88,204,2,0.35)] hover:shadow-[0_4px_18px_rgba(88,204,2,0.5)] hover:scale-[1.02]'
                   : isActive
                   ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
                   : 'text-muted hover:bg-surface-2 hover:text-fg'

@@ -39,7 +39,7 @@ export default function PFCDonut({ protein, fat, carbs, goalProtein, goalFat, go
     : [{ name: 'Empty', value: 1, color: COLORS.empty }];
 
   const legendItems = [
-    { label: t.protein, value: protein, goal: goalProtein, color: COLORS.protein, text: 'text-emerald-600 dark:text-emerald-400' },
+    { label: t.protein, value: protein, goal: goalProtein, color: COLORS.protein, text: 'text-brand-600 dark:text-brand-400' },
     { label: t.fat,     value: fat,     goal: goalFat,     color: COLORS.fat,     text: 'text-warning' },
     { label: t.carbs,   value: carbs,   goal: goalCarbs,   color: COLORS.carbs,   text: 'text-blue-600 dark:text-blue-400' },
   ];

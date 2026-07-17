@@ -104,7 +104,7 @@ export default function PwaInstallBanner() {
           w-12 h-12 rounded-2xl flex-shrink-0
           bg-gradient-to-br from-brand-500 to-teal-600
           flex items-center justify-center text-2xl
-          shadow-[0_4px_12px_rgba(16,185,129,0.4)]
+          shadow-[0_4px_12px_rgba(88,204,2,0.4)]
         " aria-hidden="true">
           🥗
         </div>
@@ -128,7 +128,7 @@ export default function PwaInstallBanner() {
             flex items-center gap-1.5 px-3.5 py-2
             bg-gradient-to-r from-brand-500 to-brand-600
             text-white text-xs font-black rounded-xl flex-shrink-0
-            shadow-[0_4px_12px_rgba(16,185,129,0.4)]
+            shadow-[0_4px_12px_rgba(88,204,2,0.4)]
             hover:scale-[1.03] active:scale-95
             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
             transition-all duration-200
@@ -195,7 +195,7 @@ export default function PwaInstallBanner() {
               className="
                 mt-5 w-full py-3 rounded-2xl font-black text-sm text-white
                 bg-gradient-to-r from-brand-500 to-brand-600
-                shadow-[0_4px_14px_rgba(16,185,129,0.4)]
+                shadow-[0_4px_14px_rgba(88,204,2,0.4)]
                 hover:scale-[1.01] active:scale-[0.98]
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
                 transition-all duration-200

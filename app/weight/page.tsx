@@ -234,7 +234,7 @@ export default function WeightPage() {
         <div className={`
           rounded-3xl p-4 mb-3
           ${goalAchieved
-            ? 'bg-gradient-to-r from-emerald-500 to-teal-600 shadow-[0_8px_24px_rgba(34,197,94,0.3)]'
+            ? 'bg-gradient-to-r from-brand-500 to-brand-600 shadow-[0_8px_24px_rgba(88,204,2,0.3)]'
             : 'bg-gradient-to-r from-indigo-500 to-purple-600 shadow-[0_8px_24px_rgba(99,102,241,0.25)]'}
         `}>
           <p className="text-xs font-bold text-white/85 uppercase tracking-widest mb-1">{t.weightGoal}</p>

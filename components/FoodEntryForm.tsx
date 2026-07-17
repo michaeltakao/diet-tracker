@@ -72,7 +72,7 @@ export function FoodEntryForm({
                 transition-all duration-200
                 hover:scale-[1.02] active:scale-[0.97]
                 ${form.mealType === type
-                  ? 'bg-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                  ? 'bg-brand-600 text-white shadow-[0_4px_12px_rgba(88,204,2,0.35)]'
                   : 'bg-surface-2 text-muted hover:bg-line'}
               `}
             >
@@ -140,7 +140,7 @@ export function FoodEntryForm({
                 flex-1 py-2 rounded-xl text-xs font-bold tabular-nums
                 transition-all duration-200 active:scale-[0.97]
                 ${servings === s
-                  ? 'bg-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                  ? 'bg-brand-600 text-white shadow-[0_4px_12px_rgba(88,204,2,0.35)]'
                   : 'bg-surface-2 text-muted hover:bg-line'}
               `}
             >
@@ -230,7 +230,7 @@ export function FoodEntryForm({
         className="
           w-full py-3.5 rounded-2xl font-bold text-sm text-white
           bg-gradient-to-r from-brand-500 to-brand-600
-          shadow-[0_4px_14px_rgba(16,185,129,0.4)]
+          shadow-[0_4px_14px_rgba(88,204,2,0.4)]
           hover:from-brand-600 hover:to-brand-700
           hover:scale-[1.01] active:scale-[0.98]
           transition-all duration-200

@@ -54,9 +54,9 @@ export default function MigrationBanner({ status, summary, onDismiss }: Props) {
       text:      totalRecords > 0
         ? `移行が完了しました（${totalRecords.toLocaleString()}件）`
         : '移行が完了しました',
-      bg:        'bg-emerald-50 dark:bg-emerald-900/30',
-      border:    'border-emerald-200 dark:border-emerald-700',
-      textColor: 'text-emerald-700 dark:text-emerald-300',
+      bg:        'bg-brand-50 dark:bg-brand-900/30',
+      border:    'border-brand-200 dark:border-brand-700',
+      textColor: 'text-brand-700 dark:text-brand-300',
     },
     error: {
       icon:      '⚠️',

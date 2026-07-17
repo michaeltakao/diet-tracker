@@ -65,7 +65,7 @@ export default function CalorieContextBar() {
     ? 'bg-red-600'
     : pct > 85
     ? 'bg-amber-700'
-    : 'bg-emerald-600';
+    : 'bg-brand-600';
 
   return (
     <div

@@ -120,7 +120,7 @@ export default function PushSettingsRow({ cardCls }: { cardCls: string }) {
             type="button"
             onClick={enable}
             disabled={state === 'busy'}
-            className={`${buttonCls} bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]`}
+            className={`${buttonCls} bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(88,204,2,0.35)]`}
           >
             <Bell size={16} aria-hidden="true" />
             {t.pushEnable}

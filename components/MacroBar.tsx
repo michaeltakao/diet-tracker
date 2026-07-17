@@ -15,9 +15,9 @@ interface SingleBarProps {
   label: string;
   current: number;
   goal: number;
-  fillClass: string;   // e.g. "bg-emerald-500"
-  trackClass: string;  // e.g. "bg-emerald-100 dark:bg-emerald-900/30"
-  textClass: string;   // e.g. "text-emerald-600 dark:text-emerald-400"
+  fillClass: string;   // e.g. "bg-brand-500"
+  trackClass: string;  // e.g. "bg-brand-100 dark:bg-brand-900/30"
+  textClass: string;   // e.g. "text-brand-600 dark:text-brand-400"
 }
 
 function SingleBar({ label, current, goal, fillClass, trackClass, textClass }: SingleBarProps) {
@@ -58,9 +58,9 @@ export default function MacroBar({ protein, fat, carbs, goalProtein, goalFat, go
         label={t.protein}
         current={protein}
         goal={goalProtein}
-        fillClass="bg-gradient-to-r from-emerald-400 to-green-500"
-        trackClass="bg-emerald-100 dark:bg-emerald-900/30"
-        textClass="text-emerald-600 dark:text-emerald-400"
+        fillClass="bg-gradient-to-r from-brand-400 to-green-500"
+        trackClass="bg-brand-100 dark:bg-brand-900/30"
+        textClass="text-brand-600 dark:text-brand-400"
       />
       <SingleBar
         label={t.fat}

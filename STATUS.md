@@ -1,6 +1,27 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-17 DESIGN PHASE 1: Duolingo-inspired color palette** (user-driven
+  6-phase design migration; phases 2–6 = Nunito font / 8px spacing / component
+  redesign / vertical-card dashboard / confetti+bounce animations, each its
+  own commit). Token-level swap in `app/globals.css`: brand ramp → feather
+  green (#58cc02, 50–900), neutral polar surfaces + eel-gray text (was
+  slate/blue-cast), semantic accents re-hued (info #2b70c9 humpback / danger
+  #e02b2b cardinal-dark / warning bee-tint soft / --ai #8549ba purple), dark
+  mode → deep blue-green night surfaces (#131f24/#202f36) with brighter
+  accents (#79d633/#1cb0f6/#ce82ff). `--brand-strong` now = brand-700
+  (#378700, the only ramp step with AA white text). **WCAG-AA held**: all 17
+  text-bearing token pairs computed ≥4.5:1 (script in commit message era —
+  fg 11.0 / muted 7.2 / faint 5.0 / semantics 4.5–5.7 light, 4.6–12.8 dark).
+  Sweep: 92 hardcoded `emerald-*` → `brand-*` (17 files, repo token rule),
+  `green-*` in plan/settings → brand, brand+teal mixed gradients unified to
+  brand ramp (page/workout/weight), 15 emerald rgba shadows → rgb(88 204 2).
+  Report/vitals teal accent family left intact (phase-4 decision). Verified:
+  lint + 252 vitest + build green; browser light+dark screenshots on dev
+  :3199 (SW-unregister needed — dev SW served stale CSS, known gotcha).
+  **⚠️ trade-dress note**: palette is "Duolingo-inspired", not a 1:1 clone;
+  flagged to user that full trade-dress cloning is a legal risk for a public
+  beta — raw #58CC02 fills keep dark/white text decisions to phase 4.
 - **2026-07-17 COUNCIL REVIEW FIXES (#1/#2/#5)** — post-`93740eb` council run
   (Claude-only; **Gemini/Copilot legs returned empty** — known [🔒user]
   blocker: Gemini CLI IneligibleTierError, Copilot account has no GPT model)

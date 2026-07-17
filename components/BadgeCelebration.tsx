@@ -147,7 +147,7 @@ export default function BadgeCelebration({ badges, onClose }: Props) {
             active:scale-[0.97]
             text-white font-bold rounded-2xl
             transition-all duration-200
-            shadow-[0_4px_14px_rgba(16,185,129,0.4)]
+            shadow-[0_4px_14px_rgba(88,204,2,0.4)]
             text-sm
             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
           "

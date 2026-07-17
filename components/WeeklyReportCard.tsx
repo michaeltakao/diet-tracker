@@ -206,7 +206,7 @@ export default function WeeklyReportCard() {
           <div className="grid grid-cols-4 gap-2">
             {[
               { label: '平均カロリー', value: `${report.avgCalories}`, unit: 'kcal', color: 'text-green-600 dark:text-green-400' },
-              { label: 'タンパク平均', value: `${report.avgProtein}`,  unit: 'g',    color: 'text-emerald-600 dark:text-emerald-400' },
+              { label: 'タンパク平均', value: `${report.avgProtein}`,  unit: 'g',    color: 'text-brand-600 dark:text-brand-400' },
               { label: 'カロリー達成', value: `${report.calorieCompliance}`, unit: '%', color: 'text-blue-600 dark:text-blue-400' },
               { label: 'トレーニング', value: `${report.workoutDays}`, unit: '日',   color: 'text-purple-600 dark:text-purple-400' },
             ].map(({ label, value, unit, color }) => (

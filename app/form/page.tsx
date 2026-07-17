@@ -29,12 +29,12 @@ const PHASE_COLOR: Record<string, string> = {
   IDLE:       'text-faint',
   DESCENDING: 'text-blue-500',
   BOTTOM:     'text-violet-600 font-black',
-  ASCENDING:  'text-emerald-500',
+  ASCENDING:  'text-brand-500',
   COMPLETE:   'text-brand',
 };
 
 const SCORE_COLOR = (s: number) =>
-  s >= 90 ? 'text-emerald-500' :
+  s >= 90 ? 'text-brand-500' :
   s >= 75 ? 'text-brand' :
   s >= 50 ? 'text-amber-500' : 'text-red-500';
 
@@ -49,7 +49,7 @@ function AngleGauge({
   return (
     <div className="flex flex-col items-center gap-0.5">
       <span className="text-[10px] text-faint font-semibold">{label}</span>
-      <span className={`text-lg font-black tabular-nums ${inRange ? 'text-emerald-500' : 'text-amber-500'}`}>
+      <span className={`text-lg font-black tabular-nums ${inRange ? 'text-brand-500' : 'text-amber-500'}`}>
         {value}{unit}
       </span>
       <span className="text-[9px] text-faint">

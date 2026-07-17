@@ -242,7 +242,7 @@ export default function SettingsPage() {
                 transition-all duration-200
                 hover:scale-[1.02] active:scale-95
                 ${lang === code
-                  ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                  ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(88,204,2,0.35)]'
                   : 'bg-surface-2 text-muted hover:bg-line'}
               `}
             >
@@ -272,7 +272,7 @@ export default function SettingsPage() {
                 transition-all duration-200 hover:scale-[1.02] active:scale-95
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
                 ${unit === code
-                  ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                  ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(88,204,2,0.35)]'
                   : 'bg-surface-2 text-muted hover:bg-line'}
               `}
             >
@@ -306,7 +306,7 @@ export default function SettingsPage() {
                 transition-all duration-200 hover:scale-[1.02] active:scale-95
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
                 ${textScale === code
-                  ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                  ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(88,204,2,0.35)]'
                   : 'bg-surface-2 text-muted hover:bg-line'}
               `}
             >
@@ -355,13 +355,13 @@ export default function SettingsPage() {
             field:  'calories' as const,
             label:  t.calorieGoal,
             icon:   '🔥',
-            accent: 'focus:ring-green-400',
+            accent: 'focus:ring-brand-400',
           },
           {
             field:  'protein'  as const,
             label:  t.proteinGoal,
             icon:   '💪',
-            accent: 'focus:ring-emerald-400',
+            accent: 'focus:ring-brand-400',
           },
           {
             field:  'fat'      as const,
@@ -687,7 +687,7 @@ export default function SettingsPage() {
                     px-3 py-1.5 rounded-full text-xs font-bold
                     transition-all duration-200 hover:scale-[1.04] active:scale-95
                     ${active
-                      ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700'
+                      ? 'bg-brand-100 dark:bg-brand-900/40 text-brand-600 dark:text-brand-400 border border-brand-300 dark:border-brand-700'
                       : 'bg-surface-2 text-faint border border-line hover:bg-line'}
                   `}
                 >
@@ -709,8 +709,8 @@ export default function SettingsPage() {
           hover:scale-[1.01] active:scale-[0.98]
           text-sm
           ${saved
-            ? 'bg-emerald-600 text-white shadow-[0_4px_14px_rgba(16,185,129,0.4)]'
-            : 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_14px_rgba(16,185,129,0.35)] hover:from-brand-600 hover:to-brand-700'}
+            ? 'bg-brand-600 text-white shadow-[0_4px_14px_rgba(88,204,2,0.4)]'
+            : 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_14px_rgba(88,204,2,0.35)] hover:from-brand-600 hover:to-brand-700'}
         `}
       >
         {saved ? (
@@ -802,9 +802,9 @@ export default function SettingsPage() {
             className="
               flex-1 flex items-center justify-center gap-2
               py-3 rounded-2xl text-xs font-bold
-              bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400
-              border border-emerald-100 dark:border-emerald-800
-              hover:bg-emerald-100 dark:hover:bg-emerald-900/50
+              bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400
+              border border-brand-100 dark:border-brand-800
+              hover:bg-brand-100 dark:hover:bg-brand-900/50
               hover:scale-[1.02] active:scale-[0.97]
               transition-all duration-200
             "
@@ -844,7 +844,7 @@ export default function SettingsPage() {
           <div className={`
             text-xs font-semibold px-3 py-2.5 rounded-xl mb-2 animate-slide-in-up
             ${importMsg.ok
-              ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+              ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 border border-brand-200 dark:border-brand-800'
               : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800'}
           `}>
             {importMsg.ok ? '✅ ' : '❌ '}{importMsg.text}

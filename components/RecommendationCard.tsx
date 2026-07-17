@@ -518,7 +518,7 @@ export default function RecommendationCard() {
                 {(
                   [
                     { label: 'カロリー', value: `${rec.adjustedMacros.calories}`, unit: 'kcal', color: 'text-green-600 dark:text-green-400' },
-                    { label: 'タンパク', value: `${rec.adjustedMacros.protein}`,  unit: 'g',    color: 'text-emerald-600 dark:text-emerald-400' },
+                    { label: 'タンパク', value: `${rec.adjustedMacros.protein}`,  unit: 'g',    color: 'text-brand-600 dark:text-brand-400' },
                     { label: '脂質',     value: `${rec.adjustedMacros.fat}`,      unit: 'g',    color: 'text-amber-600 dark:text-amber-400' },
                     { label: '炭水化',   value: `${rec.adjustedMacros.carbs}`,    unit: 'g',    color: 'text-blue-600 dark:text-blue-400' },
                     { label: '水分',     value: `${rec.adjustedMacros.water}`,    unit: 'ml',   color: 'text-sky-600 dark:text-sky-400' },

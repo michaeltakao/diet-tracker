@@ -108,7 +108,7 @@ export default function RestTimer() {
               transition-all duration-200 active:scale-95
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
               ${duration === sec
-                ? 'bg-brand-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
+                ? 'bg-brand-600 text-white shadow-[0_4px_12px_rgba(88,204,2,0.35)]'
                 : 'bg-surface-2 text-muted hover:bg-line'}
             `}
           >
@@ -141,7 +141,7 @@ export default function RestTimer() {
           className="
             flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-black text-white
             bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700
-            shadow-[0_4px_12px_rgba(16,185,129,0.35)] active:scale-[0.98] transition-all duration-200
+            shadow-[0_4px_12px_rgba(88,204,2,0.35)] active:scale-[0.98] transition-all duration-200
             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
           "
           aria-label={running ? tr('一時停止', 'Pause') : tr('開始', 'Start')}

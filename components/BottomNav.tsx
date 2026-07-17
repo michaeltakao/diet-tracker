@@ -55,7 +55,7 @@ export default function BottomNav() {
                   <div className="
                     w-10 h-10 -mt-5 mb-0.5
                     bg-gradient-to-br from-brand-500 to-brand-600
-                    rounded-full shadow-[0_4px_14px_rgba(16,185,129,0.5)]
+                    rounded-full shadow-[0_4px_14px_rgba(88,204,2,0.5)]
                     flex items-center justify-center
                     hover:scale-105 active:scale-95
                     transition-all duration-200
