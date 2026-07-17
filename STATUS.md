@@ -1,6 +1,20 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-17 DESIGN PHASE 2: Nunito typography** — `app/layout.tsx` swaps
+  Inter → Nunito via next/font (self-hosted, **variable axis 200–1000** per
+  next/font docs recommendation instead of enumerating static 400–900 —
+  covers the same weights in one smaller file), `--font-nunito` on `<html>`;
+  `--font-sans` = Nunito → **rounded JP system fallbacks first** (Hiragino
+  Maru Gothic ProN, then Hiragino Sans/Noto Sans JP/Yu Gothic) so Japanese
+  text keeps the soft feel (Nunito has no JP glyphs). Palette-phase
+  stragglers fixed in the same commit: viewport themeColor #22c55e/#16a34a →
+  #58cc02/#131f24, manifest theme/background → #58cc02/#f7f7f7, icon +
+  apple-icon gradients → feather ramp. Verified: lint + 252 vitest + build
+  green; browser check — computed h1 font = Nunito + Maru Gothic chain,
+  variable font `Nunito 200 1000 loaded` in document.fonts, screenshot
+  eyeballed (rounded latin/digits, JP in maru-gothic). Dev-SW stale-CSS
+  gotcha hit again — unregister SW before browser-verifying.
 - **2026-07-17 DESIGN PHASE 1: Duolingo-inspired color palette** (user-driven
   6-phase design migration; phases 2–6 = Nunito font / 8px spacing / component
   redesign / vertical-card dashboard / confetti+bounce animations, each its

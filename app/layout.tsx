@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Nunito } from 'next/font/google';
 import './globals.css';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ProfileProvider } from '@/contexts/ProfileContext';
@@ -9,7 +9,15 @@ import PwaInstallBanner from '@/components/PwaInstallBanner';
 import SideNav from '@/components/SideNav';
 import CalorieContextBar from '@/components/CalorieContextBar';
 
-const inter = Inter({ subsets: ['latin'], display: 'swap' });
+// Duolingo-style rounded type (design phase 2). Nunito is a variable font:
+// loading the variable axis covers every weight 400–900 in one file
+// (next/font docs-recommended over enumerating static weights). Latin only —
+// Japanese text falls back to the rounded JP system fonts in --font-sans.
+const nunito = Nunito({
+  subsets: ['latin'],
+  variable: '--font-nunito',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: {
@@ -45,15 +53,16 @@ export const viewport: Viewport = {
   // Allow pinch-zoom (WCAG 1.4.4): do NOT set maximumScale/userScalable.
   viewportFit: 'cover',           // for iPhone notch / Dynamic Island
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#22c55e' },
-    { media: '(prefers-color-scheme: dark)',  color: '#16a34a' },
+    // Phase-1 palette: feather green / dark night surface
+    { media: '(prefers-color-scheme: light)', color: '#58cc02' },
+    { media: '(prefers-color-scheme: dark)',  color: '#131f24' },
   ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ja">
-      <body className={`${inter.className} bg-[var(--background)] min-h-screen`}>
+    <html lang="ja" className={nunito.variable}>
+      <body className="bg-[var(--background)] min-h-screen">
         <ProfileProvider>
           <LanguageProvider>
             {/* Desktop sidebar — hidden on mobile */}

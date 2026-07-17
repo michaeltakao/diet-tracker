@@ -151,7 +151,12 @@
   --radius-field: var(--radius-field);
   --radius-card:  var(--radius-card);
 
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Nunito (next/font, --font-nunito on <html>) covers Latin + digits;
+     Japanese falls back to ROUNDED JP system faces first (Maru Gothic) so
+     JP text keeps the same soft feel, then standard JP sans. */
+  --font-sans: var(--font-nunito), 'Hiragino Maru Gothic ProN', 'Hiragino Sans',
+               'Noto Sans JP', 'Yu Gothic', -apple-system, BlinkMacSystemFont,
+               'Segoe UI', sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
 }
 
