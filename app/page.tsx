@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Settings, Flame, ChevronDown, ChevronRight, Copy } from 'lucide-react';
+import { Plus, Settings, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import {
-  getAppData, removeFoodEntry, updateFoodEntry, addWater, getWaterForDate, getStreakState,
+  getAppData, removeFoodEntry, updateFoodEntry, addWater, getWaterForDate,
   checkAndAwardBadges, getBadges, addFoodEntry, getRealGoals,
 } from '@/lib/data';
 import { FoodEntry, DailyGoals, Badge } from '@/lib/types';
@@ -16,6 +16,9 @@ import WaterTracker from '@/components/WaterTracker';
 import BadgeShelf from '@/components/BadgeShelf';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
+import { StreakHeader } from '@/components/dashboard/StreakHeader';
+import { ProgressRing } from '@/components/dashboard/ProgressRing';
+import { CategoryBadges } from '@/components/dashboard/CategoryBadges';
 import NudgeBanner from '@/components/NudgeBanner';
 import PushPermissionCard from '@/components/PushPermissionCard';
 import RecentSymptomsCard from '@/components/RecentSymptomsCard';
@@ -48,8 +51,6 @@ export default function HomePage() {
   // before the client-only data load resolves.
   const [goalsReady, setGoalsReady] = useState(false);
   const [water, setWater]       = useState(0);
-  const [streak, setStreak]     = useState(0);
-  const [longestStreak, setLongestStreak] = useState(0);
   const [today]                 = useState(getTodayDate());
   const [celebrationBadges, setCelebrationBadges] = useState<Badge[]>([]);
   const [earnedBadges, setEarnedBadges]           = useState<Badge[]>([]);
@@ -62,9 +63,6 @@ export default function HomePage() {
     setGoals(getRealGoals());
     setGoalsReady(true);
     setWater(getWaterForDate(today));
-    const streakState = getStreakState();
-    setStreak(streakState.current);
-    setLongestStreak(streakState.longest);
     setEarnedBadges(getBadges());
   };
 
@@ -151,17 +149,6 @@ export default function HomePage() {
           <p className="text-xs text-faint mt-0.5 font-medium">{formatDate(today)}</p>
         </div>
         <div className="flex items-center gap-2">
-          {streak > 0 && (
-            <div
-              className="flex items-center gap-1 bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800 px-2.5 py-1.5 rounded-2xl"
-              title={`${t.longestStreak}: ${longestStreak}${t.streakDays}`}
-            >
-              <Flame size={13} className="text-orange-500" aria-hidden="true" />
-              <span className="text-xs font-black text-orange-600 dark:text-orange-400">
-                {streak}{t.streakDays}
-              </span>
-            </div>
-          )}
           <button
             onClick={() => void handleCopyYesterday()}
             title={t.copyYesterdayDesc}
@@ -197,6 +184,9 @@ export default function HomePage() {
           </Link>
         </div>
       </div>
+
+      {/* ── Streak banner + stats pill (phase 5) ────── */}
+      <StreakHeader />
 
       {/* ── Streak nudge (max 1/day, dismissible) ───── */}
       <NudgeBanner />
@@ -274,6 +264,9 @@ export default function HomePage() {
         </div>
       ))}
 
+      {/* ── Daily 4-category progress ring (phase 5) ── */}
+      <ProgressRing />
+
       {/* ── Personalized Recommendation ─────────────── */}
       <RecommendationCard />
 
@@ -287,6 +280,9 @@ export default function HomePage() {
 
       {/* ── Weekly challenge (any-log, both goal states) ── */}
       <WeeklyChallengeCard />
+
+      {/* ── Per-category weekly badges (phase 5) ────── */}
+      <CategoryBadges />
 
       {/* ── Recent symptoms (renders only when any exist) ── */}
       <RecentSymptomsCard />

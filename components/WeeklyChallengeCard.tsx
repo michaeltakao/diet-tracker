@@ -8,11 +8,19 @@ import {
 } from '@/lib/data';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { jstToday, shiftDate } from '@/lib/streak';
 
 /** "07/13 – 07/19" from the challenge's JST week bounds. */
 function weekLabel(c: WeeklyChallenge): string {
   const fmt = (d: string) => d.slice(5).replace('-', '/');
   return `${fmt(c.weekStart)} – ${fmt(c.weekEnd)}`;
+}
+
+/** Days remaining in the challenge week, counting today (1–7; 0 if stale). */
+function daysLeft(c: WeeklyChallenge): number {
+  let n = 0;
+  for (let d = jstToday(); d <= c.weekEnd && n < 7; d = shiftDate(d, 1)) n++;
+  return n;
 }
 
 /**
@@ -36,9 +44,14 @@ export default function WeeklyChallengeCard() {
     <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-sm font-bold text-muted">🎯 {t.weeklyChallengeTitle}</h2>
-        <span className="text-[10px] font-semibold text-faint tabular-nums">
-          {weekLabel(challenge)}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-semibold text-faint tabular-nums">
+            {weekLabel(challenge)}
+          </span>
+          <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-bold text-muted tabular-nums">
+            {t.weeklyChallengeDaysLeft.replace('{n}', String(daysLeft(challenge)))}
+          </span>
+        </div>
       </div>
 
       <div className="flex justify-between items-center mb-2">

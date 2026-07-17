@@ -5,14 +5,17 @@
  * A11y: the real value is always exposed via role="progressbar" +
  * aria-valuenow/min/max; the white overlay label is decorative (aria-hidden)
  * so its contrast against the unfilled track is not load-bearing.
- * The warning fill #ff9600 (fox) is decorative — never place text on it.
+ * All non-brand fills are decorative — never place text on them.
  */
 
-type ProgressBarVariant = 'brand' | 'warning';
+export type ProgressBarVariant = 'brand' | 'warning' | 'fox' | 'info' | 'danger';
 
 const FILL_CLASS: Record<ProgressBarVariant, string> = {
   brand: 'bg-brand-500',
-  warning: 'bg-[#ff9600]',
+  warning: 'bg-fox', // near-goal calorie state shares the fox orange
+  fox: 'bg-fox',
+  info: 'bg-info',
+  danger: 'bg-danger',
 };
 
 export interface ProgressBarProps {

@@ -59,6 +59,15 @@
   --ai:           #8549ba;
   --ai-soft:      #f6edff;
 
+  /* Fox family (design phase 5) — the streak/energy orange. --fox is a
+     decorative fill (white on it = 2.18:1, AA fail); text ON fox surfaces
+     must use --fox-text (dark brown, ≥4.5:1 on --fox). fox/fox-dark/fox-text
+     stay constant across themes; only --fox-soft flips in dark mode. */
+  --fox:      #ff9600;
+  --fox-dark: #e08600; /* banner bottom edge, decor */
+  --fox-soft: #ffedd0;
+  --fox-text: #4a2800;
+
   /* Focus ring */
   --ring: #58cc02;
 
@@ -115,6 +124,8 @@
     --ai:           #ce82ff;
     --ai-soft:      rgb(206 130 255 / 0.16);
 
+    --fox-soft: rgb(255 150 0 / 0.14);
+
     --ring: #79d633;
 
     --shadow-card:     0 6px 24px rgb(0 0 0 / 0.35);
@@ -161,6 +172,11 @@
 
   --color-ai:           var(--ai);
   --color-ai-soft:      var(--ai-soft);
+
+  --color-fox:      var(--fox);
+  --color-fox-dark: var(--fox-dark);
+  --color-fox-soft: var(--fox-soft);
+  --color-fox-text: var(--fox-text);
 
   /* Back-compat */
   --color-background: var(--background);

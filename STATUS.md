@@ -1,6 +1,34 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-17 DESIGN PHASE 5: v0 dashboard integration (gamification
+  layer)** — user's v0-generated Duolingo dashboard
+  (`~/Downloads/duolingo-healthcare-dashboard`) translated onto our
+  tokens/components with real-data adapters; all 13 existing dashboard
+  blocks stay. New: fox token family in globals.css (`--fox` #ff9600 /
+  `--fox-dark` / `--fox-soft` (theme-flips) / `--fox-text` #4a2800 — white
+  on fox is 2.18:1 AA ✗, so banner text = dark brown, phase-4 precedent);
+  `lib/dashboard-data.ts` adapter (pure `computeCategoryStats` — per-category
+  meal/exercise/vital/symptom date-Sets reusing lib/streak week math, binary
+  `todayPct` = logged/4; thin `getDashboardStats()` = streak + badgeCount
+  (v0 gems) + repairAvailable 0/1 (v0 hearts) + weekly challenge);
+  `components/dashboard/` StreakHeader (fox banner + stats pill; streak=0 →
+  motivational copy; replaces the small header streak pill) / ProgressRing
+  (4-segment binary SVG ring, 240px, real % in role="img" aria) /
+  CategoryBadges (2×2 weekly n/7 tiles, ⭐ at WEEKLY_GOAL_DAYS=5, mini
+  ProgressBar variants extended `fox|info|danger`; ProgressBar `bg-[#ff9600]`
+  → `bg-fox`) + shared category-meta; WeeklyChallengeCard gains あとN日 chip
+  (weekEnd − jstToday). i18n ja+en ×16 keys. **Discarded v0 files** (deps
+  forbidden / superseded): ui/button, lib/utils(cn), layout, globals.css,
+  package.json, public assets, mock dashboard-data + its 3 mock challenges
+  (no data source). Verified: lint + **260 vitest** (8 new pure-math:
+  JST Sun→Mon boundary, binary today, week counting) + build green;
+  Chrome MCP on :3199 — ring aria 75% + segments [fill×3, track-only×1],
+  banner computed #ff9600/#4a2800, captions 4/7·2/7·2/7·1/7日 vs seeded
+  localStorage, streak=0 branch, light+dark screenshots; console clean of
+  new-component issues (BadgeShelf key warning is pre-existing). Next:
+  phase 6 (confetti/bounce animations), hero-card gradient decision,
+  remaining off-grid sweep.
 - **2026-07-17 DESIGN PHASE 4: Duolingo-style Button/Card/ProgressBar** —
   new `components/ui/Button.tsx` (primary/secondary/outline/ghost ×
   lg/md/sm; `href` renders next/link; Duolingo press mechanics = hard
