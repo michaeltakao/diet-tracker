@@ -71,6 +71,8 @@ export async function addWorkoutEntry(entry: WorkoutEntry): Promise<void> {
     weight_kg:    entry.weight ?? null,
     duration_min: entry.duration ?? null,
     notes:        entry.notes ?? null,
+    // Anonymous literals get the implicit index signature the Json type needs.
+    set_details:  entry.setDetails?.map((s) => ({ weight: s.weight, reps: s.reps })) ?? null,
     logged_at:    entry.addedAt,
   }, { onConflict: 'id' });
 
@@ -101,16 +103,19 @@ export async function removeWorkoutEntry(id: string): Promise<void> {
 /**
  * Check and update PR for an exercise.
  *
- * Returns true if this is a new PR.
+ * Returns true if this is a new PR. Weight stays the sole PR criterion
+ * (and celebration trigger); est1RM (per-set sessions, phase B) is
+ * persisted alongside for analytics.
  * localStorage update is synchronous; Supabase PR record is upserted async.
  */
 export async function checkAndUpdatePR(
   exerciseName: string,
   weight: number,
   date: string,
+  est1RM?: number,
 ): Promise<boolean> {
   // Step 1: localStorage PR check (synchronous)
-  const isNewPR = _checkPR(exerciseName, weight, date);
+  const isNewPR = _checkPR(exerciseName, weight, date, est1RM);
 
   // Step 2: Supabase — upsert PR record if this is a new PR
   if (isNewPR) {
@@ -121,6 +126,7 @@ export async function checkAndUpdatePR(
         exercise_name: exerciseName,
         max_weight_kg: weight,
         achieved_date: date,
+        est_1rm:       est1RM != null && est1RM > 0 ? est1RM : null,
       }, { onConflict: 'user_id,exercise_name' });
 
       if (error) {

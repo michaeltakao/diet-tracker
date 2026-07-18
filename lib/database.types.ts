@@ -1,6 +1,6 @@
 /**
  * Auto-generated Supabase database types.
- * Generated 2026-07-17 via the Supabase MCP `generate_typescript_types` (project chkkpucuiyjdeqgyyszt).
+ * Generated 2026-07-19 via the Supabase MCP `generate_typescript_types` (project chkkpucuiyjdeqgyyszt).
  * DO NOT hand-edit the Database type below — regenerate with:
  *   npx supabase gen types typescript --project-id chkkpucuiyjdeqgyyszt > lib/database.types.ts
  *
@@ -317,6 +317,7 @@ export type Database = {
           achieved_at: string
           achieved_date: string
           created_at: string
+          est_1rm: number | null
           exercise_name: string
           id: string
           max_weight_kg: number
@@ -326,6 +327,7 @@ export type Database = {
           achieved_at?: string
           achieved_date: string
           created_at?: string
+          est_1rm?: number | null
           exercise_name: string
           id?: string
           max_weight_kg: number
@@ -335,6 +337,7 @@ export type Database = {
           achieved_at?: string
           achieved_date?: string
           created_at?: string
+          est_1rm?: number | null
           exercise_name?: string
           id?: string
           max_weight_kg?: number
@@ -938,6 +941,7 @@ export type Database = {
           name: string
           notes: string | null
           reps: number | null
+          set_details: Json | null
           sets: number | null
           user_id: string
           weight_kg: number | null
@@ -953,6 +957,7 @@ export type Database = {
           name: string
           notes?: string | null
           reps?: number | null
+          set_details?: Json | null
           sets?: number | null
           user_id: string
           weight_kg?: number | null
@@ -968,6 +973,7 @@ export type Database = {
           name?: string
           notes?: string | null
           reps?: number | null
+          set_details?: Json | null
           sets?: number | null
           user_id?: string
           weight_kg?: number | null

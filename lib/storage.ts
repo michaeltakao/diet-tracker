@@ -323,9 +323,16 @@ export function getPersonalRecord(exerciseName: string): PersonalRecord | undefi
 
 /**
  * Returns true if this is a new PR for the exercise.
- * Only tracks exercises with weight > 0.
+ * Only tracks exercises with weight > 0. Weight remains the sole PR
+ * criterion (and celebration trigger); est1RM is recorded alongside when
+ * the session provided one (per-set logging, phase B).
  */
-export function checkAndUpdatePR(exerciseName: string, weight: number, date: string): boolean {
+export function checkAndUpdatePR(
+  exerciseName: string,
+  weight: number,
+  date: string,
+  est1RM?: number,
+): boolean {
   if (weight <= 0) return false;
   const data = getAppData();
   if (!data.personalRecords) data.personalRecords = {};
@@ -336,6 +343,7 @@ export function checkAndUpdatePR(exerciseName: string, weight: number, date: str
       maxWeight: weight,
       achievedAt: new Date().toISOString(),
       date,
+      ...(est1RM != null && est1RM > 0 ? { est1RM } : {}),
     };
     saveAppData(data);
     return true;

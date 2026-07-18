@@ -1,6 +1,34 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-19 COMPETITOR IMPORT PHASE B: workout (exercise DB / per-set
+  logging / env-aware AI)** — migration **016 in prod** (workout_logs
+  .set_details JSONB + personal_records.est_1rm; JSONB kept over roadmap's
+  workout_sets table to preserve the 1:1 dual-write mirror, ADR-007;
+  database.types.ts regenerated). `lib/exercise-db.ts`: 60 static
+  ExerciseDef (10×6 parts, ja+en, equipment 5-way, isCompound); the 12
+  RECOMMENDED_MENUS moved in as `recommended` entries — workout page now
+  derives its menus via a CoachMenu adapter (nameJa = canonical logging
+  name, PR/history back-compat) + collapsible full-DB picker w/ equipment
+  tags. `lib/workout-sets.ts`: summarizeSets (weight=top set, reps=AT top
+  weight, volume, best1RM via onerm) + nextSetSuggestion (≥12reps→+2.5kg).
+  Workout page per-set mode: toggle seeds rows from scalars, ±2.5 steppers
+  (display unit), ghost placeholders from last session's setDetails,
+  add/remove rows, live best-set 1RM; submit derives scalars via
+  summarizeSets, persists setDetails + passes est1RM into checkAndUpdatePR
+  (weight stays the sole PR/celebration trigger; est_1rm mirrored);
+  completed list shows per-set breakdown + 総挙上量. suggest-workout route:
+  validated environment/equipment fields → 【トレーニング環境】 prompt
+  block. `lib/data/workout-prefs.ts` (localStorage-ONLY, documented) +
+  CheckInWidget env/equipment picker (equipment shown for home), sent with
+  fetchSuggestion. i18n ja+en ×17. Verified: lint + **290 vitest** (13 new)
+  + build; Chrome :3199 — 60×10/65×8/65×6 → entry {weight:65, reps:8,
+  sets:3, setDetails ✓}, PR {maxWeight:65, est1RM:82.3}, breakdown line +
+  1510kg volume, PR toast; home+dumbbell prefs persisted → request body
+  carried them → suggestion returned 「下半身と背中の自宅トレーニング」;
+  old scalar entries render unchanged. Same dev-SW stale-chunk gotcha as
+  phase A (unregister before verifying). Next: Phase C (month calendar,
+  training charts, lipid/HbA1c vitals, migration 017).
 - **2026-07-19 COMPETITOR IMPORT PHASE A: food logging (barcode / label OCR /
   AI nutritionist / sodium+fiber)** — lights up the dormant migration-009
   columns. New pure libs: `lib/off.ts` (OFF v2 normalize: `energy-kcal_100g`

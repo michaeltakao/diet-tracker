@@ -33,7 +33,17 @@ interface SuggestRequest {
   personalRecords?:  Array<{ name: string; weight: number; date: string }>;
   healthConditions?: string[];
   medications?:      string[];
+  // Training environment (phase B) — client-side prefs, validated below.
+  environment?:      'home' | 'gym';
+  equipment?:        string[];
 }
+
+const VALID_ENVIRONMENTS = ['home', 'gym'] as const;
+const VALID_EQUIPMENT = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'] as const;
+const EQUIPMENT_LABELS: Record<string, string> = {
+  barbell: 'バーベル', dumbbell: 'ダンベル', machine: 'マシン',
+  cable: 'ケーブル', bodyweight: '自重のみ',
+};
 
 const SYSTEM_PROMPT = `You are an expert Japanese personal trainer and sports scientist inside a training app.
 You will receive the user's daily check-in (mood, energy, sleep, soreness), today's planned training session,
@@ -48,6 +58,9 @@ Guidelines:
 - soreness in a muscle group that overlaps today's session → adjust or swap exercises for that group
 - Respect the user's fitnessGoal
 - If no planned session: suggest an appropriate session from scratch based on goal + recent history
+- When a training environment (自宅/ジム) or available-equipment list is given, ONLY suggest exercises
+  feasible there — never machines or cables for a home user without them; prefer dumbbell/bodyweight
+  alternatives and say what you substituted.
 - Keep all text in Japanese. Be warm, specific, and actionable.`;
 
 const RESPONSE_SCHEMA: Schema = {
@@ -96,6 +109,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: 'Missing or invalid checkIn' }, { status: 400 });
   }
   const sorenessAreas = Array.isArray(checkIn.sorenessAreas) ? checkIn.sorenessAreas : [];
+  // Environment prefs: unknown values are dropped, never echoed into the prompt.
+  const environment = VALID_ENVIRONMENTS.includes(body.environment as 'home' | 'gym')
+    ? body.environment
+    : undefined;
+  const equipment = Array.isArray(body.equipment)
+    ? body.equipment.filter((e): e is string => VALID_EQUIPMENT.includes(e as typeof VALID_EQUIPMENT[number]))
+    : [];
 
   try {
 
@@ -214,6 +234,15 @@ export async function POST(request: Request): Promise<NextResponse> {
     `【目標】${GOAL_LABELS[fitnessGoal] ?? fitnessGoal}`,
     targetWeight   != null ? `・目標体重: ${targetWeight} kg`  : '',
     currentWeight  != null ? `・現在体重: ${currentWeight} kg` : '',
+    '',
+    environment || equipment.length > 0
+      ? [
+          `【トレーニング環境】${environment === 'home' ? '自宅' : environment === 'gym' ? 'ジム' : '未設定'}`,
+          equipment.length > 0
+            ? `・使える器具: ${equipment.map((e) => EQUIPMENT_LABELS[e] ?? e).join('、')}（これ以外の器具は使えません）`
+            : '',
+        ].filter(Boolean).join('\n')
+      : '',
     '',
     plannedSession
       ? [

@@ -7,11 +7,13 @@ import {
   checkAndUpdatePR, addBadge, checkAndAwardBadges, getStreak, getBadges,
   getHealthProfile, getRealGoals,
 } from '@/lib/data';
-import { WorkoutEntry, MusclePart, CoachMenu, FoodEntry, Badge, PersonalRecord, DailyGoals } from '@/lib/types';
+import { WorkoutEntry, MusclePart, CoachMenu, FoodEntry, Badge, PersonalRecord, DailyGoals, SetDetail } from '@/lib/types';
 import {
   Dumbbell, Clock, Flame, ShieldAlert, CheckCircle,
-  Trash2, ChevronRight, Sparkles,
+  Trash2, ChevronRight, ChevronDown, Sparkles, X,
 } from 'lucide-react';
+import { getExercises } from '@/lib/exercise-db';
+import { summarizeSets, nextSetSuggestion } from '@/lib/workout-sets';
 import BottomNav from '@/components/BottomNav';
 import { Toast } from '@/components/ui/Toast';
 import BadgeCelebration from '@/components/BadgeCelebration';
@@ -25,44 +27,21 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useWeightUnit, toDisplay, lbsToKg, formatWeight } from '@/lib/units';
 import { epley1RM } from '@/lib/onerm';
 
-const RECOMMENDED_MENUS: CoachMenu[] = [
-  { id: 'c1', name: 'ベンチプレス',            musclePart: 'chest',     defaultWeight: 40, defaultReps: 10, defaultSets: 3,
-    coachTip: '大胸筋をしっかりストレッチさせる意識で、バーを胸まで下ろしましょう！',
-    coachTipEn: 'Focus on stretching your chest as you lower the bar — bring it all the way to your chest!' },
-  { id: 'c2', name: 'ダンベルフライ',          musclePart: 'chest',     defaultWeight: 10, defaultReps: 12, defaultSets: 3,
-    coachTip: 'トップポジションで顎を引くと、大胸筋上部まで強く収縮します！',
-    coachTipEn: 'Tuck your chin at the top to engage the upper chest for a stronger contraction.' },
-  { id: 'b1', name: 'ラットプルダウン',        musclePart: 'back',      defaultWeight: 35, defaultReps: 10, defaultSets: 3,
-    coachTip: '胸を張り、バーを鎖骨に向かって引くことで背中に強烈に効きます。',
-    coachTipEn: 'Puff your chest out and pull the bar toward your collarbone for maximum back engagement.' },
-  { id: 'b2', name: 'デッドリフト',            musclePart: 'back',      defaultWeight: 60, defaultReps: 8,  defaultSets: 3,
-    coachTip: '背中を絶対に丸めないように！お腹に力を入れて体幹を固定しましょう。',
-    coachTipEn: 'Never round your back! Brace your core hard to keep your spine neutral throughout.' },
-  { id: 'l1', name: 'バーベルスクワット',      musclePart: 'legs',      defaultWeight: 50, defaultReps: 8,  defaultSets: 3,
-    coachTip: 'お尻を後ろに引くように。膝が内側に入らないよう注意してください！',
-    coachTipEn: 'Push your hips back and keep your knees tracking over your toes — never let them cave in.' },
-  { id: 'l2', name: 'レッグプレス',            musclePart: 'legs',      defaultWeight: 80, defaultReps: 12, defaultSets: 3,
-    coachTip: '膝が90度になる位置まで深く下ろすと大腿四頭筋にしっかり効きます。',
-    coachTipEn: 'Lower the platform until your knees reach 90° for full quad activation.' },
-  { id: 's1', name: 'ショルダープレス',        musclePart: 'shoulders', defaultWeight: 10, defaultReps: 12, defaultSets: 3,
-    coachTip: '肩がすくまないように、耳から肩を離した状態で真上に押し上げます。',
-    coachTipEn: 'Keep your shoulders down — press straight up with ears away from shoulders.' },
-  { id: 's2', name: 'サイドレイズ',            musclePart: 'shoulders', defaultWeight: 5,  defaultReps: 15, defaultSets: 3,
-    coachTip: '小指側を少し高くして、三角筋中部を意識して真横に上げましょう。',
-    coachTipEn: 'Lead with your pinky slightly higher to isolate the lateral deltoid.' },
-  { id: 'a1', name: 'アームカール',            musclePart: 'arms',      defaultWeight: 8,  defaultReps: 12, defaultSets: 3,
-    coachTip: '肘の位置をしっかりと固定し、反動を使わずに二頭筋の力だけで持ち上げて！',
-    coachTipEn: 'Lock your elbows in place and curl using only your biceps — no swinging!' },
-  { id: 'a2', name: 'トライセプスプレスダウン', musclePart: 'arms',     defaultWeight: 15, defaultReps: 12, defaultSets: 3,
-    coachTip: '肘を体の横に固定したまま、前腕だけを動かして三頭筋を収縮させましょう。',
-    coachTipEn: 'Keep elbows pinned to your sides and move only your forearms to fully squeeze the triceps.' },
-  { id: 'ab1', name: 'クランチ',               musclePart: 'abs',      defaultWeight: 0,  defaultReps: 15, defaultSets: 3,
-    coachTip: 'おへそを覗き込むようにして、お腹を上から潰していく感覚が大切です。',
-    coachTipEn: 'Curl up as if trying to see your navel — imagine crushing your abs from the top down.' },
-  { id: 'ab2', name: 'プランク',               musclePart: 'abs',      defaultWeight: 0,  defaultReps: 30, defaultSets: 3,
-    coachTip: '腰が落ちないよう体を一直線に保ちながら、お腹に力を入れ続けましょう。',
-    coachTipEn: 'Keep your body in a straight line — don\'t let your hips drop, and squeeze your core continuously.' },
-];
+// The curated starter menus now live in lib/exercise-db.ts (phase B); this
+// adapter keeps the CoachMenu shape so the rendering below stays unchanged.
+// nameJa remains the canonical logging name (history/PR back-compat).
+const RECOMMENDED_MENUS: CoachMenu[] = getExercises()
+  .filter((e) => e.recommended)
+  .map((e) => ({
+    id: e.id,
+    name: e.nameJa,
+    musclePart: e.musclePart,
+    defaultWeight: e.recommended!.defaultWeightKg,
+    defaultReps: e.recommended!.reps,
+    defaultSets: e.recommended!.sets,
+    coachTip: e.recommended!.coachTipJa,
+    coachTipEn: e.recommended!.coachTipEn,
+  }));
 
 const PART_IDS: MusclePart[] = ['chest', 'back', 'legs', 'shoulders', 'arms', 'abs'];
 
@@ -157,9 +136,13 @@ export default function WorkoutPage() {
   const [weight, setWeight]              = useState('40');
   const [reps, setReps]                  = useState('10');
   const [sets, setSets]                  = useState('3');
+  // Per-set mode (phase B): rows are strings in the DISPLAY unit; storage kg.
+  const [detailMode, setDetailMode]      = useState(false);
+  const [setRows, setSetRows]            = useState<Array<{ weight: string; reps: string }>>([]);
   const [logTime, setLogTime]            = useState(getCurrentTime());
   const [coachAdvice, setCoachAdvice]    = useState(t.defaultCoachTip);
   const [allBadges, setAllBadges]        = useState<Badge[]>([]);
+  const [pickerOpen, setPickerOpen]      = useState(false);
 
   // AI coach
   const [aiAdvice, setAiAdvice]    = useState<CoachAdvice | null>(null);
@@ -202,15 +185,31 @@ export default function WorkoutPage() {
     return () => clearTimeout(t);
   }, [prToast]);
 
+  /** Last previous session's per-set breakdown for an exercise (ghost text). */
+  const getLastSetDetails = (exerciseName: string): SetDetail[] | null => {
+    const prev = allWorkouts
+      .filter((w) => w.name === exerciseName && w.date < today && (w.setDetails?.length ?? 0) > 0)
+      .sort((a, b) => b.date.localeCompare(a.date));
+    return prev[0]?.setDetails ?? null;
+  };
+
+  /** Seed the per-set rows from the current scalar fields. */
+  const seedRowsFromScalars = (w: string, r: string, s: string) => {
+    const n = Math.min(10, Math.max(1, parseInt(s) || 3));
+    setSetRows(Array.from({ length: n }, () => ({ weight: w, reps: r })));
+  };
+
   const handleSelectMenu = (menu: CoachMenu) => {
     const last      = getLastSession(menu.name, allWorkouts, today);
     const suggested = suggestWeight(last, menu.defaultWeight);
     setName(menu.name);
     setMusclePart(menu.musclePart);
     // Form weight is shown in the user's display unit; storage stays kg.
-    setWeight(String(toDisplay(suggested, unit)));
+    const w = String(toDisplay(suggested, unit));
+    setWeight(w);
     setReps(String(menu.defaultReps));
     setSets(String(menu.defaultSets));
+    if (detailMode) seedRowsFromScalars(w, String(menu.defaultReps), String(menu.defaultSets));
     setCoachAdvice(lang === 'en' && menu.coachTipEn ? menu.coachTipEn : menu.coachTip);
   };
 
@@ -218,8 +217,30 @@ export default function WorkoutPage() {
     e.preventDefault();
     if (!name.trim()) return;
 
-    const wt = toKg(parseFloat(weight) || 0);
-    const isNewPR = await checkAndUpdatePR(name.trim(), wt, today);
+    // Per-set mode: rows (display unit) → kg SetDetails; scalars derived via
+    // summarizeSets so every existing reader keeps its semantics.
+    let wt: number, repCount: number, setCount: number;
+    let setDetails: SetDetail[] | undefined;
+    let est1RM: number;
+    if (detailMode) {
+      const details = setRows
+        .map((r) => ({ weight: toKg(parseFloat(r.weight) || 0), reps: parseInt(r.reps) || 0 }))
+        .filter((s) => s.reps > 0 && s.weight >= 0);
+      const summary = summarizeSets(details);
+      if (summary.sets === 0) return;
+      wt = summary.weight;
+      repCount = summary.reps;
+      setCount = summary.sets;
+      est1RM = summary.best1RM;
+      setDetails = details;
+    } else {
+      wt = toKg(parseFloat(weight) || 0);
+      repCount = parseInt(reps) || 0;
+      setCount = parseInt(sets) || 0;
+      est1RM = epley1RM(wt, repCount);
+    }
+
+    const isNewPR = await checkAndUpdatePR(name.trim(), wt, today, est1RM);
 
     await addWorkoutEntry({
       id: crypto.randomUUID(),
@@ -228,8 +249,9 @@ export default function WorkoutPage() {
       category: 'strength',
       musclePart,
       weight: wt,
-      reps:   parseInt(reps)  || 0,
-      sets:   parseInt(sets)  || 0,
+      reps:   repCount,
+      sets:   setCount,
+      ...(setDetails ? { setDetails } : {}),
       addedAt: buildTimestamp(today, logTime),
     });
 
@@ -418,6 +440,57 @@ export default function WorkoutPage() {
               );
             })}
           </div>
+
+          {/* Full exercise DB picker (phase B) — non-recommended for this part */}
+          <button
+            type="button"
+            onClick={() => setPickerOpen((v) => !v)}
+            aria-expanded={pickerOpen}
+            className="w-full flex items-center justify-between text-xs font-bold text-faint hover:text-fg py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] rounded"
+          >
+            <span>{t.exercisePickerTitle}</span>
+            {pickerOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+          </button>
+          {pickerOpen && (
+            <div className="grid grid-cols-2 gap-1.5">
+              {getExercises(selectedPart).filter((e) => !e.recommended).map((ex) => {
+                const equipLabel = {
+                  barbell: t.equipBarbell, dumbbell: t.equipDumbbell, machine: t.equipMachine,
+                  cable: t.equipCable, bodyweight: t.equipBodyweight,
+                }[ex.equipment];
+                return (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => {
+                      const last = getLastSession(ex.nameJa, allWorkouts, today);
+                      const suggested = suggestWeight(last, 0);
+                      setName(ex.nameJa);
+                      setMusclePart(ex.musclePart);
+                      const w = String(toDisplay(suggested, unit));
+                      setWeight(w);
+                      setReps('10');
+                      setSets('3');
+                      if (detailMode) seedRowsFromScalars(w, '10', '3');
+                      setCoachAdvice(t.defaultCoachTip);
+                    }}
+                    className="
+                      text-left bg-surface-2 border border-line rounded-xl px-2.5 py-2
+                      hover:bg-green-50 dark:hover:bg-green-900/20
+                      hover:border-green-200 dark:hover:border-green-800
+                      transition-all duration-200 active:scale-[0.98]
+                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                    "
+                  >
+                    <p className="text-xs font-bold text-fg leading-tight">
+                      {lang === 'en' ? ex.nameEn : ex.nameJa}
+                    </p>
+                    <span className="text-[9px] font-semibold text-faint">{equipLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {/* 2 ── 入力フォーム ──────────────── */}
@@ -443,28 +516,116 @@ export default function WorkoutPage() {
                 className="w-full text-sm bg-surface-2 border border-line-strong rounded-xl px-3 py-2.5 text-fg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-400" />
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              {([
-                [lang === 'en' ? `Weight (${unit})` : `重量 (${unit})`, weight, setWeight],
-                [t.reps, reps, setReps],
-                [t.sets, sets, setSets],
-              ] as const).map(([label, val, setter]) => (
-                <div key={label}>
-                  <label className="block text-xs font-bold text-faint uppercase tracking-wide mb-1">{label}</label>
-                  <input type="number" value={val} aria-label={label}
-                    onChange={(e) => (setter as React.Dispatch<React.SetStateAction<string>>)(e.target.value)}
-                    className="w-full text-sm bg-surface-2 border border-line-strong rounded-xl px-2 py-2.5 text-center text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]" />
-                </div>
-              ))}
-            </div>
+            {/* Per-set mode toggle (phase B) */}
+            <button
+              type="button"
+              onClick={() => {
+                const next = !detailMode;
+                setDetailMode(next);
+                if (next && setRows.length === 0) seedRowsFromScalars(weight, reps, sets);
+              }}
+              aria-pressed={detailMode}
+              className={`
+                text-xs font-bold px-3 py-1.5 rounded-full border-2 transition-all
+                ${detailMode
+                  ? 'border-brand-400 bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400'
+                  : 'border-line-strong text-faint hover:border-line-strong'}
+              `}
+            >
+              {t.setDetailToggle}
+            </button>
 
-            {/* Live estimated 1RM (Epley) */}
+            {!detailMode ? (
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  [lang === 'en' ? `Weight (${unit})` : `重量 (${unit})`, weight, setWeight],
+                  [t.reps, reps, setReps],
+                  [t.sets, sets, setSets],
+                ] as const).map(([label, val, setter]) => (
+                  <div key={label}>
+                    <label className="block text-xs font-bold text-faint uppercase tracking-wide mb-1">{label}</label>
+                    <input type="number" value={val} aria-label={label}
+                      onChange={(e) => (setter as React.Dispatch<React.SetStateAction<string>>)(e.target.value)}
+                      className="w-full text-sm bg-surface-2 border border-line-strong rounded-xl px-2 py-2.5 text-center text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* Per-set rows: ±2.5 steppers (display unit), ghost = last session */
+              (() => {
+                const ghost = name.trim() ? getLastSetDetails(name.trim()) : null;
+                return (
+                  <div className="space-y-2">
+                    {setRows.map((row, i) => {
+                      const g = ghost?.[i];
+                      return (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-black text-faint w-10 shrink-0 uppercase tracking-wide">
+                            {t.setLabel}{i + 1}
+                          </span>
+                          <button type="button" aria-label={`-2.5 ${unit}`}
+                            onClick={() => setSetRows((rows) => rows.map((r, j) => j === i
+                              ? { ...r, weight: String(Math.max(0, Math.round(((parseFloat(r.weight) || 0) - 2.5) * 10) / 10)) } : r))}
+                            className="w-8 h-9 rounded-lg border border-line-strong text-faint font-bold hover:bg-surface-2 transition-colors shrink-0">−</button>
+                          <input
+                            type="number" inputMode="decimal" value={row.weight}
+                            placeholder={g ? String(toDisplay(g.weight, unit)) : '0'}
+                            aria-label={`${t.setLabel}${i + 1} ${lang === 'en' ? 'weight' : '重量'} (${unit})`}
+                            onChange={(e) => setSetRows((rows) => rows.map((r, j) => j === i ? { ...r, weight: e.target.value } : r))}
+                            className="w-full min-w-0 text-sm bg-surface-2 border border-line-strong rounded-xl px-1 py-2 text-center text-fg placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                          />
+                          <button type="button" aria-label={`+2.5 ${unit}`}
+                            onClick={() => setSetRows((rows) => rows.map((r, j) => j === i
+                              ? { ...r, weight: String(Math.round(((parseFloat(r.weight) || 0) + 2.5) * 10) / 10) } : r))}
+                            className="w-8 h-9 rounded-lg border border-line-strong text-faint font-bold hover:bg-surface-2 transition-colors shrink-0">＋</button>
+                          <span className="text-[10px] text-faint shrink-0">{unit}</span>
+                          <input
+                            type="number" inputMode="numeric" value={row.reps}
+                            placeholder={g ? String(g.reps) : '0'}
+                            aria-label={`${t.setLabel}${i + 1} ${t.reps}`}
+                            onChange={(e) => setSetRows((rows) => rows.map((r, j) => j === i ? { ...r, reps: e.target.value } : r))}
+                            className="w-16 shrink-0 text-sm bg-surface-2 border border-line-strong rounded-xl px-1 py-2 text-center text-fg placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                          />
+                          <span className="text-[10px] text-faint shrink-0">{lang === 'en' ? 'reps' : '回'}</span>
+                          <button type="button" aria-label={`${t.removeSet} ${i + 1}`}
+                            onClick={() => setSetRows((rows) => rows.filter((_, j) => j !== i))}
+                            className="p-1.5 text-faint hover:text-red-400 transition-colors shrink-0">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setSetRows((rows) => {
+                        const prev = rows[rows.length - 1];
+                        const parsed = prev
+                          ? { weight: toKg(parseFloat(prev.weight) || 0), reps: parseInt(prev.reps) || 0 }
+                          : null;
+                        const s = nextSetSuggestion(parsed && parsed.reps > 0 ? parsed : null, 0);
+                        return [...rows, {
+                          weight: s.weight > 0 ? String(toDisplay(s.weight, unit)) : (prev?.weight ?? ''),
+                          reps: s.reps > 0 ? String(s.reps) : (prev?.reps ?? ''),
+                        }];
+                      })}
+                      className="w-full py-2 rounded-xl text-xs font-bold bg-surface-2 text-muted hover:bg-line transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                    >
+                      {t.addSet}
+                    </button>
+                  </div>
+                );
+              })()
+            )}
+
+            {/* Live estimated 1RM (Epley) — per-set mode uses the best set */}
             {(() => {
-              const orm = epley1RM(toKg(parseFloat(weight) || 0), parseInt(reps) || 0);
+              const orm = detailMode
+                ? summarizeSets(setRows.map((r) => ({ weight: toKg(parseFloat(r.weight) || 0), reps: parseInt(r.reps) || 0 }))).best1RM
+                : epley1RM(toKg(parseFloat(weight) || 0), parseInt(reps) || 0);
               if (orm <= 0) return null;
               return (
                 <p className="text-[11px] text-faint text-right" aria-live="polite">
-                  {lang === 'en' ? 'Est. 1RM' : '推定1RM'}:{' '}
+                  {t.est1rmPr}:{' '}
                   <span className="font-black text-brand-600 dark:text-brand-400 tabular-nums">{formatWeight(orm, unit)}</span>
                 </p>
               );
@@ -650,6 +811,15 @@ export default function WorkoutPage() {
                         <span className="ml-1.5 text-[10px] font-bold text-brand-600 dark:text-brand-400">· 1RM {formatWeight(epley1RM(w.weight ?? 0, w.reps ?? 0), unit)}</span>
                       )}
                     </p>
+                    {/* Per-set breakdown + volume (phase B entries only) */}
+                    {(w.setDetails?.length ?? 0) > 0 && (
+                      <p className="text-[10px] text-faint mt-0.5 tabular-nums">
+                        {w.setDetails!.map((s) => `${toDisplay(s.weight, unit)}×${s.reps}`).join(' / ')}
+                        <span className="ml-1.5 font-semibold">
+                          · {t.volumeLabel} {toDisplay(summarizeSets(w.setDetails!).volume, unit)}{unit}
+                        </span>
+                      </p>
+                    )}
                   </div>
                 </div>
                 <button type="button" onClick={() => handleDelete(w.id)}

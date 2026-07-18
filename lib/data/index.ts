@@ -24,3 +24,4 @@ export * from './meal-templates';
 export * from './weekly-challenge';
 export * from './vitals';
 export * from './symptoms';
+export * from './workout-prefs';

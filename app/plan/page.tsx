@@ -19,6 +19,8 @@ import { getHealthProfile } from '@/lib/data/health-profile';
 import { getGoals } from '@/lib/data/profile';
 import { getAllPersonalRecords } from '@/lib/data/workout';
 import { getWorkoutEntriesForRange } from '@/lib/data/workout';
+import { getWorkoutPrefs, saveWorkoutPrefs, type WorkoutPrefs } from '@/lib/data/workout-prefs';
+import type { Equipment } from '@/lib/exercise-db';
 import type {
   TrainingProgram, TrainingSession, PlannedExercise,
   DailyCheckIn, WorkoutSuggestion, MusclePart,
@@ -224,6 +226,25 @@ function CheckInWidget({
   const MOOD_LABELS   = lang === 'en' ? MOOD_LABELS_EN  : MOOD_LABELS_JA;
   const ENERGY_LABELS = lang === 'en' ? ENERGY_LABELS_EN : ENERGY_LABELS_JA;
 
+  // Training environment (phase B) — device-local prefs (lib/data/workout-prefs),
+  // deliberately outside DailyCheckIn; saved immediately on change.
+  const [prefs, setPrefs] = useState<WorkoutPrefs>({ equipment: [] });
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only localStorage read on mount
+    setPrefs(getWorkoutPrefs());
+  }, []);
+  const updatePrefs = (p: WorkoutPrefs) => {
+    setPrefs(p);
+    saveWorkoutPrefs(p);
+  };
+  const EQUIPMENT_OPTIONS: Array<{ id: Equipment; label: string }> = [
+    { id: 'barbell', label: t.equipBarbell },
+    { id: 'dumbbell', label: t.equipDumbbell },
+    { id: 'machine', label: t.equipMachine },
+    { id: 'cable', label: t.equipCable },
+    { id: 'bodyweight', label: t.equipBodyweight },
+  ];
+
   const set = (partial: Partial<DailyCheckIn>) => onChange({ ...value, ...partial });
 
   const toggleSoreness = (part: MusclePart) => {
@@ -388,6 +409,56 @@ function CheckInWidget({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Training environment (phase B) — feeds the AI suggestion prompt */}
+          <div>
+            <p className="text-xs font-black text-faint mb-2 flex items-center gap-1.5">
+              <Dumbbell size={12} className="text-brand-500" />
+              {t.envQuestion}
+            </p>
+            <div className="flex gap-2">
+              {([['home', t.envHome], ['gym', t.envGym]] as const).map(([env, label]) => (
+                <button
+                  key={env}
+                  onClick={() => updatePrefs({ ...prefs, environment: prefs.environment === env ? undefined : env })}
+                  aria-pressed={prefs.environment === env}
+                  className={`flex-1 py-2 rounded-xl border-2 text-xs font-bold transition-all ${
+                    prefs.environment === env
+                      ? 'border-brand-400 bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400'
+                      : 'border-line text-faint hover:border-line-strong'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {prefs.environment === 'home' && (
+              <div className="mt-2">
+                <p className="text-xs font-black text-faint mb-2">{t.equipmentQuestion}</p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {EQUIPMENT_OPTIONS.map(({ id, label }) => (
+                    <button
+                      key={id}
+                      onClick={() => updatePrefs({
+                        ...prefs,
+                        equipment: prefs.equipment.includes(id)
+                          ? prefs.equipment.filter((e) => e !== id)
+                          : [...prefs.equipment, id],
+                      })}
+                      aria-pressed={prefs.equipment.includes(id)}
+                      className={`text-xs font-bold px-3 py-1.5 rounded-full border-2 transition-all ${
+                        prefs.equipment.includes(id)
+                          ? 'border-brand-400 bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400'
+                          : 'border-line-strong text-faint hover:border-line-strong'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Notes */}
@@ -647,6 +718,9 @@ export default function PlanPage() {
         personalRecords,
         healthConditions: profile.healthConditions,
         medications:      profile.medications ?? [],
+        // Training environment (phase B): device-local prefs → prompt context.
+        environment: getWorkoutPrefs().environment,
+        equipment:   getWorkoutPrefs().equipment.length > 0 ? getWorkoutPrefs().equipment : undefined,
       };
 
       const data = await postJson<WorkoutSuggestion>('/api/suggest-workout', body);

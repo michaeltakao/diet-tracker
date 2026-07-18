@@ -57,17 +57,27 @@ export interface MealTemplate {
 
 export type MusclePart = 'chest' | 'back' | 'legs' | 'shoulders' | 'arms' | 'abs';
 
+/** One working set. Weight in kg (0 = bodyweight). */
+export interface SetDetail {
+  weight: number;
+  reps: number;
+}
+
 export interface WorkoutEntry {
   id: string;
   date: string; // YYYY-MM-DD
   name: string;
   category: 'strength' | 'cardio' | 'flexibility' | 'other';
   musclePart?: MusclePart;
+  // Scalars stay the canonical summary (top weight, its reps, set count) so
+  // all existing readers (timeline, charts, PRs) keep working unchanged.
   sets?: number;
   reps?: number;
   weight?: number; // kg
   duration?: number; // minutes
   notes?: string;
+  /** Per-set breakdown (phase B). When present, scalars are derived from it. */
+  setDetails?: SetDetail[];
   addedAt: string;
 }
 
@@ -180,6 +190,8 @@ export interface PersonalRecord {
   maxWeight: number;
   achievedAt: string; // ISO
   date: string; // YYYY-MM-DD
+  /** Epley estimate at the session that set the weight PR (phase B). */
+  est1RM?: number;
 }
 
 export interface AppData {
