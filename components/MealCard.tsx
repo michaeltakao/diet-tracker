@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Trash2, Pencil, Check, X, Heart } from 'lucide-react';
 import { FoodEntry } from '@/lib/types';
 import { isFavoriteFood, toggleFavorite } from '@/lib/data/favorites';
+import { sodiumMgToSaltG } from '@/lib/micros';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface MealCardProps {
@@ -271,6 +272,14 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
             <span className="font-medium text-blue-600 dark:text-blue-400">C {entry.carbs}g</span>
           </div>
         </div>
+
+        {/* Sodium (as 食塩相当量) / fiber — barcode & label entries only */}
+        {(entry.sodiumMg != null || entry.fiberG != null) && (
+          <div className="flex gap-2.5 text-[10px] font-medium text-faint mt-1 tabular-nums">
+            {entry.sodiumMg != null && <span>🧂 {t.sodiumLabel} {sodiumMgToSaltG(entry.sodiumMg)}g</span>}
+            {entry.fiberG != null && <span>🌾 {t.fiberLabel} {entry.fiberG}g</span>}
+          </div>
+        )}
       </div>
     </div>
   );

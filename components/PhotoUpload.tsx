@@ -16,22 +16,42 @@ interface AnalysisResult {
   notes: string;
 }
 
-interface PhotoUploadProps {
-  onAnalysisComplete: (result: AnalysisResult, photoDataUrl: string) => void;
+/** Mirrors /api/analyze-label's response schema. */
+export interface LabelAnalysisResult {
+  name?: string;
+  basis: 'per100g' | 'perServing';
+  servingG?: number;
+  calories: number;
+  protein: number;
+  fat: number;
+  carbs: number;
+  sodiumMg?: number;
+  fiberG?: number;
+  confidence: string;
 }
 
-export default function PhotoUpload({ onAnalysisComplete }: PhotoUploadProps) {
+interface PhotoUploadProps {
+  onAnalysisComplete: (result: AnalysisResult, photoDataUrl: string) => void;
+  /** 'analyze-label' reads a 栄養成分表示 label instead of estimating a meal. */
+  mode?: 'analyze-food' | 'analyze-label';
+  /** Required when mode is 'analyze-label'. */
+  onLabelComplete?: (result: LabelAnalysisResult, photoDataUrl: string) => void;
+}
+
+export default function PhotoUpload({ onAnalysisComplete, mode = 'analyze-food', onLabelComplete }: PhotoUploadProps) {
   const { t } = useLanguage();
   const [preview, setPreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [labelResult, setLabelResult] = useState<LabelAnalysisResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processFile = useCallback(async (file: File) => {
     setError(null);
     setResult(null);
+    setLabelResult(null);
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -74,12 +94,21 @@ export default function PhotoUpload({ onAnalysisComplete }: PhotoUploadProps) {
       const [header, base64Data] = preview.split(',');
       const mimeType = header.match(/:(.*?);/)?.[1] ?? 'image/jpeg';
 
-      const analysisResult = await postJson<AnalysisResult>('/api/analyze-food', {
-        imageBase64: base64Data,
-        mimeType,
-      });
-      setResult(analysisResult);
-      onAnalysisComplete(analysisResult, preview);
+      if (mode === 'analyze-label') {
+        const label = await postJson<LabelAnalysisResult>('/api/analyze-label', {
+          imageBase64: base64Data,
+          mimeType,
+        });
+        setLabelResult(label);
+        onLabelComplete?.(label, preview);
+      } else {
+        const analysisResult = await postJson<AnalysisResult>('/api/analyze-food', {
+          imageBase64: base64Data,
+          mimeType,
+        });
+        setResult(analysisResult);
+        onAnalysisComplete(analysisResult, preview);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed. Please try again.');
     } finally {
@@ -90,6 +119,7 @@ export default function PhotoUpload({ onAnalysisComplete }: PhotoUploadProps) {
   const reset = () => {
     setPreview(null);
     setResult(null);
+    setLabelResult(null);
     setError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -183,7 +213,20 @@ export default function PhotoUpload({ onAnalysisComplete }: PhotoUploadProps) {
             </div>
           )}
 
-          {!result && (
+          {labelResult && (
+            <div role="status" className="flex items-start gap-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-xl p-3 text-sm">
+              <CheckCircle size={16} className="flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <div>
+                <p className="font-medium">{t.aiResult} ({t.confidence}: {confidenceLabel(labelResult.confidence)})</p>
+                <p className="text-xs text-green-700 dark:text-green-400 mt-0.5">
+                  {labelResult.basis === 'per100g' ? t.labelPer100g : t.labelPerServing}
+                  {labelResult.servingG ? ` (${labelResult.servingG}g)` : ''}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!result && !labelResult && (
             <button
               onClick={analyzeImage}
               disabled={isAnalyzing}

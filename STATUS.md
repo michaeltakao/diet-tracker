@@ -1,6 +1,39 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-19 COMPETITOR IMPORT PHASE A: food logging (barcode / label OCR /
+  AI nutritionist / sodium+fiber)** — lights up the dormant migration-009
+  columns. New pure libs: `lib/off.ts` (OFF v2 normalize: `energy-kcal_100g`
+  required, `sodium_100g` g→mg, `salt_100g`÷2.54 fallback, numeric-string
+  coercion, brand/servingG) + `lib/micros.ts` (sumSodiumFiber lower-bound
+  sums, 厚労省 targets 塩<7.5/6.5g・繊維≥21/18g, sex-unset→mean). Routes:
+  `/api/product-lookup` (POST, guardAiRoute off-label w/ tokens=0 rows,
+  SSRF-safe constant-URL OFF fetch, 5s timeout, 30/min+300/day),
+  `/api/analyze-label` (analyze-food clone; transcribe-not-estimate prompt,
+  basis per100g|perServing + servingG + salt→sodiumMg conversion),
+  `/api/nutritionist` (exactly-3 suggestions on TODAY's actual meals,
+  strict body validation, scope-guarded vs /api/recommend). UI:
+  `BarcodeScanner` (native BarcodeDetector → dynamic-import `@zxing/browser`
+  fallback — verified NOT in eager chunks), PhotoUpload `mode` prop +
+  label result box, add-page refactor: **`applyBaseNutrition()` single
+  prefill path** (AI photo/barcode/label) + `PortionBasis` per100g→amountG
+  (servings×100g, servingUnit '100g') vs perServing→servings×servingG;
+  submit carries source/sourceId/sodiumMg/fiberG through `scaleFood`;
+  `prefilled` state keeps form visible for nameless labels. Dashboard:
+  NutritionistCard (getRealGoals-gated) + sodium/fiber day row
+  (with-data-only) + MealCard micros line. i18n ja+en ×19. Verified:
+  lint + **277 vitest** (17 new off/micros) + build; Chrome MCP :3199 —
+  OFF E2E (Nutella 200 normalized / 400 / 404), label canvas-image →
+  exact transcription (1.27g salt→500mg), UI label flow prefill→2×
+  scaling (exact from unrounded base)→entry {servings:2, servingUnit:
+  '100g', amountG:200, source:'ai', sodiumMg:1000, fiberG:4.6}, day
+  row+meal-line render, nutritionist 3 grounded suggestions (API+widget),
+  429 at request 11. 403 gate not exercisable in dev (no APP_ACCESS_CODE)
+  — guard identical to the 6 existing AI routes. **Gotcha: stale dev
+  service worker on :3199 served old chunks (crash on new i18n keys) —
+  unregister SW + clear caches when verifying; it's not Turbopack.**
+  Next: Phase B (exercise DB, per-set logging, env-aware suggestions,
+  migration 016).
 - **2026-07-17 DESIGN PHASE 5: v0 dashboard integration (gamification
   layer)** — user's v0-generated Duolingo dashboard
   (`~/Downloads/duolingo-healthcare-dashboard`) translated onto our

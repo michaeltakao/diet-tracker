@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Camera, PenLine, Clock, Zap, BookmarkPlus, Heart } from 'lucide-react';
+import { Camera, PenLine, Clock, Zap, BookmarkPlus, Heart, ScanBarcode } from 'lucide-react';
 import { addFoodEntry, getRecentFoods, getHealthProfile, getFavoriteFoods } from '@/lib/data';
 import { scaleFood, type ScalableFood } from '@/lib/food-scaling';
 import { FoodEntryForm, type FoodFormData } from '@/components/FoodEntryForm';
 import { MealTemplateSheet } from '@/components/MealTemplateSheet';
-import { FoodEntry, FavoriteFood, MealTemplate } from '@/lib/types';
-import PhotoUpload from '@/components/PhotoUpload';
+import { FoodEntry, FoodSource, FavoriteFood, MealTemplate } from '@/lib/types';
+import PhotoUpload, { type LabelAnalysisResult } from '@/components/PhotoUpload';
+import { BarcodeScanner } from '@/components/BarcodeScanner';
+import type { NormalizedProduct } from '@/lib/off';
 import BottomNav from '@/components/BottomNav';
 import { Toast } from '@/components/ui/Toast';
 import MedWarning from '@/components/MedWarning';
@@ -16,7 +18,14 @@ import { getNutritionWarnings } from '@/lib/medication-rules';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 type MealType = FoodEntry['mealType'];
-type Tab = 'photo' | 'manual' | 'recent';
+type Tab = 'photo' | 'manual' | 'recent' | 'barcode';
+
+/**
+ * What one "serving" in the stepper means for the current prefill:
+ * 'perServing' → one portion (AI photo / per-serving label); 'per100g' →
+ * 100 g of product (barcode / per-100g label), so amountG = servings × 100.
+ */
+type PortionBasis = 'perServing' | 'per100g';
 
 function getTodayDate(): string {
   return new Date().toISOString().split('T')[0];
@@ -73,9 +82,19 @@ export default function AddPage() {
   const [servings, setServings]             = useState(1);
   // Per-serving nutrition base: scaling always multiplies this, never the
   // displayed (rounded) values, so stepping 1×→0.5×→1× is an exact round trip.
-  // null = derive from the current fields on next scale (manual edits reset it).
+  // null = derive from the current fields on next scale (manual edits reset it;
+  // sodium/fiber riding on the base are then lost — provenance is stale anyway).
   const baseNutritionRef = useRef<ScalableFood | null>(null);
-  const [sourceIsAi, setSourceIsAi]         = useState(false);
+  // Provenance of the current prefill (survives manual tweaks, like the old
+  // sourceIsAi flag did). basis/servingG drive the amountG computed at submit.
+  const [source, setSource]                 = useState<FoodSource>('manual');
+  const [sourceId, setSourceId]             = useState<string | undefined>(undefined);
+  const [basis, setBasis]                   = useState<PortionBasis>('perServing');
+  const [servingG, setServingG]             = useState<number | undefined>(undefined);
+  // True once any prefill landed — keeps the form visible even when a label
+  // photo carried no product name (form.name === '', user types it).
+  const [prefilled, setPrefilled]           = useState(false);
+  const [photoMode, setPhotoMode]           = useState<'analyze-food' | 'analyze-label'>('analyze-food');
   const [favorites, setFavorites]           = useState<FavoriteFood[]>([]);
   const [showTemplates, setShowTemplates]   = useState(false);
   const [templateToast, setTemplateToast]   = useState(false);
@@ -95,28 +114,75 @@ export default function AddPage() {
     if (tab === 'manual') setLogTime(getCurrentTime());
   }, [tab]);
 
+  /**
+   * Single entry point for ALL prefill paths (AI photo / barcode / label):
+   * stores the unrounded per-unit base for exact rescaling, records the
+   * provenance, and shows the base ×1 in the form fields (display rounding
+   * via scaleFood so the fields match manual-entry precision).
+   */
+  const applyBaseNutrition = (
+    name: string,
+    base: ScalableFood,
+    meta: { source: FoodSource; sourceId?: string; basis: PortionBasis; servingG?: number },
+  ) => {
+    baseNutritionRef.current = base;
+    setPrefilled(true);
+    setSource(meta.source);
+    setSourceId(meta.sourceId);
+    setBasis(meta.basis);
+    setServingG(meta.servingG);
+    setLogTime(getCurrentTime());
+    setServings(1);
+    const display = scaleFood(base, 1);
+    setForm((prev) => ({
+      ...prev,
+      name,
+      calories: String(display.calories),
+      protein: String(display.protein),
+      fat: String(display.fat),
+      carbs: String(display.carbs),
+    }));
+  };
+
   const handleAnalysisComplete = (
     result: { name: string; calories: number; protein: number; fat: number; carbs: number },
     photo: string
   ) => {
     setPhotoDataUrl(photo);
-    setSourceIsAi(true);
-    setLogTime(getCurrentTime());
-    setServings(1);
-    baseNutritionRef.current = {
+    applyBaseNutrition(result.name, {
       calories: result.calories,
       protein: result.protein,
       fat: result.fat,
       carbs: result.carbs,
-    };
-    setForm((prev) => ({
-      ...prev,
-      name: result.name,
-      calories: String(result.calories),
-      protein: String(result.protein),
-      fat: String(result.fat),
-      carbs: String(result.carbs),
-    }));
+    }, { source: 'ai', basis: 'perServing' });
+  };
+
+  /** Barcode product: OFF values are per 100 g → the stepper counts 100 g units. */
+  const handleProductFound = (product: NormalizedProduct, barcode: string) => {
+    const displayName = product.brand ? `${product.name}（${product.brand}）` : product.name;
+    applyBaseNutrition(displayName, { ...product.per100g }, {
+      source: 'barcode',
+      sourceId: barcode,
+      basis: 'per100g',
+      servingG: product.servingG,
+    });
+  };
+
+  /** Label photo: transcription of the printed 栄養成分表示 → source 'ai'.
+      The label photo is NOT attached to the entry (it is not a meal photo). */
+  const handleLabelComplete = (label: LabelAnalysisResult) => {
+    applyBaseNutrition(label.name ?? form.name, {
+      calories: label.calories,
+      protein: label.protein,
+      fat: label.fat,
+      carbs: label.carbs,
+      ...(label.sodiumMg != null ? { sodiumMg: label.sodiumMg } : {}),
+      ...(label.fiberG != null ? { fiberG: label.fiberG } : {}),
+    }, {
+      source: 'ai',
+      basis: label.basis === 'per100g' ? 'per100g' : 'perServing',
+      servingG: label.servingG,
+    });
   };
 
   // DB columns are NUMERIC(6,1) — reject anything that can't round-trip.
@@ -173,6 +239,15 @@ export default function AddPage() {
 
   const handleSubmit = () => {
     if (!validate()) return;
+    // Sodium/fiber ride on the prefill base (barcode/label) and scale with the
+    // stepper; a manual field edit nulled the base, so they are simply omitted.
+    const scaledBase = baseNutritionRef.current
+      ? scaleFood(baseNutritionRef.current, servings)
+      : null;
+    const amountG =
+      basis === 'per100g' ? Math.round(servings * 100)
+      : servingG != null ? Math.round(servings * servingG)
+      : undefined;
     const entry: FoodEntry = {
       id: crypto.randomUUID(),
       date: getTodayDate(),
@@ -185,7 +260,12 @@ export default function AddPage() {
       photoDataUrl,
       addedAt: buildTimestamp(getTodayDate(), logTime),
       servings,
-      source: sourceIsAi ? 'ai' : 'manual',
+      ...(basis === 'per100g' ? { servingUnit: '100g' } : {}),
+      ...(amountG != null ? { amountG } : {}),
+      source,
+      ...(sourceId != null ? { sourceId } : {}),
+      ...(scaledBase?.sodiumMg != null ? { sodiumMg: scaledBase.sodiumMg } : {}),
+      ...(scaledBase?.fiberG != null ? { fiberG: scaledBase.fiberG } : {}),
     };
     void addFoodEntry(entry);
     if (speedMode) {
@@ -193,7 +273,11 @@ export default function AddPage() {
       setPhotoDataUrl(undefined);
       setServings(1);
       baseNutritionRef.current = null;
-      setSourceIsAi(false);
+      setPrefilled(false);
+      setSource('manual');
+      setSourceId(undefined);
+      setBasis('perServing');
+      setServingG(undefined);
       setSpeedToast(true);
       setTimeout(() => setSpeedToast(false), 1500);
     } else {
@@ -251,7 +335,11 @@ export default function AddPage() {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
-  const showForm = tab === 'manual' || (tab === 'photo' && form.name !== '');
+  // Photo/barcode tabs show the form once a prefill landed (name may be empty
+  // when a label photo has no visible product name — the user types it then).
+  const showForm =
+    tab === 'manual' ||
+    ((tab === 'photo' || tab === 'barcode') && (form.name !== '' || prefilled));
 
   const mealTypeLabels: Record<MealType, string> = {
     breakfast: t.breakfast,
@@ -348,8 +436,9 @@ export default function AddPage() {
       {/* ── Tabs ────────────────────────────────── */}
       <div role="tablist" className="flex bg-surface-2 rounded-2xl p-1 mb-4">
         {([
-          { id: 'photo'  as Tab, label: t.tabPhoto,  icon: Camera },
-          { id: 'manual' as Tab, label: t.tabManual, icon: PenLine },
+          { id: 'photo'   as Tab, label: t.tabPhoto,   icon: Camera },
+          { id: 'barcode' as Tab, label: t.tabBarcode, icon: ScanBarcode },
+          { id: 'manual'  as Tab, label: t.tabManual,  icon: PenLine },
         ] as const).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -457,10 +546,41 @@ export default function AddPage() {
         </div>
       )}
 
-      {/* ── Photo tab ───────────────────────────── */}
+      {/* ── Photo tab (meal estimate / nutrition-label transcription) ── */}
       {tab === 'photo' && (
         <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-4">
-          <PhotoUpload onAnalysisComplete={handleAnalysisComplete} />
+          <div role="tablist" className="flex bg-surface-2 rounded-xl p-1 mb-3">
+            {([
+              { id: 'analyze-food'  as const, label: t.mealPhotoToggle },
+              { id: 'analyze-label' as const, label: t.labelPhotoToggle },
+            ]).map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setPhotoMode(id)}
+                aria-pressed={photoMode === id}
+                className={`
+                  flex-1 py-2 rounded-lg text-xs font-semibold transition-all duration-200
+                  ${photoMode === id ? 'bg-card text-fg shadow-sm' : 'text-faint hover:text-fg'}
+                `}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {/* key remounts on toggle so a meal preview never gets label-analyzed */}
+          <PhotoUpload
+            key={photoMode}
+            mode={photoMode}
+            onAnalysisComplete={handleAnalysisComplete}
+            onLabelComplete={handleLabelComplete}
+          />
+        </div>
+      )}
+
+      {/* ── Barcode tab ─────────────────────────── */}
+      {tab === 'barcode' && (
+        <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-4">
+          <BarcodeScanner onProduct={handleProductFound} />
         </div>
       )}
 

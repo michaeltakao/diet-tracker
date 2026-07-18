@@ -407,6 +407,27 @@ export const translations = {
     // Meal section
     collapseAll: 'すべて折りたたむ',
     expandAll: 'すべて展開する',
+    // Barcode scan (phase A)
+    tabBarcode: '🏷️ バーコード',
+    scanBarcode: 'バーコードを枠内にかざしてください',
+    barcodeRescan: 'もう一度スキャン',
+    barcodeNotFound: '商品が見つかりませんでした（データベース未登録の可能性があります）',
+    barcodeCameraDenied: 'カメラを利用できません。ブラウザの設定でカメラを許可してください',
+    productLookupError: '商品情報の取得に失敗しました。もう一度お試しください',
+    // Label OCR (phase A)
+    mealPhotoToggle: '🍽️ 料理の写真',
+    labelPhotoToggle: '🏷️ 栄養成分表示',
+    labelPer100g: '100gあたり',
+    labelPerServing: '1食あたり',
+    // AI nutritionist (phase A)
+    nutritionistTitle: 'AI栄養士アドバイス',
+    nutritionistButton: '今日の食事をチェック',
+    nutritionistEmpty: '今日の食事を記録するとアドバイスが受けられます',
+    // Sodium / fiber (phase A)
+    sodiumLabel: '塩分',
+    fiberLabel: '食物繊維',
+    sodiumTarget: '目標 {n}g未満',
+    fiberTarget: '目標 {n}g以上',
   },
   en: {
     appName: 'Diet Tracker 🥗',
@@ -814,6 +835,27 @@ export const translations = {
     // Meal section
     collapseAll: 'Collapse all',
     expandAll: 'Expand all',
+    // Barcode scan (phase A)
+    tabBarcode: '🏷️ Barcode',
+    scanBarcode: 'Point the camera at a barcode',
+    barcodeRescan: 'Scan again',
+    barcodeNotFound: 'Product not found (it may not be in the database)',
+    barcodeCameraDenied: 'Camera unavailable. Please allow camera access in your browser settings',
+    productLookupError: 'Product lookup failed. Please try again',
+    // Label OCR (phase A)
+    mealPhotoToggle: '🍽️ Meal photo',
+    labelPhotoToggle: '🏷️ Nutrition label',
+    labelPer100g: 'Per 100g',
+    labelPerServing: 'Per serving',
+    // AI nutritionist (phase A)
+    nutritionistTitle: 'AI Nutritionist',
+    nutritionistButton: "Review today's meals",
+    nutritionistEmpty: 'Log a meal today to get personalized advice',
+    // Sodium / fiber (phase A)
+    sodiumLabel: 'Salt',
+    fiberLabel: 'Fiber',
+    sodiumTarget: 'Target < {n}g',
+    fiberTarget: 'Target ≥ {n}g',
   },
 } as const;
 

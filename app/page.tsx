@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { Plus, Settings, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import {
   getAppData, removeFoodEntry, updateFoodEntry, addWater, getWaterForDate,
-  checkAndAwardBadges, getBadges, addFoodEntry, getRealGoals,
+  checkAndAwardBadges, getBadges, addFoodEntry, getRealGoals, getHealthProfile,
 } from '@/lib/data';
+import { sumSodiumFiber, sodiumMgToSaltG, saltTargetG, fiberTargetG } from '@/lib/micros';
 import { FoodEntry, DailyGoals, Badge } from '@/lib/types';
 import CalorieBar from '@/components/CalorieBar';
 import PFCDonut from '@/components/PFCDonut';
@@ -23,6 +24,7 @@ import NudgeBanner from '@/components/NudgeBanner';
 import PushPermissionCard from '@/components/PushPermissionCard';
 import RecentSymptomsCard from '@/components/RecentSymptomsCard';
 import RecommendationCard from '@/components/RecommendationCard';
+import { NutritionistCard } from '@/components/NutritionistCard';
 import TdeeCard from '@/components/TdeeCard';
 import BottomNav from '@/components/BottomNav';
 import { Toast } from '@/components/ui/Toast';
@@ -56,6 +58,7 @@ export default function HomePage() {
   const [earnedBadges, setEarnedBadges]           = useState<Badge[]>([]);
   const [collapsedMeals, setCollapsedMeals]       = useState<Set<string>>(new Set());
   const [copyToast, setCopyToast]                 = useState<string | null>(null);
+  const [sex, setSex]                             = useState<'male' | 'female' | null>(null);
 
   const loadData = () => {
     const data = getAppData();
@@ -64,6 +67,7 @@ export default function HomePage() {
     setGoalsReady(true);
     setWater(getWaterForDate(today));
     setEarnedBadges(getBadges());
+    setSex(getHealthProfile().sex ?? null);
   };
 
   useEffect(() => {
@@ -116,6 +120,10 @@ export default function HomePage() {
     (acc, e) => ({ calories: acc.calories + e.calories, protein: acc.protein + e.protein, fat: acc.fat + e.fat, carbs: acc.carbs + e.carbs }),
     { calories: 0, protein: 0, fat: 0, carbs: 0 }
   );
+
+  // Sodium/fiber day sums — lower bound over entries carrying data (barcode /
+  // label sources); hidden entirely when no entry has data.
+  const micros = sumSodiumFiber(entries);
 
   const remaining = goals ? Math.max(0, goals.calories - totals.calories) : 0;
   const over      = goals ? totals.calories > goals.calories : false;
@@ -264,11 +272,40 @@ export default function HomePage() {
         </div>
       ))}
 
+      {/* ── Sodium / fiber day row (with-data days only) ── */}
+      {micros.entriesWithData > 0 && (
+        <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-xs font-bold text-faint mb-0.5">🧂 {t.sodiumLabel}</p>
+              <p className="text-sm font-bold text-fg tabular-nums">
+                {sodiumMgToSaltG(micros.sodiumMg)}g
+                <span className="text-[10px] font-medium text-faint ml-1.5">
+                  {t.sodiumTarget.replace('{n}', String(saltTargetG(sex)))}
+                </span>
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-faint mb-0.5">🌾 {t.fiberLabel}</p>
+              <p className="text-sm font-bold text-fg tabular-nums">
+                {micros.fiberG}g
+                <span className="text-[10px] font-medium text-faint ml-1.5">
+                  {t.fiberTarget.replace('{n}', String(fiberTargetG(sex)))}
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Daily 4-category progress ring (phase 5) ── */}
       <ProgressRing />
 
       {/* ── Personalized Recommendation ─────────────── */}
       <RecommendationCard />
+
+      {/* ── AI nutritionist (今日の食事チェック) ─────── */}
+      <NutritionistCard />
 
       {/* ── Adaptive TDEE ───────────────────────────── */}
       <TdeeCard />

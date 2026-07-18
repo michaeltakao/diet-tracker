@@ -64,6 +64,10 @@ export const RATE_LIMITS = {
   'recommend':        { maxRequests: 10, windowMs:    60_000 },
   'weekly-report':    { maxRequests: 3,  windowMs: 3_600_000 },
   'suggest-workout':  { maxRequests: 10, windowMs:    60_000 },
+  // product-lookup is an OFF proxy, not an LLM call — cheaper, so more generous.
+  'product-lookup':   { maxRequests: 30, windowMs:    60_000 },
+  'analyze-label':    { maxRequests: 10, windowMs:    60_000 },
+  'nutritionist':     { maxRequests: 10, windowMs:    60_000 },
 } as const satisfies Record<string, RateLimitConfig>;
 
 /**
@@ -80,6 +84,9 @@ export const DAILY_QUOTAS = {
   'recommend':       100,
   'weekly-report':    20,
   'suggest-workout':  50,
+  'product-lookup':  300,
+  'analyze-label':    50,
+  'nutritionist':     30,
 } as const satisfies Record<keyof typeof RATE_LIMITS, number>;
 
 /** Cap on a user's total successful AI calls per JST day, across all routes. */
