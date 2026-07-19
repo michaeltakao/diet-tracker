@@ -446,6 +446,21 @@ export const translations = {
     envHome: '🏠 自宅',
     envGym: '🏋️ ジム',
     equipmentQuestion: '使える器具',
+    // Month calendar (phase C)
+    monthTab: '月間',
+    // Lipid / HbA1c vitals (phase C)
+    vitalLipid: '脂質',
+    vitalHba1c: 'HbA1c',
+    totalCholesterol: '総コレステロール (mg/dL)',
+    ldlLabel: 'LDL (mg/dL)',
+    hdlLabel: 'HDL (mg/dL)',
+    triglyceridesLabel: '中性脂肪 (mg/dL)',
+    hba1cLabel: 'HbA1c (%)',
+    // Training charts (phase C)
+    volumeByPartTitle: '部位別ボリューム',
+    exerciseProgressTitle: '種目別の重量推移',
+    selectExercise: '種目を選択',
+    topWeightLabel: '最大重量',
   },
   en: {
     appName: 'Diet Tracker 🥗',
@@ -892,6 +907,21 @@ export const translations = {
     envHome: '🏠 Home',
     envGym: '🏋️ Gym',
     equipmentQuestion: 'Available equipment',
+    // Month calendar (phase C)
+    monthTab: 'Month',
+    // Lipid / HbA1c vitals (phase C)
+    vitalLipid: 'Lipids',
+    vitalHba1c: 'HbA1c',
+    totalCholesterol: 'Total cholesterol (mg/dL)',
+    ldlLabel: 'LDL (mg/dL)',
+    hdlLabel: 'HDL (mg/dL)',
+    triglyceridesLabel: 'Triglycerides (mg/dL)',
+    hba1cLabel: 'HbA1c (%)',
+    // Training charts (phase C)
+    volumeByPartTitle: 'Volume by body part',
+    exerciseProgressTitle: 'Exercise progression',
+    selectExercise: 'Select exercise',
+    topWeightLabel: 'Top weight',
   },
 } as const;
 

@@ -14,8 +14,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { TrendingDown, Flame, Scale, Target } from 'lucide-react';
-import { getAllWeightEntries, getAllFoodEntries, getRealGoals, getAllVitalEntries } from '@/lib/data';
+import { TrendingDown, Flame, Scale, Target, Dumbbell } from 'lucide-react';
+import { getAllWeightEntries, getAllFoodEntries, getRealGoals, getAllVitalEntries, getAllWorkoutEntries } from '@/lib/data';
 // checkin.ts is not in the barrel — direct import.
 import { getRecentCheckIns } from '@/lib/data/checkin';
 import { getJson } from '@/lib/httpClient';
@@ -32,7 +32,7 @@ import { recordEvent } from '@/lib/telemetry';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { CARD_CLASS } from '@/components/ui/Card';
-import type { DailyGoals, VitalEntry, DailyCheckIn } from '@/lib/types';
+import type { DailyGoals, VitalEntry, DailyCheckIn, MusclePart, WorkoutEntry } from '@/lib/types';
 import type { TdeePoint } from '@/components/trends/TdeeHistoryChart';
 
 function ChartSkeleton({ h = 190 }: { h?: number }) {
@@ -67,6 +67,22 @@ const WellnessChart = dynamic(
   () => import('@/components/trends/VitalsChart').then(m => m.WellnessChart),
   { ssr: false, loading: () => <ChartSkeleton h={140} /> },
 );
+const LipidChart = dynamic(
+  () => import('@/components/trends/VitalsChart').then(m => m.LipidChart),
+  { ssr: false, loading: () => <ChartSkeleton h={180} /> },
+);
+const Hba1cChart = dynamic(
+  () => import('@/components/trends/VitalsChart').then(m => m.Hba1cChart),
+  { ssr: false, loading: () => <ChartSkeleton h={140} /> },
+);
+const VolumeByBodyPartChart = dynamic(
+  () => import('@/components/trends/VolumeByBodyPartChart').then(m => m.VolumeByBodyPartChart),
+  { ssr: false, loading: () => <ChartSkeleton h={200} /> },
+);
+const ExerciseProgressChart = dynamic(
+  () => import('@/components/trends/ExerciseProgressChart').then(m => m.ExerciseProgressChart),
+  { ssr: false, loading: () => <ChartSkeleton h={220} /> },
+);
 
 /** Same "today" convention as the rest of the app (lib/data date stamps). */
 function getTodayDate(): string {
@@ -99,6 +115,7 @@ export function TrendsPanel() {
   const [tdeeIsLocal, setTdeeIsLocal] = useState(false);
   const [vitalEntries, setVitalEntries] = useState<VitalEntry[]>([]);
   const [recentCheckIns, setRecentCheckIns] = useState<DailyCheckIn[]>([]);
+  const [workoutEntries, setWorkoutEntries] = useState<WorkoutEntry[]>([]);
 
   useEffect(() => {
     recordEvent('trends_viewed');
@@ -110,6 +127,7 @@ export function TrendsPanel() {
     setGoals(getRealGoals());
     setVitalEntries(getAllVitalEntries());
     setRecentCheckIns(getRecentCheckIns(30));
+    setWorkoutEntries(getAllWorkoutEntries());
     setLoaded(true);
   }, []);
 
@@ -181,7 +199,10 @@ export function TrendsPanel() {
 
   if (!loaded) return <ChartSkeleton h={300} />;
 
-  const hasAnyData = weightSeries.length >= 2 || loggedDaysInWindow > 0 || calorieLogs.length > 0;
+  // Training and vitals data count too (phase C) — the panel has sections for
+  // them, so workout-only or vitals-only users must not hit the empty state.
+  const hasAnyData = weightSeries.length >= 2 || loggedDaysInWindow > 0 || calorieLogs.length > 0
+    || workoutEntries.length > 0 || vitalEntries.length > 0;
   if (!hasAnyData) {
     return (
       <div className={`${CARD_CLASS} p-10 text-center`}>
@@ -262,6 +283,37 @@ export function TrendsPanel() {
         )}
       </section>
 
+      {/* ── Training: volume by part + exercise progression (phase C) ── */}
+      {(() => {
+        const hasTraining = workoutEntries.some(
+          (w) => (w.setDetails?.length ?? 0) > 0 || (w.weight ?? 0) > 0,
+        );
+        if (!hasTraining) return null;
+        const partLabels: Record<MusclePart, string> = {
+          chest: t.mpChest, back: t.mpBack, legs: t.mpLegs,
+          shoulders: t.mpShoulders, arms: t.mpArms, abs: t.mpAbs,
+        };
+        return (
+          <section className={`${CARD_CLASS} p-4`}>
+            <div className="flex items-center gap-2 mb-2">
+              <Dumbbell size={14} className="text-fox" aria-hidden />
+              <h2 className="text-xs font-black text-faint uppercase tracking-widest">{t.volumeByPartTitle}</h2>
+            </div>
+            <VolumeByBodyPartChart
+              entries={workoutEntries}
+              labels={{ parts: partLabels, week: t.reportPeriod1w, month: t.reportPeriod1m, volume: t.volumeLabel }}
+            />
+            <div className="mt-4 pt-3 border-t border-line">
+              <h3 className="text-xs font-black text-faint uppercase tracking-widest mb-2">{t.exerciseProgressTitle}</h3>
+              <ExerciseProgressChart
+                entries={workoutEntries}
+                labels={{ selectExercise: t.selectExercise, topWeight: t.topWeightLabel, est1RM: t.est1rmPr }}
+              />
+            </div>
+          </section>
+        );
+      })()}
+
       {/* ── Vitals (record only — neutral display, no thresholds) ── */}
       {(() => {
         const bpPoints = vitalEntries
@@ -270,10 +322,20 @@ export function TrendsPanel() {
         const glucosePoints = vitalEntries
           .filter((v): v is Extract<VitalEntry, { kind: 'blood_glucose' }> => v.kind === 'blood_glucose')
           .map(v => ({ date: v.date, glucoseMgDl: v.glucoseMgDl, context: v.glucoseContext }));
+        const lipidPoints = vitalEntries
+          .filter((v): v is Extract<VitalEntry, { kind: 'lipid' }> => v.kind === 'lipid')
+          .map(v => ({
+            date: v.date, totalMgDl: v.totalMgDl,
+            ldlMgDl: v.ldlMgDl, hdlMgDl: v.hdlMgDl, triglyceridesMgDl: v.triglyceridesMgDl,
+          }));
+        const hba1cPoints = vitalEntries
+          .filter((v): v is Extract<VitalEntry, { kind: 'hba1c' }> => v.kind === 'hba1c')
+          .map(v => ({ date: v.date, hba1cPercent: v.hba1cPercent }));
         const wellnessPoints = recentCheckIns
           .filter(c => c.sleepQuality != null || c.stressLevel != null)
           .map(c => ({ date: c.date, sleepQuality: c.sleepQuality, stressLevel: c.stressLevel }));
-        if (bpPoints.length === 0 && glucosePoints.length === 0 && wellnessPoints.length === 0) return null;
+        if (bpPoints.length === 0 && glucosePoints.length === 0 && wellnessPoints.length === 0
+          && lipidPoints.length === 0 && hba1cPoints.length === 0) return null;
         const chartLabels = {
           systolic: t.systolicLabel,
           diastolic: t.diastolicLabel,
@@ -300,6 +362,21 @@ export function TrendsPanel() {
                 <div>
                   <p className="text-xs font-bold text-muted mb-1">🩸 {t.vitalsGlucose}</p>
                   <GlucoseChart points={glucosePoints} labels={chartLabels} />
+                </div>
+              )}
+              {lipidPoints.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-muted mb-1">🧈 {t.vitalLipid}</p>
+                  <LipidChart
+                    points={lipidPoints}
+                    labels={{ total: t.totalCholesterol, ldl: t.ldlLabel, hdl: t.hdlLabel, tg: t.triglyceridesLabel }}
+                  />
+                </div>
+              )}
+              {hba1cPoints.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-muted mb-1">🅰️ {t.vitalHba1c}</p>
+                  <Hba1cChart points={hba1cPoints} label={t.vitalHba1c} />
                 </div>
               )}
               {wellnessPoints.length > 0 && (

@@ -19,13 +19,18 @@ import { CARD_CLASS as cardCls } from '@/components/ui/Card';
 
 function getTodayDate() { return new Date().toISOString().split('T')[0]; }
 
-type VitalKind = 'blood_pressure' | 'blood_glucose';
+type VitalKind = 'blood_pressure' | 'blood_glucose' | 'lipid' | 'hba1c';
 
 // Client-side bounds mirror the SQL CHECKs (wide plausibility, not judgement).
 const BOUNDS = {
-  systolic:  { min: 50, max: 300 },
-  diastolic: { min: 30, max: 200 },
-  glucose:   { min: 20, max: 600 },
+  systolic:      { min: 50, max: 300 },
+  diastolic:     { min: 30, max: 200 },
+  glucose:       { min: 20, max: 600 },
+  totalChol:     { min: 50, max: 500 },
+  ldl:           { min: 20, max: 400 },
+  hdl:           { min: 10, max: 150 },
+  triglycerides: { min: 20, max: 2000 },
+  hba1c:         { min: 3,  max: 20 },
 } as const;
 
 export default function VitalsPage() {
@@ -36,6 +41,11 @@ export default function VitalsPage() {
   const [diastolic, setDiastolic] = useState('');
   const [glucose, setGlucose]     = useState('');
   const [glucoseContext, setGlucoseContext] = useState<GlucoseContext>('fasting');
+  const [totalChol, setTotalChol]         = useState('');
+  const [ldl, setLdl]                     = useState('');
+  const [hdl, setHdl]                     = useState('');
+  const [triglycerides, setTriglycerides] = useState('');
+  const [hba1c, setHba1c]                 = useState('');
   const [notes, setNotes]         = useState('');
   const firstInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -45,10 +55,20 @@ export default function VitalsPage() {
 
   const inBounds = (v: number, b: { min: number; max: number }) =>
     Number.isFinite(v) && v >= b.min && v <= b.max;
+  // Empty optional field = absent; a typed value must be in bounds.
+  const optionalOk = (raw: string, b: { min: number; max: number }) =>
+    raw.trim() === '' || inBounds(parseFloat(raw), b);
 
-  const canSave = kind === 'blood_pressure'
-    ? inBounds(parseFloat(systolic), BOUNDS.systolic) && inBounds(parseFloat(diastolic), BOUNDS.diastolic)
-    : inBounds(parseFloat(glucose), BOUNDS.glucose);
+  const canSave =
+    kind === 'blood_pressure'
+      ? inBounds(parseFloat(systolic), BOUNDS.systolic) && inBounds(parseFloat(diastolic), BOUNDS.diastolic)
+    : kind === 'blood_glucose'
+      ? inBounds(parseFloat(glucose), BOUNDS.glucose)
+    : kind === 'lipid'
+      ? inBounds(parseFloat(totalChol), BOUNDS.totalChol)
+        && optionalOk(ldl, BOUNDS.ldl) && optionalOk(hdl, BOUNDS.hdl)
+        && optionalOk(triglycerides, BOUNDS.triglycerides)
+      : inBounds(parseFloat(hba1c), BOUNDS.hba1c);
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -58,12 +78,26 @@ export default function VitalsPage() {
       addedAt: new Date().toISOString(),
       notes: notes.trim() || undefined,
     };
-    const entry: VitalEntry = kind === 'blood_pressure'
-      ? { ...base, kind, systolic: Math.round(parseFloat(systolic)), diastolic: Math.round(parseFloat(diastolic)) }
-      : { ...base, kind, glucoseMgDl: Math.round(parseFloat(glucose)), glucoseContext };
+    const optInt = (raw: string) => (raw.trim() === '' ? undefined : Math.round(parseFloat(raw)));
+    const entry: VitalEntry =
+      kind === 'blood_pressure'
+        ? { ...base, kind, systolic: Math.round(parseFloat(systolic)), diastolic: Math.round(parseFloat(diastolic)) }
+      : kind === 'blood_glucose'
+        ? { ...base, kind, glucoseMgDl: Math.round(parseFloat(glucose)), glucoseContext }
+      : kind === 'lipid'
+        ? {
+            ...base, kind,
+            totalMgDl: Math.round(parseFloat(totalChol)),
+            ...(optInt(ldl) != null ? { ldlMgDl: optInt(ldl) } : {}),
+            ...(optInt(hdl) != null ? { hdlMgDl: optInt(hdl) } : {}),
+            ...(optInt(triglycerides) != null ? { triglyceridesMgDl: optInt(triglycerides) } : {}),
+          }
+        : { ...base, kind, hba1cPercent: Math.round(parseFloat(hba1c) * 10) / 10 };
     await addVitalEntry(entry);
     await checkAndAwardBadges(getTodayDate());
-    setSystolic(''); setDiastolic(''); setGlucose(''); setNotes('');
+    setSystolic(''); setDiastolic(''); setGlucose('');
+    setTotalChol(''); setLdl(''); setHdl(''); setTriglycerides(''); setHba1c('');
+    setNotes('');
     load();
   };
 
@@ -104,8 +138,8 @@ export default function VitalsPage() {
 
       {/* ── Entry form ────────────────────────── */}
       <div className={`${cardCls} p-4 mb-4`}>
-        {/* Kind toggle */}
-        <div className="flex gap-2 mb-4" role="tablist" aria-label={t.vitalsTitle}>
+        {/* Kind toggle (4-way, phase C) */}
+        <div className="flex gap-1.5 mb-4" role="tablist" aria-label={t.vitalsTitle}>
           <button type="button" role="tab" aria-selected={kind === 'blood_pressure'}
             onClick={() => setKind('blood_pressure')} className={segBtn(kind === 'blood_pressure')}>
             🫀 {t.vitalsBp}
@@ -114,7 +148,43 @@ export default function VitalsPage() {
             onClick={() => setKind('blood_glucose')} className={segBtn(kind === 'blood_glucose')}>
             <Droplet size={12} className="inline -mt-0.5 mr-0.5" aria-hidden="true" />{t.vitalsGlucose}
           </button>
+          <button type="button" role="tab" aria-selected={kind === 'lipid'}
+            onClick={() => setKind('lipid')} className={segBtn(kind === 'lipid')}>
+            🧈 {t.vitalLipid}
+          </button>
+          <button type="button" role="tab" aria-selected={kind === 'hba1c'}
+            onClick={() => setKind('hba1c')} className={segBtn(kind === 'hba1c')}>
+            🅰️ {t.vitalHba1c}
+          </button>
         </div>
+
+        {kind === 'lipid' && (
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            {([
+              [t.totalCholesterol, totalChol, setTotalChol, BOUNDS.totalChol, '200'],
+              [t.ldlLabel, ldl, setLdl, BOUNDS.ldl, '120'],
+              [t.hdlLabel, hdl, setHdl, BOUNDS.hdl, '60'],
+              [t.triglyceridesLabel, triglycerides, setTriglycerides, BOUNDS.triglycerides, '100'],
+            ] as const).map(([label, val, setter, bounds, ph]) => (
+              <div key={label}>
+                <label className="block text-xs font-bold text-faint uppercase tracking-widest mb-1.5">{label}</label>
+                <input type="number" value={val}
+                  onChange={(e) => (setter as (v: string) => void)(e.target.value)}
+                  placeholder={ph} min={bounds.min} max={bounds.max}
+                  aria-label={label} className={inputCls} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {kind === 'hba1c' && (
+          <div className="mb-3">
+            <label className="block text-xs font-bold text-faint uppercase tracking-widest mb-1.5">{t.hba1cLabel}</label>
+            <input type="number" step="0.1" value={hba1c} onChange={(e) => setHba1c(e.target.value)}
+              placeholder="5.5" min={BOUNDS.hba1c.min} max={BOUNDS.hba1c.max}
+              aria-label={t.hba1cLabel} className={inputCls} />
+          </div>
+        )}
 
         {kind === 'blood_pressure' ? (
           <div className="grid grid-cols-2 gap-2 mb-3">
@@ -131,7 +201,7 @@ export default function VitalsPage() {
                 aria-label={t.diastolicLabel} className={inputCls} />
             </div>
           </div>
-        ) : (
+        ) : kind !== 'blood_glucose' ? null : (
           <div className="mb-3 space-y-3">
             <div>
               <label className="block text-xs font-bold text-faint uppercase tracking-widest mb-1.5">{t.glucoseLabel}</label>
@@ -223,12 +293,26 @@ export default function VitalsPage() {
                         <p className="text-sm font-bold text-fg tabular-nums">
                           🫀 {e.systolic} / {e.diastolic} <span className="text-xs text-faint font-medium">mmHg</span>
                         </p>
-                      ) : (
+                      ) : e.kind === 'blood_glucose' ? (
                         <p className="text-sm font-bold text-fg tabular-nums">
                           🩸 {e.glucoseMgDl} <span className="text-xs text-faint font-medium">mg/dL ·{' '}
                             {e.glucoseContext === 'fasting' ? t.glucoseFasting
                               : e.glucoseContext === 'postprandial' ? t.glucosePostprandial
                               : t.glucoseRandom}</span>
+                        </p>
+                      ) : e.kind === 'lipid' ? (
+                        <p className="text-sm font-bold text-fg tabular-nums">
+                          🧈 TC {e.totalMgDl}
+                          <span className="text-xs text-faint font-medium">
+                            {e.ldlMgDl != null && <> · LDL {e.ldlMgDl}</>}
+                            {e.hdlMgDl != null && <> · HDL {e.hdlMgDl}</>}
+                            {e.triglyceridesMgDl != null && <> · TG {e.triglyceridesMgDl}</>}
+                            {' '}mg/dL
+                          </span>
+                        </p>
+                      ) : (
+                        <p className="text-sm font-bold text-fg tabular-nums">
+                          🅰️ HbA1c {e.hba1cPercent}<span className="text-xs text-faint font-medium">%</span>
                         </p>
                       )}
                       {e.notes && <p className="text-xs text-faint mt-0.5 truncate">{e.notes}</p>}

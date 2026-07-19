@@ -118,6 +118,86 @@ export function GlucoseChart({ points, labels }: { points: GlucosePoint[]; label
   );
 }
 
+export interface LipidPoint {
+  date: string;
+  totalMgDl: number;
+  ldlMgDl?: number;
+  hdlMgDl?: number;
+  triglyceridesMgDl?: number;
+}
+
+export interface LipidChartLabels {
+  total: string;
+  ldl: string;
+  hdl: string;
+  tg: string;
+}
+
+const LIPID_SERIES = [
+  { key: 'totalMgDl' as const, labelKey: 'total' as const, color: 'var(--fg)' },
+  { key: 'ldlMgDl' as const, labelKey: 'ldl' as const, color: 'var(--warning)' },
+  { key: 'hdlMgDl' as const, labelKey: 'hdl' as const, color: 'var(--info)' },
+  { key: 'triglyceridesMgDl' as const, labelKey: 'tg' as const, color: 'var(--muted)' },
+];
+
+/** Lipid panel: total always present; LDL/HDL/TG lines connect across gaps. */
+export function LipidChart({ points, labels }: { points: LipidPoint[]; labels: LipidChartLabels }) {
+  const data = [...points].sort((a, b) => a.date.localeCompare(b.date));
+  return (
+    <ResponsiveContainer width="100%" height={180}>
+      <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -10 }}>
+        <CartesianGrid stroke="var(--line)" vertical={false} />
+        <XAxis dataKey="date" tickFormatter={shortDate} {...axisProps}
+          axisLine={{ stroke: 'var(--line-strong)' }} interval="preserveStartEnd" minTickGap={40} />
+        <YAxis {...axisProps} axisLine={false} width={40} />
+        <Tooltip
+          cursor={{ stroke: 'var(--line-strong)' }}
+          content={({ active, payload, label }) => {
+            if (!active || !payload?.length) return null;
+            const p = payload[0].payload as LipidPoint;
+            const rows = LIPID_SERIES
+              .filter((s) => p[s.key] != null)
+              .map((s) => ({ label: labels[s.labelKey], value: `${p[s.key]} mg/dL`, color: s.color }));
+            return <ChartTooltip title={String(label)} rows={rows} />;
+          }}
+        />
+        {LIPID_SERIES.map((s) => (
+          <Line key={s.key} dataKey={s.key} stroke={s.color} strokeWidth={2}
+            isAnimationActive={false} dot={{ r: 2.5 }} connectNulls />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+export interface Hba1cPoint { date: string; hba1cPercent: number }
+
+export function Hba1cChart({ points, label }: { points: Hba1cPoint[]; label: string }) {
+  const data = [...points].sort((a, b) => a.date.localeCompare(b.date));
+  return (
+    <ResponsiveContainer width="100%" height={140}>
+      <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -10 }}>
+        <CartesianGrid stroke="var(--line)" vertical={false} />
+        <XAxis dataKey="date" tickFormatter={shortDate} {...axisProps}
+          axisLine={{ stroke: 'var(--line-strong)' }} interval="preserveStartEnd" minTickGap={40} />
+        <YAxis domain={['dataMin - 0.5', 'dataMax + 0.5']} {...axisProps} axisLine={false} width={32} />
+        <Tooltip
+          cursor={{ stroke: 'var(--line-strong)' }}
+          content={({ active, payload, label: xLabel }) => {
+            if (!active || !payload?.length) return null;
+            const p = payload[0].payload as Hba1cPoint;
+            return (
+              <ChartTooltip title={String(xLabel)}
+                rows={[{ label, value: `${p.hba1cPercent}%`, color: 'var(--ai)' }]} />
+            );
+          }}
+        />
+        <Line dataKey="hba1cPercent" stroke="var(--ai)" strokeWidth={2} isAnimationActive={false} dot={{ r: 2.5 }} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
 export function WellnessChart({ points, labels }: { points: WellnessPoint[]; labels: VitalsChartLabels }) {
   const data = [...points].sort((a, b) => a.date.localeCompare(b.date));
   return (

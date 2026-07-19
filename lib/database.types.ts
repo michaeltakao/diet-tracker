@@ -853,11 +853,16 @@ export type Database = {
           diastolic: number | null
           glucose_context: string | null
           glucose_mg_dl: number | null
+          hba1c_percent: number | null
+          hdl_mg_dl: number | null
           id: string
           kind: string
+          ldl_mg_dl: number | null
           logged_date: string
           notes: string | null
           systolic: number | null
+          total_chol_mg_dl: number | null
+          triglycerides_mg_dl: number | null
           user_id: string
         }
         Insert: {
@@ -865,11 +870,16 @@ export type Database = {
           diastolic?: number | null
           glucose_context?: string | null
           glucose_mg_dl?: number | null
+          hba1c_percent?: number | null
+          hdl_mg_dl?: number | null
           id: string
           kind: string
+          ldl_mg_dl?: number | null
           logged_date: string
           notes?: string | null
           systolic?: number | null
+          total_chol_mg_dl?: number | null
+          triglycerides_mg_dl?: number | null
           user_id: string
         }
         Update: {
@@ -877,11 +887,16 @@ export type Database = {
           diastolic?: number | null
           glucose_context?: string | null
           glucose_mg_dl?: number | null
+          hba1c_percent?: number | null
+          hdl_mg_dl?: number | null
           id?: string
           kind?: string
+          ldl_mg_dl?: number | null
           logged_date?: string
           notes?: string | null
           systolic?: number | null
+          total_chol_mg_dl?: number | null
+          triglycerides_mg_dl?: number | null
           user_id?: string
         }
         Relationships: [

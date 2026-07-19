@@ -122,7 +122,21 @@ export interface BloodGlucoseEntry extends VitalEntryBase {
   glucoseContext: GlucoseContext;
 }
 
-export type VitalEntry = BloodPressureEntry | BloodGlucoseEntry;
+/** Lipid panel (脂質検査) — total cholesterol required, the rest lab-dependent. */
+export interface LipidPanelEntry extends VitalEntryBase {
+  kind: 'lipid';
+  totalMgDl: number;          // 総コレステロール, bounds 50–500 (matches SQL CHECK)
+  ldlMgDl?: number;           // bounds 20–400
+  hdlMgDl?: number;           // bounds 10–150
+  triglyceridesMgDl?: number; // 中性脂肪, bounds 20–2000
+}
+
+export interface Hba1cEntry extends VitalEntryBase {
+  kind: 'hba1c';
+  hba1cPercent: number; // %, bounds 3.0–20.0
+}
+
+export type VitalEntry = BloodPressureEntry | BloodGlucoseEntry | LipidPanelEntry | Hba1cEntry;
 
 // ── Symptom log (record + display only — never diagnostic) ────────────────
 

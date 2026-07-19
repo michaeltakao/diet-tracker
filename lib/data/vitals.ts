@@ -44,16 +44,21 @@ export async function addVitalEntry(entry: VitalEntry): Promise<void> {
   if (!ctx) return;
 
   const { error } = await ctx.supabase.from('vital_logs').upsert({
-    id:              entry.id,
-    user_id:         ctx.userId,
-    logged_date:     entry.date,
-    kind:            entry.kind,
-    systolic:        entry.kind === 'blood_pressure' ? entry.systolic : null,
-    diastolic:       entry.kind === 'blood_pressure' ? entry.diastolic : null,
-    glucose_mg_dl:   entry.kind === 'blood_glucose' ? entry.glucoseMgDl : null,
-    glucose_context: entry.kind === 'blood_glucose' ? entry.glucoseContext : null,
-    notes:           entry.notes ?? null,
-    created_at:      entry.addedAt,
+    id:                  entry.id,
+    user_id:             ctx.userId,
+    logged_date:         entry.date,
+    kind:                entry.kind,
+    systolic:            entry.kind === 'blood_pressure' ? entry.systolic : null,
+    diastolic:           entry.kind === 'blood_pressure' ? entry.diastolic : null,
+    glucose_mg_dl:       entry.kind === 'blood_glucose' ? entry.glucoseMgDl : null,
+    glucose_context:     entry.kind === 'blood_glucose' ? entry.glucoseContext : null,
+    total_chol_mg_dl:    entry.kind === 'lipid' ? entry.totalMgDl : null,
+    ldl_mg_dl:           entry.kind === 'lipid' ? entry.ldlMgDl ?? null : null,
+    hdl_mg_dl:           entry.kind === 'lipid' ? entry.hdlMgDl ?? null : null,
+    triglycerides_mg_dl: entry.kind === 'lipid' ? entry.triglyceridesMgDl ?? null : null,
+    hba1c_percent:       entry.kind === 'hba1c' ? entry.hba1cPercent : null,
+    notes:               entry.notes ?? null,
+    created_at:          entry.addedAt,
   }, { onConflict: 'id' });
 
   if (error) {

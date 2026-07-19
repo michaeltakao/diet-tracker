@@ -1,6 +1,41 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-19 COMPETITOR IMPORT PHASE C: month calendar, training charts,
+  lipid/HbA1c vitals** — migration **017 in prod** (vital_logs +5 columns
+  total_chol/ldl/hdl/triglycerides_mg_dl + hba1c_percent NUMERIC(3,1);
+  kind_check + kind_shape CHECKs dropped+recreated for 4 kinds — constraint
+  names verified live against prod first via pg_constraint query, existing
+  BP/glucose rows passed the recreated XOR CHECK on ADD). `lib/calendar.ts`
+  (monthGrid Mon-start weeks via lib/streak.ts shiftDate/weekStartOf,
+  shiftMonth) + `lib/workout-analytics.ts` (volumeByBodyPart exact-from-
+  setDetails-else-scalar-fallback, exerciseProgressSeries topWeight+est1RM
+  via onerm, weightedExerciseNames). `components/MonthCalendar.tsx`: dots
+  colored by CATEGORY_META.ring from the same per-category date-set
+  derivation as dashboard-data.ts; day-tap jumps /log's weekly view to that
+  week+day (verified -2w offset + correct selected-day header). `/log`
+  gained a 3rd `month` tab (?view=month deep link); TrendsPanel gained a
+  training section (VolumeByBodyPartChart week/month toggle bar +
+  ExerciseProgressChart picker with topWeight/est1RM dual-line, both
+  Recharts lazy) and lipid/HbA1c chart wiring (VitalsChart.tsx: LipidChart
+  4-series connectNulls, Hba1cChart); TrendsPanel empty-state gate widened
+  to include workout/vitals-only users (was food/weight-only, would have
+  hidden the new sections). Vitals page: 4-way segmented control (🫀🩸🧈🅰️),
+  bounds mirror the new SQL CHECKs (optional LDL/HDL/TG — lipid anchor is
+  total cholesterol only), history rendering for both new kinds. Types:
+  LipidPanelEntry + Hba1cEntry into the VitalEntry union; lib/data/vitals.ts
+  mirror extended. i18n ja+en ×15. Verified: lint + **301 vitest** (11 new
+  calendar/workout-analytics) + build; Chrome :3199 — lipid entry (TC210/
+  LDL130/HDL55/TG95) + HbA1c 5.8 round-trip through localStorage and
+  history display, month grid 35 cells w/ correct dot-per-category count,
+  volume-by-part bars + est1RM progression line (87.3 for a seeded
+  65kg×8 set, matches Epley by hand), week/month toggle. Same dev-SW
+  stale-chunk gotcha as phases A/B; additionally hit a `.next` deleted
+  out from under a still-running dev server → 500s (killed stale PID
+  before restarting — general lesson: always confirm no listener on the
+  port before `rm -rf .next`). Next: Phase D (manual steps, sleep
+  bed/wake + weekly chart, 90-day weight forecast, migration 018).
+
 - **2026-07-19 COMPETITOR IMPORT PHASE B: workout (exercise DB / per-set
   logging / env-aware AI)** — migration **016 in prod** (workout_logs
   .set_details JSONB + personal_records.est_1rm; JSONB kept over roadmap's

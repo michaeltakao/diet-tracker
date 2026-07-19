@@ -8,6 +8,9 @@ import { saveMealTemplate } from '@/lib/data/meal-templates';
 import { FoodEntry, DailyGoals, MealTemplate } from '@/lib/types';
 import MealCard from '@/components/MealCard';
 import CalorieBar from '@/components/CalorieBar';
+import { MonthCalendar } from '@/components/MonthCalendar';
+import { weekStartOf } from '@/lib/streak';
+import type { CategoryKey } from '@/lib/dashboard-data';
 import WeeklyReportCard from '@/components/WeeklyReportCard';
 import BottomNav from '@/components/BottomNav';
 import { TrendsPanel } from '@/components/TrendsPanel';
@@ -148,7 +151,11 @@ interface HabitReport {
   nextWeekTarget: string;
 }
 
-type LogView = 'weekly' | 'trends';
+type LogView = 'weekly' | 'month' | 'trends';
+
+const EMPTY_DAY_SETS: Record<CategoryKey, Set<string>> = {
+  meal: new Set(), exercise: new Set(), vital: new Set(), symptom: new Set(),
+};
 
 export default function LogPage() {
   const { t, lang } = useLanguage();
@@ -159,6 +166,9 @@ export default function LogPage() {
   const [allEntries, setAllEntries]     = useState<FoodEntry[]>([]);
   // null = no real goals set → goal-colored UI hidden, AI features gated
   const [goals, setGoals]               = useState<DailyGoals | null>(null);
+  // Per-category logged-day sets for the month calendar dots (phase C) —
+  // same derivation as lib/dashboard-data.ts computeCategoryStats.
+  const [daySets, setDaySets]           = useState<Record<CategoryKey, Set<string>>>(EMPTY_DAY_SETS);
 
   // Habit report state
   const [habitReport, setHabitReport]     = useState<HabitReport | null>(null);
@@ -174,24 +184,42 @@ export default function LogPage() {
     const data = getAppData();
     setAllEntries(data.foodEntries);
     setGoals(getRealGoals());
+    setDaySets({
+      meal:     new Set(data.foodEntries.map((e) => e.date)),
+      exercise: new Set(data.workoutEntries.map((e) => e.date)),
+      vital:    new Set(data.vitalEntries.map((e) => e.date)),
+      symptom:  new Set(data.symptomEntries.map((e) => e.date)),
+    });
   }, []);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
   useEffect(() => { loadData(); }, [loadData]);
 
-  // ?view=trends deep link (read on mount; keeps the page statically prerenderable)
+  // ?view= deep link (read on mount; keeps the page statically prerenderable)
   useEffect(() => {
+    const v = new URLSearchParams(window.location.search).get('view');
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot URL read on mount
-    if (new URLSearchParams(window.location.search).get('view') === 'trends') setView('trends');
+    if (v === 'trends' || v === 'month') setView(v);
   }, []);
 
   const switchView = (next: LogView) => {
     setView(next);
     const url = new URL(window.location.href);
-    if (next === 'trends') url.searchParams.set('view', 'trends');
+    if (next === 'trends' || next === 'month') url.searchParams.set('view', next);
     else url.searchParams.delete('view');
     window.history.replaceState(null, '', url);
     if (next === 'weekly') recordEvent('weekly_view_viewed');
+  };
+
+  /** Month-view day tap → jump the weekly view to that day (reuses its rendering). */
+  const jumpToDay = (date: string) => {
+    setSelectedDate(date);
+    const DAY_MS = 86_400_000;
+    const diffDays = Math.round(
+      (Date.parse(`${weekStartOf(date)}T00:00:00Z`) - Date.parse(`${weekStartOf(getTodayDate())}T00:00:00Z`)) / DAY_MS,
+    );
+    setWeekOffset(diffDays / 7);
+    switchView('weekly');
   };
 
   const anchorDate = new Date();
@@ -296,7 +324,7 @@ export default function LogPage() {
         </h1>
         {/* 週間 / トレンド segmented toggle */}
         <div role="tablist" aria-label={t.weeklyLog} className="flex p-1 bg-surface-2 rounded-2xl">
-          {([['weekly', t.weeklyTab], ['trends', t.trendsTab]] as const).map(([v, label]) => (
+          {([['weekly', t.weeklyTab], ['month', t.monthTab], ['trends', t.trendsTab]] as const).map(([v, label]) => (
             <button
               key={v}
               role="tab"
@@ -313,6 +341,8 @@ export default function LogPage() {
       </div>
 
       {view === 'trends' && <TrendsPanel />}
+
+      {view === 'month' && <MonthCalendar daySets={daySets} onSelectDay={jumpToDay} />}
 
       {view === 'weekly' && (
       <>
