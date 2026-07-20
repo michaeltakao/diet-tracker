@@ -114,6 +114,9 @@ export function projectGoalDate(
 
   const last = window[window.length - 1];
   const predictedIn30Days = Math.round((last.smoothed + slope * 30) * 10) / 10;
+  // Same linear model at 90 days — same "valid for weeks, not plateaus" caveat
+  // applies more strongly here; the UI carries a disclaimer.
+  const predictedIn90Days = Math.round((last.smoothed + slope * 90) * 10) / 10;
 
   let projectedGoalDate: string | null = null;
   if (goalWeight != null && Math.abs(slope) >= 1e-4) {
@@ -128,6 +131,7 @@ export function projectGoalDate(
   return {
     slope: Math.round(slope * 10000) / 10000,
     predictedIn30Days,
+    predictedIn90Days,
     projectedGoalDate,
   };
 }

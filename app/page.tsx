@@ -6,6 +6,7 @@ import { Plus, Settings, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import {
   getAppData, removeFoodEntry, updateFoodEntry, addWater, getWaterForDate,
   checkAndAwardBadges, getBadges, addFoodEntry, getRealGoals, getHealthProfile,
+  getStepsForDate, setSteps,
 } from '@/lib/data';
 import { sumSodiumFiber, sodiumMgToSaltG, saltTargetG, fiberTargetG } from '@/lib/micros';
 import { FoodEntry, DailyGoals, Badge } from '@/lib/types';
@@ -14,6 +15,7 @@ import PFCDonut from '@/components/PFCDonut';
 import MacroBar from '@/components/MacroBar';
 import MealCard from '@/components/MealCard';
 import WaterTracker from '@/components/WaterTracker';
+import StepsTracker from '@/components/StepsTracker';
 import BadgeShelf from '@/components/BadgeShelf';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
@@ -53,6 +55,7 @@ export default function HomePage() {
   // before the client-only data load resolves.
   const [goalsReady, setGoalsReady] = useState(false);
   const [water, setWater]       = useState(0);
+  const [steps, setStepsState]  = useState(0);
   const [today]                 = useState(getTodayDate());
   const [celebrationBadges, setCelebrationBadges] = useState<Badge[]>([]);
   const [earnedBadges, setEarnedBadges]           = useState<Badge[]>([]);
@@ -66,6 +69,7 @@ export default function HomePage() {
     setGoals(getRealGoals());
     setGoalsReady(true);
     setWater(getWaterForDate(today));
+    setStepsState(getStepsForDate(today));
     setEarnedBadges(getBadges());
     setSex(getHealthProfile().sex ?? null);
   };
@@ -87,6 +91,12 @@ export default function HomePage() {
     setWater(getWaterForDate(today));
     const newBadges = await checkAndAwardBadges(today);
     if (newBadges.length > 0) { setCelebrationBadges(newBadges); setEarnedBadges(getBadges()); }
+  };
+
+  // Steps do NOT join the any-log streak or badge checks (scope cut, phase D).
+  const handleSetSteps = async (n: number) => {
+    await setSteps(today, n);
+    setStepsState(n);
   };
 
   const handleCopyYesterday = async () => {
@@ -313,6 +323,11 @@ export default function HomePage() {
       {/* ── Water Tracker ───────────────────────────── */}
       <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
         <WaterTracker current={water} goal={goals?.water ?? 2000} onAdd={handleAddWater} />
+      </div>
+
+      {/* ── Steps Tracker (manual, phase D) ─────────── */}
+      <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
+        <StepsTracker current={steps} onChange={(n) => void handleSetSteps(n)} />
       </div>
 
       {/* ── Weekly challenge (any-log, both goal states) ── */}

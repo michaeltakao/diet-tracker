@@ -461,6 +461,20 @@ export const translations = {
     exerciseProgressTitle: '種目別の重量推移',
     selectExercise: '種目を選択',
     topWeightLabel: '最大重量',
+    // Manual steps (phase D)
+    stepsTitle: '歩数',
+    stepsGoalLabel: '目標歩数',
+    stepsInputPlaceholder: '歩数を入力',
+    stepsUnit: '歩',
+    add1000Steps: '＋1,000歩',
+    stepsDistanceApprox: '約{km}km',
+    // Sleep bed/wake (phase D)
+    bedTimeLabel: '就寝時刻',
+    wakeTimeLabel: '起床時刻',
+    sleepHoursSeries: '睡眠時間',
+    // Weight forecast (phase D)
+    predicted90d: '90日後の予測',
+    forecastDisclaimer: '※ 直近の傾向をもとにした単純な予測です。生活の変化により実際の結果は変わります。',
   },
   en: {
     appName: 'Diet Tracker 🥗',
@@ -922,6 +936,20 @@ export const translations = {
     exerciseProgressTitle: 'Exercise progression',
     selectExercise: 'Select exercise',
     topWeightLabel: 'Top weight',
+    // Manual steps (phase D)
+    stepsTitle: 'Steps',
+    stepsGoalLabel: 'Step goal',
+    stepsInputPlaceholder: 'Enter steps',
+    stepsUnit: 'steps',
+    add1000Steps: '+1,000 steps',
+    stepsDistanceApprox: '≈ {km} km',
+    // Sleep bed/wake (phase D)
+    bedTimeLabel: 'Bed time',
+    wakeTimeLabel: 'Wake time',
+    sleepHoursSeries: 'Sleep hours',
+    // Weight forecast (phase D)
+    predicted90d: '90-day forecast',
+    forecastDisclaimer: '※ A simple projection from recent trend only — real results vary with lifestyle changes.',
   },
 } as const;
 

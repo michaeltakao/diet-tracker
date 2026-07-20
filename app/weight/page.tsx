@@ -10,6 +10,7 @@ import { WeightEntry } from '@/lib/types';
 import WeightChart from '@/components/WeightChart';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { projectGoalDate } from '@/lib/trends';
 
 function getTodayDate() { return new Date().toISOString().split('T')[0]; }
 
@@ -58,6 +59,13 @@ export default function WeightPage() {
   const diff       = latest && previous ? +(latest.weight - previous.weight).toFixed(1) : null;
   const toGoal     = latest && goalWeight != null ? +(latest.weight - goalWeight).toFixed(1) : null;
   const goalAchieved = toGoal !== null && Math.abs(toGoal) < 0.05;
+
+  // 90-day forecast (phase D) — same OLS model as the trends view, computed
+  // locally so this page doesn't need the trends fetch pipeline.
+  const forecast = projectGoalDate(
+    entries.map((e) => ({ date: e.date, weight: e.weight })),
+    goalWeight ?? null,
+  );
   const goalRemaining = toGoal !== null && !goalAchieved ? +Math.abs(toGoal).toFixed(1) : null;
 
 
@@ -204,6 +212,15 @@ export default function WeightPage() {
         <div className={`${cardCls} p-4 mb-3`}>
           <h2 className="text-sm font-bold text-muted mb-3">{t.weightTrend}</h2>
           <WeightChart entries={entries} goalWeight={goalWeight} />
+          {forecast && (
+            <div className="mt-3 pt-3 border-t border-line">
+              <p className="text-xs text-muted">
+                {t.predicted90d}:{' '}
+                <span className="font-black text-fg tabular-nums">{forecast.predictedIn90Days} kg</span>
+              </p>
+              <p className="text-[10px] text-faint mt-1 leading-relaxed">{t.forecastDisclaimer}</p>
+            </div>
+          )}
         </div>
       )}
 

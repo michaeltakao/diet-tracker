@@ -346,6 +346,30 @@ function CheckInWidget({
             </div>
           </div>
 
+          {/* Bed/wake times (phase D — optional, alongside sleep hours) */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-black text-faint mb-2">{t.bedTimeLabel}</label>
+              <input
+                type="time"
+                value={value.bedTime ?? ''}
+                onChange={(e) => set({ bedTime: e.target.value || undefined })}
+                aria-label={t.bedTimeLabel}
+                className="w-full px-3 py-2 rounded-xl border border-line-strong bg-surface-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-purple-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-faint mb-2">{t.wakeTimeLabel}</label>
+              <input
+                type="time"
+                value={value.wakeTime ?? ''}
+                onChange={(e) => set({ wakeTime: e.target.value || undefined })}
+                aria-label={t.wakeTimeLabel}
+                className="w-full px-3 py-2 rounded-xl border border-line-strong bg-surface-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-purple-400"
+              />
+            </div>
+          </div>
+
           {/* Sleep quality (optional 1–5 self-rating — recorded, not judged) */}
           <div>
             <p className="text-xs font-black text-faint mb-2">{t.sleepQualityLabel}</p>

@@ -391,6 +391,8 @@ export interface AdherenceScore {
 export interface WeightTrend {
   slope:              number;   // kg/day (negative = losing)
   predictedIn30Days:  number;   // kg
+  /** Same linear extrapolation at 90 days, capped like the 30-day figure. */
+  predictedIn90Days:  number;   // kg
   projectedGoalDate:  string | null;  // YYYY-MM-DD or null
 }
 
@@ -413,6 +415,8 @@ export interface DailyCheckIn {
   notes?:        string;
   sleepQuality?: 1 | 2 | 3 | 4 | 5;        // 睡眠の質 (1=悪い … 5=良い)
   stressLevel?:  1 | 2 | 3 | 4 | 5;        // ストレス (1=低い … 5=高い)
+  bedTime?:      string;                    // 'HH:MM', 24h
+  wakeTime?:     string;                    // 'HH:MM', 24h
 }
 
 export interface WorkoutSuggestion {

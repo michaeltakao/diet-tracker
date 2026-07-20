@@ -89,6 +89,18 @@ describe('projectGoalDate', () => {
     expect(trend!.predictedIn30Days).toBeGreaterThan(74);
   });
 
+  it('predictedIn90Days: 90-day delta from the anchor is exactly 3× the 30-day delta', () => {
+    const entries = weightSeries(Array.from({ length: 40 }, (_, i) => 80 - i * 0.1));
+    const trend = projectGoalDate(entries, null);
+    expect(trend).not.toBeNull();
+    // Both figures are anchored at the same "last smoothed" point + slope·days,
+    // so their deltas from that anchor scale linearly with the day count —
+    // independent of what the anchor itself is.
+    const delta30 = trend!.slope * 30;
+    const delta90 = trend!.slope * 90;
+    expect(trend!.predictedIn90Days - trend!.predictedIn30Days).toBeCloseTo(delta90 - delta30, 1);
+  });
+
   it('flat series → slope 0 and no goal date', () => {
     const trend = projectGoalDate(weightSeries([80, 80, 80, 80, 80]), 75);
     expect(trend).not.toBeNull();

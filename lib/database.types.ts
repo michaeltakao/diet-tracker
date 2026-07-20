@@ -1,6 +1,6 @@
 /**
  * Auto-generated Supabase database types.
- * Generated 2026-07-19 via the Supabase MCP `generate_typescript_types` (project chkkpucuiyjdeqgyyszt).
+ * Regenerated 2026-07-19 (phase D) via the Supabase MCP `generate_typescript_types` (project chkkpucuiyjdeqgyyszt).
  * DO NOT hand-edit the Database type below — regenerate with:
  *   npx supabase gen types typescript --project-id chkkpucuiyjdeqgyyszt > lib/database.types.ts
  *
@@ -108,6 +108,7 @@ export type Database = {
       }
       checkins: {
         Row: {
+          bed_time: string | null
           created_at: string
           energy: number
           id: string
@@ -119,8 +120,10 @@ export type Database = {
           soreness_areas: string[]
           stress_level: number | null
           user_id: string
+          wake_time: string | null
         }
         Insert: {
+          bed_time?: string | null
           created_at?: string
           energy: number
           id?: string
@@ -132,8 +135,10 @@ export type Database = {
           soreness_areas?: string[]
           stress_level?: number | null
           user_id: string
+          wake_time?: string | null
         }
         Update: {
+          bed_time?: string | null
           created_at?: string
           energy?: number
           id?: string
@@ -145,6 +150,7 @@ export type Database = {
           soreness_areas?: string[]
           stress_level?: number | null
           user_id?: string
+          wake_time?: string | null
         }
         Relationships: [
           {
@@ -785,6 +791,41 @@ export type Database = {
           },
         ]
       }
+      steps_logs: {
+        Row: {
+          id: string
+          logged_date: string
+          source: string
+          steps: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          logged_date: string
+          source?: string
+          steps?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          logged_date?: string
+          source?: string
+          steps?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "steps_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       symptom_logs: {
         Row: {
           action_taken: string | null
@@ -1064,6 +1105,7 @@ export type FavoriteFoodRow      = Database["public"]["Tables"]["favorite_foods"
 export type MealTemplateRow      = Database["public"]["Tables"]["meal_templates"]["Row"]
 export type AiUsageRow           = Database["public"]["Tables"]["ai_usage"]["Row"]
 export type PushSubscriptionRow  = Database["public"]["Tables"]["push_subscriptions"]["Row"]
+export type StepsLogRow          = Database["public"]["Tables"]["steps_logs"]["Row"]
 
 export type FoodLogInsert           = Database["public"]["Tables"]["food_logs"]["Insert"]
 export type WorkoutLogInsert        = Database["public"]["Tables"]["workout_logs"]["Insert"]
@@ -1080,6 +1122,7 @@ export type RecommendationFeedbackInsert = Database["public"]["Tables"]["recomme
 export type FavoriteFoodInsert      = Database["public"]["Tables"]["favorite_foods"]["Insert"]
 export type MealTemplateInsert      = Database["public"]["Tables"]["meal_templates"]["Insert"]
 export type AiUsageInsert           = Database["public"]["Tables"]["ai_usage"]["Insert"]
+export type StepsLogInsert          = Database["public"]["Tables"]["steps_logs"]["Insert"]
 
 export type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"]
 

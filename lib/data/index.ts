@@ -25,3 +25,4 @@ export * from './weekly-challenge';
 export * from './vitals';
 export * from './symptoms';
 export * from './workout-prefs';
+export * from './steps';

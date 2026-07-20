@@ -245,6 +245,11 @@ export function TrendsPanel() {
                 </span>
               )}
             </div>
+            {trend && (
+              <p className="text-xs text-faint mt-2">
+                {t.predicted90d}: <b className="text-fg tabular-nums">{trend.predictedIn90Days} kg</b>
+              </p>
+            )}
           </>
         ) : (
           <p className="text-xs text-faint py-4 text-center">{t.trendsEmptyDesc}</p>
@@ -332,8 +337,8 @@ export function TrendsPanel() {
           .filter((v): v is Extract<VitalEntry, { kind: 'hba1c' }> => v.kind === 'hba1c')
           .map(v => ({ date: v.date, hba1cPercent: v.hba1cPercent }));
         const wellnessPoints = recentCheckIns
-          .filter(c => c.sleepQuality != null || c.stressLevel != null)
-          .map(c => ({ date: c.date, sleepQuality: c.sleepQuality, stressLevel: c.stressLevel }));
+          .filter(c => c.sleepQuality != null || c.stressLevel != null || c.sleepHours > 0)
+          .map(c => ({ date: c.date, sleepQuality: c.sleepQuality, stressLevel: c.stressLevel, sleepHours: c.sleepHours > 0 ? c.sleepHours : undefined }));
         if (bpPoints.length === 0 && glucosePoints.length === 0 && wellnessPoints.length === 0
           && lipidPoints.length === 0 && hba1cPoints.length === 0) return null;
         const chartLabels = {
@@ -342,6 +347,7 @@ export function TrendsPanel() {
           glucose: t.glucoseLabel,
           sleepQuality: t.sleepQualityLabel,
           stress: t.stressLevelLabel,
+          sleepHours: t.sleepHoursSeries,
           contextLabels: {
             fasting: t.glucoseFasting,
             postprandial: t.glucosePostprandial,

@@ -1,6 +1,50 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-20 COMPETITOR IMPORT PHASE D (final): manual steps, sleep
+  bed/wake + chart, 90-day weight forecast** — migration **018 in prod**
+  (`steps_logs` table cloned from water_logs's UNIQUE-per-day UPSERT
+  pattern, `source` manual|device CHECK for a future device-sync swap-in;
+  `checkins` +bed_time/wake_time TIME columns). `lib/data/steps.ts`
+  (`setSteps` = sole write entry point, so a native wrapper later only
+  needs to pass `source:'device'` through the same call) + `lib/steps-goal.ts`
+  (pure: STEP_GOAL_DEFAULT=10000, stepsProgress 0–100% capped, stepsToKm
+  @0.7m/stride). `components/StepsTracker.tsx` (WaterTracker-mirrored:
+  header+ProgressBar `fox` variant+distance line+quick-add chips+manual
+  input), mounted beside WaterTracker on the dashboard. **Steps
+  deliberately do NOT join the any-log streak** (lib/streak.ts untouched —
+  scope cut, noted as a follow-up). Sleep: `DailyCheckIn.bedTime/wakeTime`
+  ('HH:MM') threaded through lib/data/checkin.ts mirror; two `<input
+  type=time>` in CheckInWidget; WellnessChart gained a sleepHours series on
+  a SEPARATE right Y-axis (0–14h) since it can't share the 1–5 quality/
+  stress scale — avoids distorting either. "睡眠の深さ" dropped from spec
+  (duplicative with existing sleepQuality 1–5, per plan). Forecast:
+  `lib/trends.ts` projectGoalDate() gained `predictedIn90Days` (same OLS
+  slope + 365d cap, computed alongside the existing 30-day figure) →
+  `WeightTrend` type; surfaced in `app/weight/page.tsx` (new, below the
+  chart) AND TrendsPanel's weight section, both with `forecastDisclaimer`.
+  i18n ja+en ×15. Verified: lint + **314 vitest** (18 new: steps-goal,
+  steps round-trip via localStorage stub matching favorites.test.ts's
+  pattern, 90d-vs-30d-delta-scales-3x on a linear fixture) + build; Chrome
+  :3199 — chip+manual step entry with same-day overwrite (UNIQUE
+  semantics) → `{steps:12345, source:'manual'}`, goal-reached state +
+  distance display, bed/wake times round-tripped through checkin
+  localStorage, wellness chart rendered both axes (0/4/8/14h + 1-5),
+  90-day forecast on both /weight and /log?view=trends consistent with a
+  seeded −0.15kg/day linear fixture. Same dev-SW stale-chunk gotcha as
+  phases A–C (unregister+clear caches before verifying); confirmed no
+  listener on :3199 before every `rm -rf .next` this phase (lesson from
+  phase C's port-collision 500s).
+
+**Plan complete**: all four phases (A food logging, B workout, C
+visualization, D lifestyle) shipped, migrations 016–018 applied to prod,
+each phase committed+pushed separately (15e40be, 495f2bf, c846b26, +
+this one). Total: 314 vitest (was 260 pre-plan), 4 prod migrations, ~35
+new files. Follow-ups noted inline: steps↔streak semantics (deliberately
+deferred), OPTIONAL items skipped under scope pressure (RestTimer
+auto-start on set save, VitalsChart OPTIONAL-marked in spec was done
+anyway since it was cheap alongside the lipid/HbA1c work).
+
 - **2026-07-19 COMPETITOR IMPORT PHASE C: month calendar, training charts,
   lipid/HbA1c vitals** — migration **017 in prod** (vital_logs +5 columns
   total_chol/ldl/hdl/triglycerides_mg_dl + hba1c_percent NUMERIC(3,1);

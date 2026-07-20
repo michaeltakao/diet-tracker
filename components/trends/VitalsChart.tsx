@@ -21,7 +21,7 @@ import { ChartTooltip, shortDate } from './ChartTooltip';
 
 export interface BpPoint { date: string; systolic: number; diastolic: number }
 export interface GlucosePoint { date: string; glucoseMgDl: number; context: string }
-export interface WellnessPoint { date: string; sleepQuality?: number; stressLevel?: number }
+export interface WellnessPoint { date: string; sleepQuality?: number; stressLevel?: number; sleepHours?: number }
 
 export interface VitalsChartLabels {
   systolic: string;
@@ -29,6 +29,7 @@ export interface VitalsChartLabels {
   glucose: string;
   sleepQuality: string;
   stress: string;
+  sleepHours?: string;
   contextLabels: Record<string, string>;
 }
 
@@ -200,13 +201,19 @@ export function Hba1cChart({ points, label }: { points: Hba1cPoint[]; label: str
 
 export function WellnessChart({ points, labels }: { points: WellnessPoint[]; labels: VitalsChartLabels }) {
   const data = [...points].sort((a, b) => a.date.localeCompare(b.date));
+  // sleepHours (0–14h) doesn't share the 1–5 quality/stress scale — a second
+  // Y-axis (right) keeps both readable without distorting either.
+  const hasHours = data.some((p) => p.sleepHours != null);
   return (
     <ResponsiveContainer width="100%" height={140}>
-      <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -10 }}>
+      <LineChart data={data} margin={{ top: 8, right: hasHours ? 8 : 8, bottom: 0, left: -10 }}>
         <CartesianGrid stroke="var(--line)" vertical={false} />
         <XAxis dataKey="date" tickFormatter={shortDate} {...axisProps}
           axisLine={{ stroke: 'var(--line-strong)' }} interval="preserveStartEnd" minTickGap={40} />
-        <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} {...axisProps} axisLine={false} width={24} />
+        <YAxis yAxisId="quality" domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} {...axisProps} axisLine={false} width={24} />
+        {hasHours && (
+          <YAxis yAxisId="hours" orientation="right" domain={[0, 14]} {...axisProps} axisLine={false} width={28} />
+        )}
         <Tooltip
           cursor={{ stroke: 'var(--line-strong)' }}
           content={({ active, payload, label }) => {
@@ -215,11 +222,15 @@ export function WellnessChart({ points, labels }: { points: WellnessPoint[]; lab
             const rows = [];
             if (p.sleepQuality != null) rows.push({ label: labels.sleepQuality, value: `${p.sleepQuality}/5`, color: 'var(--info)' });
             if (p.stressLevel != null) rows.push({ label: labels.stress, value: `${p.stressLevel}/5`, color: 'var(--warning)' });
+            if (p.sleepHours != null && labels.sleepHours) rows.push({ label: labels.sleepHours, value: `${p.sleepHours}h`, color: 'var(--fox)' });
             return <ChartTooltip title={String(label)} rows={rows} />;
           }}
         />
-        <Line dataKey="sleepQuality" stroke="var(--info)" strokeWidth={2} isAnimationActive={false} dot={{ r: 2.5 }} connectNulls />
-        <Line dataKey="stressLevel" stroke="var(--warning)" strokeWidth={2} isAnimationActive={false} dot={{ r: 2.5 }} connectNulls />
+        <Line yAxisId="quality" dataKey="sleepQuality" stroke="var(--info)" strokeWidth={2} isAnimationActive={false} dot={{ r: 2.5 }} connectNulls />
+        <Line yAxisId="quality" dataKey="stressLevel" stroke="var(--warning)" strokeWidth={2} isAnimationActive={false} dot={{ r: 2.5 }} connectNulls />
+        {hasHours && (
+          <Line yAxisId="hours" dataKey="sleepHours" stroke="var(--fox)" strokeWidth={2} strokeDasharray="4 3" isAnimationActive={false} dot={{ r: 2.5 }} connectNulls />
+        )}
       </LineChart>
     </ResponsiveContainer>
   );
