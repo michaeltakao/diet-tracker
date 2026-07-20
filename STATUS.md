@@ -635,10 +635,11 @@ anyway since it was cheap alongside the lipid/HbA1c work).
   ignores the servings stepper (UX).
 - Backlog (explicit cut list from the round): W1b bundled JP food DB (MEXT 成分表 —
   demoted per kill criteria; **revived *scoped* as P1 in the 07-13 roadmap**: top ~500
-  washoku + pg_trgm, grounds photo v2 numbers), W1c barcode/OFF (spike
-  ≥50% hit-rate on 10 pantry items first; unchanged, still gates barcode), telemetry Supabase dual-write (needs migration
-  + consent gating), recipes, full micronutrient UI, weight-page SVG → recharts,
-  AccountSection full i18n retrofit.
+  washoku + pg_trgm, grounds photo v2 numbers). ~~W1c barcode/OFF~~ **SHIPPED
+  2026-07-19** (COMPETITOR IMPORT PHASE A: `/api/product-lookup` + `lib/off.ts`,
+  see entry above — no longer gated). Remaining: telemetry Supabase dual-write
+  (needs migration + consent gating), recipes, full micronutrient UI,
+  weight-page SVG → recharts, AccountSection full i18n retrofit.
 - P1 research features: adherence prediction, habit phenotyping, TDEE-triggered goal adaptation.
 - Stale open PRs #3/#6/#7/#8 predate the stack and have diverged from main —
   close or rebase decision pending (only #8's CI hardening was salvaged, via `6c476e1`).

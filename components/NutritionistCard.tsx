@@ -67,7 +67,7 @@ export function NutritionistCard() {
       });
       setSuggestions(res.suggestions);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.productLookupError);
+      setError(err instanceof Error ? err.message : t.aiSuggestionFailed);
     } finally {
       setLoading(false);
     }

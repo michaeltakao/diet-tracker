@@ -206,7 +206,7 @@ export function WellnessChart({ points, labels }: { points: WellnessPoint[]; lab
   const hasHours = data.some((p) => p.sleepHours != null);
   return (
     <ResponsiveContainer width="100%" height={140}>
-      <LineChart data={data} margin={{ top: 8, right: hasHours ? 8 : 8, bottom: 0, left: -10 }}>
+      <LineChart data={data} margin={{ top: 8, right: hasHours ? 20 : 8, bottom: 0, left: -10 }}>
         <CartesianGrid stroke="var(--line)" vertical={false} />
         <XAxis dataKey="date" tickFormatter={shortDate} {...axisProps}
           axisLine={{ stroke: 'var(--line-strong)' }} interval="preserveStartEnd" minTickGap={40} />

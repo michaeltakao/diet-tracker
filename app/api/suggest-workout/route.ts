@@ -235,10 +235,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     targetWeight   != null ? `・目標体重: ${targetWeight} kg`  : '',
     currentWeight  != null ? `・現在体重: ${currentWeight} kg` : '',
     '',
-    environment || equipment.length > 0
+    // Equipment restriction only makes sense for 'home' — a gym is assumed
+    // fully equipped, so a stale localStorage equipment list from a prior
+    // home session must not leak into a gym-environment suggestion.
+    environment || (environment === 'home' && equipment.length > 0)
       ? [
           `【トレーニング環境】${environment === 'home' ? '自宅' : environment === 'gym' ? 'ジム' : '未設定'}`,
-          equipment.length > 0
+          environment === 'home' && equipment.length > 0
             ? `・使える器具: ${equipment.map((e) => EQUIPMENT_LABELS[e] ?? e).join('、')}（これ以外の器具は使えません）`
             : '',
         ].filter(Boolean).join('\n')
