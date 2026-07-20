@@ -56,7 +56,7 @@ function secondsUntilJstMidnight(): number {
 const COMPARE_KEY = randomBytes(32);
 
 /** Constant-time, constant-length string equality (no length side-channel). */
-function constantTimeEqual(a: string, b: string): boolean {
+export function constantTimeEqual(a: string, b: string): boolean {
   const da = createHmac('sha256', COMPARE_KEY).update(a).digest();
   const db = createHmac('sha256', COMPARE_KEY).update(b).digest();
   return timingSafeEqual(da, db); // both digests are always 32 bytes
