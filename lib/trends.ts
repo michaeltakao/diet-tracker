@@ -24,6 +24,14 @@ export const ADHERENCE_TOLERANCE_KCAL = 200;
  *  literature-standard "trend weight" EWMA range 0.1–0.3). */
 export const WEIGHT_SMOOTH_ALPHA = 0.25;
 
+/**
+ * Calendar-day lookback for weight-trend inputs (smoothing + OLS forecast).
+ * Shared by TrendsPanel and the /weight page so both compute
+ * projectGoalDate over the same window — mismatched windows would show
+ * different predictedIn30/90Days figures for the same underlying data.
+ */
+export const WEIGHT_WINDOW_DAYS = 60;
+
 /** Day index of an ISO date relative to an epoch date (both YYYY-MM-DD). */
 function dayIndex(date: string, epoch: string): number {
   return Math.round((Date.parse(date) - Date.parse(epoch)) / 86_400_000);

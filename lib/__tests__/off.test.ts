@@ -23,10 +23,10 @@ function offResponse(overrides: {
 }
 
 describe('isValidBarcode', () => {
-  it('accepts EAN-8 through GTIN-14', () => {
-    expect(isValidBarcode('12345678')).toBe(true);       // EAN-8
-    expect(isValidBarcode('4901777018888')).toBe(true);  // EAN-13 (JP)
-    expect(isValidBarcode('12345678901234')).toBe(true); // GTIN-14
+  it('accepts EAN-8 through GTIN-14 with a valid GS1 check digit', () => {
+    expect(isValidBarcode('12345670')).toBe(true);        // EAN-8
+    expect(isValidBarcode('4901777018884')).toBe(true);   // EAN-13 (JP)
+    expect(isValidBarcode('12345678901231')).toBe(true);  // GTIN-14
   });
 
   it('rejects wrong lengths and non-digits', () => {
@@ -35,6 +35,12 @@ describe('isValidBarcode', () => {
     expect(isValidBarcode('49017770abcde')).toBe(false);
     expect(isValidBarcode('')).toBe(false);
     expect(isValidBarcode('4901777-01888')).toBe(false);
+  });
+
+  it('rejects correctly-shaped digit strings with a bad GS1 check digit', () => {
+    expect(isValidBarcode('12345678')).toBe(false);       // right length, wrong checksum
+    expect(isValidBarcode('4901777018888')).toBe(false);  // right length, wrong checksum
+    expect(isValidBarcode('12345678901234')).toBe(false); // right length, wrong checksum
   });
 });
 
@@ -116,5 +122,34 @@ describe('normalizeOffProduct', () => {
       nutriments: { 'energy-kcal_100g': 42 },
     }));
     expect(p!.per100g).toEqual({ calories: 42, protein: 0, fat: 0, carbs: 0 });
+  });
+
+  it('treats a negative kcal as missing (product unusable)', () => {
+    expect(normalizeOffProduct(offResponse({
+      nutriments: { 'energy-kcal_100g': -10 },
+    }))).toBeNull();
+  });
+
+  it('treats negative optional nutrients as absent, not as negative values', () => {
+    const p = normalizeOffProduct(offResponse({
+      nutriments: {
+        'energy-kcal_100g': 100,
+        proteins_100g: -5,
+        fat_100g: -1,
+        carbohydrates_100g: -2,
+        sodium_100g: -0.4,
+        fiber_100g: -1,
+      },
+    }));
+    expect(p!.per100g).toEqual({ calories: 100, protein: 0, fat: 0, carbs: 0 });
+    expect(p!.per100g.sodiumMg).toBeUndefined();
+    expect(p!.per100g.fiberG).toBeUndefined();
+  });
+
+  it('falls back to salt_100g when sodium_100g is negative', () => {
+    const p = normalizeOffProduct(offResponse({
+      nutriments: { 'energy-kcal_100g': 100, sodium_100g: -1, salt_100g: 1.27 },
+    }));
+    expect(p!.per100g.sodiumMg).toBe(500);
   });
 });

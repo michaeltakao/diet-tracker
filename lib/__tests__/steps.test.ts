@@ -63,4 +63,19 @@ describe('steps round-trip', () => {
     await setSteps('2026-07-19', 6000, 'device');
     expect(getStepsForDate('2026-07-19')).toBe(6000);
   });
+
+  it('clamps out-of-range values to [0, MAX_STEPS] before persisting', async () => {
+    await setSteps('2026-07-19', -500);
+    expect(getStepsForDate('2026-07-19')).toBe(0);
+    await setSteps('2026-07-19', 999_999);
+    expect(getStepsForDate('2026-07-19')).toBe(200_000);
+  });
+
+  it('does not throw when localStorage.setItem fails (quota/private mode)', async () => {
+    vi.stubGlobal('localStorage', {
+      ...makeLocalStorage(),
+      setItem: () => { throw new Error('QuotaExceededError'); },
+    });
+    await expect(setSteps('2026-07-19', 4000)).resolves.toBeUndefined();
+  });
 });

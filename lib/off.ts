@@ -25,9 +25,22 @@ export interface NormalizedProduct {
   servingG?: number;
 }
 
-/** EAN-8 … EAN-13/GTIN-14 range; also covers UPC-A (12). */
+/**
+ * GS1 mod-10 check digit: from the rightmost digit, alternate ×3/×1 weights
+ * (rightmost non-check digit gets ×3), sum, and the check digit is
+ * `(10 - sum % 10) % 10`. Same algorithm for EAN-8/13 and UPC-A/GTIN-14.
+ */
+function hasValidCheckDigit(barcode: string): boolean {
+  const digits = barcode.split('').map(Number);
+  const check = digits[digits.length - 1];
+  const body = digits.slice(0, -1).reverse();
+  const sum = body.reduce((acc, d, i) => acc + d * (i % 2 === 0 ? 3 : 1), 0);
+  return (10 - (sum % 10)) % 10 === check;
+}
+
+/** EAN-8 … EAN-13/GTIN-14 range (also covers UPC-A, 12) with a valid GS1 check digit. */
 export function isValidBarcode(barcode: string): boolean {
-  return /^\d{8,14}$/.test(barcode);
+  return /^\d{8,14}$/.test(barcode) && hasValidCheckDigit(barcode);
 }
 
 /** Grams of salt (食塩相当量) per gram of sodium. */
@@ -35,12 +48,16 @@ const SALT_PER_SODIUM = 2.54;
 
 const round1 = (v: number): number => Math.round(v * 10) / 10;
 
-/** Finite-number coercion: OFF sometimes serves numeric strings. */
+/**
+ * Finite, non-negative-number coercion: OFF sometimes serves numeric strings,
+ * and occasionally malformed/negative values — a negative kcal or nutrient
+ * is nonsensical and treated the same as absent.
+ */
 function num(v: unknown): number | null {
-  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'number' && Number.isFinite(v)) return v >= 0 ? v : null;
   if (typeof v === 'string' && v.trim() !== '') {
     const n = Number(v);
-    if (Number.isFinite(n)) return n;
+    if (Number.isFinite(n)) return n >= 0 ? n : null;
   }
   return null;
 }

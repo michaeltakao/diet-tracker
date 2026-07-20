@@ -8,6 +8,7 @@
  */
 
 import { getWriteContext } from './_write';
+import { clampSteps } from '../steps-goal';
 
 const KEY = 'diet-tracker-steps';
 
@@ -62,10 +63,17 @@ export async function setSteps(
   steps: number,
   source: 'manual' | 'device' = 'manual',
 ): Promise<void> {
-  // Step 1: localStorage
-  const all = readAll();
-  all[date] = { steps, source };
-  writeAll(all);
+  const normalizedSteps = clampSteps(steps);
+
+  // Step 1: localStorage — caught separately so a quota/private-mode failure
+  // here doesn't skip the Supabase mirror below.
+  try {
+    const all = readAll();
+    all[date] = { steps: normalizedSteps, source };
+    writeAll(all);
+  } catch (err) {
+    console.warn('[data/steps] localStorage setSteps failed:', err);
+  }
 
   // Step 2: Supabase
   const ctx = await getWriteContext();
@@ -74,7 +82,7 @@ export async function setSteps(
   const { error } = await ctx.supabase.from('steps_logs').upsert({
     user_id:     ctx.userId,
     logged_date: date,
-    steps,
+    steps:       normalizedSteps,
     source,
   }, { onConflict: 'user_id,logged_date' });
 

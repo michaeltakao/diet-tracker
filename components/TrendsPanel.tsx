@@ -27,6 +27,7 @@ import {
   computeAdherenceSeries,
   computeMacroShortfall,
   lastNDates,
+  WEIGHT_WINDOW_DAYS,
 } from '@/lib/trends';
 import { recordEvent } from '@/lib/telemetry';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -97,7 +98,6 @@ interface TdeeHistoryRow {
 }
 
 const BALANCE_WINDOW_DAYS = 14;
-const WEIGHT_WINDOW_DAYS = 60;
 
 export function TrendsPanel() {
   const { t, lang } = useLanguage();
@@ -119,7 +119,7 @@ export function TrendsPanel() {
 
   useEffect(() => {
     recordEvent('trends_viewed');
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
+     
     setWeightEntries(getAllWeightEntries().map(e => ({ date: e.date, weight: e.weight })));
     setFoodEntries(getAllFoodEntries().map(e => ({
       date: e.date, calories: e.calories, protein: e.protein, fat: e.fat, carbs: e.carbs,

@@ -4,13 +4,13 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Scale, Plus, Trash2, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import {
-  addWeightEntry, getWeightEntries, removeWeightEntry, getAppData,
+  addWeightEntry, getWeightEntries, getAllWeightEntries, removeWeightEntry, getAppData,
 } from '@/lib/data';
 import { WeightEntry } from '@/lib/types';
 import WeightChart from '@/components/WeightChart';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { projectGoalDate } from '@/lib/trends';
+import { projectGoalDate, lastNDates, WEIGHT_WINDOW_DAYS } from '@/lib/trends';
 
 function getTodayDate() { return new Date().toISOString().split('T')[0]; }
 
@@ -60,10 +60,16 @@ export default function WeightPage() {
   const toGoal     = latest && goalWeight != null ? +(latest.weight - goalWeight).toFixed(1) : null;
   const goalAchieved = toGoal !== null && Math.abs(toGoal) < 0.05;
 
-  // 90-day forecast (phase D) — same OLS model as the trends view, computed
-  // locally so this page doesn't need the trends fetch pipeline.
+  // 90-day forecast (phase D) — same OLS model AND the same WEIGHT_WINDOW_DAYS
+  // calendar-day cutoff as TrendsPanel, so both views agree on
+  // predictedIn30/90Days for the same data. `entries` (getWeightEntries(60))
+  // is a last-60-ROWS slice used for the display list/chart above — that's
+  // not equivalent to a 60-calendar-day window when logging isn't daily, so
+  // the forecast recomputes its own windowed input from the full history.
+  const cutoff = lastNDates(getTodayDate(), WEIGHT_WINDOW_DAYS)[0];
+  const windowedEntries = getAllWeightEntries().filter((e) => e.date >= cutoff);
   const forecast = projectGoalDate(
-    entries.map((e) => ({ date: e.date, weight: e.weight })),
+    windowedEntries.map((e) => ({ date: e.date, weight: e.weight })),
     goalWeight ?? null,
   );
   const goalRemaining = toGoal !== null && !goalAchieved ? +Math.abs(toGoal).toFixed(1) : null;
