@@ -1,6 +1,65 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-21 BETA READINESS ROUND (6 workstreams, uncommitted):**
+  **WS1** Vercel env: `CRON_SECRET`/VAPID keypair generated + set (production
+  + preview) + `SUPABASE_SERVICE_ROLE_KEY` (user-provided) set; prod redeployed;
+  `push-send-cron` smoke-tested 503→200 live (`processed:0`, no subscribers
+  yet — infra-only verification). **WS2 (P0 #9)**: `/plan`'s CheckInWidget +
+  SuggestionCard + today-tab removed (1159→444 lines), `/workout` gains
+  `SessionStart` (location chip→duration→equipment→3-level energy→soreness,
+  Rest Day short-circuit with its own "log anyway" escape link — the
+  workout page itself now has a single `sessionStarted` gate, no duplicate
+  outer escape-hatch state). `lib/data/workout-prefs.ts` rewritten
+  (`TrainingLocation`/`SessionDuration`, lossless legacy migration).
+  `app/api/suggest-workout` accepts `location`/`duration` (superset of
+  `environment`), rejects `rest_day` defensively (400). **WS3 (P0 #10)**:
+  migration **019 applied to prod** (`sus_responses` + `beta_feedback` +
+  `profiles.study_cohort` CHECK) — `chkkpucuiyjdeqgyyszt`, 2 pre-existing
+  profiles both NULL cohort, no data impact. `app/api/consent` now assigns
+  `study_cohort` 50/50 atomically with first consent (`lib/cohort.ts`),
+  never echoed in the response (keeps client blind to its bucket).
+  `components/SusSurveyCard.tsx` on `/log` post-`WeeklyReportCard`, gated by
+  `lib/sus-gate.ts` (Day14+, ≤1 same-day re-show after dismiss). **WS4**:
+  confetti/badge-pop wired for ProgressRing 100% (`animate-badge-pop` on
+  center text, localStorage-guarded once/day) and CategoryBadges ⭐ chip
+  (once/ISO-week/category) via new `lib/celebrate-once.ts`. **Trigger 3
+  (streak milestones) explicitly SKIPPED** — investigation found
+  streak3/7/30 badges already fully wired through the existing
+  `checkAndAwardBadges()` → `BadgeCelebration` modal path
+  (`lib/storage.ts:384-386`, `hasBadge()` once-ever dedup); the original
+  plan's premise that this was unwired was wrong, confirmed by reading the
+  code before implementing (a redundant `lib/streak-milestones.ts` was NOT
+  created). **WS5**: no code change — `StreakHeader.tsx` confirmed already
+  flat-fill (phase 4 principle), documented as intentional in Key decisions
+  below. **WS6**: `beta_feedback` table (in migration 019) + `/api/feedback`
+  (auth-optional, guest submissions allowed, service-role write since
+  guest `auth.uid()` is NULL) + `components/FeedbackButton.tsx` (global
+  floating button, mounted in `app/layout.tsx`) +
+  `docs/roadmaps/BETA_TESTING_PROTOCOL_2026-07.md` (new — §12 checklist
+  cross-reference table, explicitly separates Done/Done-this-round/
+  Not-verified/Out-of-scope rather than assuming pass). **Found + fixed
+  in-flight** (outside original workstream file list): `/api/research/
+  export`'s `SUPPORTED_TABLES` allowlist didn't include the two new tables
+  — added `sus_responses`/`beta_feedback` to the allowlist, type union, and
+  multi-table export payload. **Found, NOT fixed** (flagged in the new
+  protocol doc §7/§8 instead): `researcher_access_log` inserts in both
+  `/api/research/export` and `/api/research/participants` have no
+  `.catch()` — audit-log write failures are silently swallowed today, a
+  real gap against the FTUE roadmap's own §12 IRB-alerting checklist item.
+  SUS Japanese translation (`lib/i18n.ts`) is the author's own rendering,
+  not a validated academic translation — flagged for advisor review before
+  treating SUS scores as publication-quality on the JA path. Verified:
+  `npm run lint` (0 errors, 1 pre-existing warning in `TrendsPanel.tsx`,
+  unrelated to this round), `npx vitest run` **370/370** (35 files, +36
+  tests: cohort/sus/sus-gate/celebrate-once/session-start/workout-prefs),
+  `npm run build` green (all routes incl. new `/api/sus`, `/api/feedback`).
+  `/sec` focused review on the diff: 0 FATAL, 0 WARNING, 2 INFO (no rate
+  limit on `/api/sus` — auth-only so low impact; `feedback.pagePath` accepts
+  any string ≤200 chars — data-quality only, no injection vector given
+  current read-only researcher-export usage). **Nothing in this round is
+  committed yet** — working tree has 13 modified + 19 new files pending
+  review/commit.
 - **2026-07-20 COMPETITOR IMPORT PHASE D (final): manual steps, sleep
   bed/wake + chart, 90-day weight forecast** — migration **018 in prod**
   (`steps_logs` table cloned from water_logs's UNIQUE-per-day UPSERT
@@ -667,6 +726,15 @@ anyway since it was cheap alongside the lipid/HbA1c work).
 - Repo is the Master's research vehicle — see vault `ADR-001`.
 - `postcss` overridden to `^8.5.10` (CVE-2026-41305, MEDIUM).
 - CI workflows hardened against script injection (`cac19bf`, 2026-06-12) — see vault `ADR-003`.
+- **Duolingo redesign phase 7 (hero-card gradient) resolved as: stay flat, no
+  code change** (2026-07-21). `StreakHeader.tsx`'s fox banner already uses a
+  flat `bg-fox` fill + hard-edge `shadow-[0_4px_0_var(--fox-dark)]`, matching
+  phase 4's flat-fill principle (`Button.tsx`/`ProgressBar.tsx`) — this is
+  intentional, not an oversight, and should not be "fixed" into a gradient by
+  a future session. The ad-hoc `bg-gradient-to-br`/`bg-gradient-to-r` usages
+  elsewhere (e.g. `app/workout/page.tsx:361` hero header, several buttons/
+  pills) predate phase 4 and are explicitly NOT retrofit targets for this
+  round — they're pre-existing style debt, not part of the phase 6/7 scope.
 
 ## Last verified state
 - 2026-07-17 (council fixes): `npm run lint` clean, `npx vitest run`

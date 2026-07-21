@@ -12,6 +12,7 @@ import { MonthCalendar } from '@/components/MonthCalendar';
 import { weekStartOf } from '@/lib/streak';
 import type { CategoryKey } from '@/lib/dashboard-data';
 import WeeklyReportCard from '@/components/WeeklyReportCard';
+import SusSurveyCard from '@/components/SusSurveyCard';
 import BottomNav from '@/components/BottomNav';
 import { TrendsPanel } from '@/components/TrendsPanel';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -475,6 +476,9 @@ export default function LogPage() {
 
       {/* ── Weekly Report ────────────────────────── */}
       <WeeklyReportCard />
+
+      {/* ── SUS usability survey (Day14+, authenticated only) ───── */}
+      <SusSurveyCard />
 
       {/* ── AI Habit Analytics Widget ─────────────── */}
       <section className={`${cardCls} p-4`}>

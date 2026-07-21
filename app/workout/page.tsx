@@ -20,12 +20,14 @@ import BadgeCelebration from '@/components/BadgeCelebration';
 import BadgeShelf from '@/components/BadgeShelf';
 import MedWarning from '@/components/MedWarning';
 import RestTimer from '@/components/RestTimer';
+import SessionStart from '@/components/SessionStart';
 import { getWorkoutWarnings } from '@/lib/medication-rules';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { postJson } from '@/lib/httpClient';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useWeightUnit, toDisplay, lbsToKg, formatWeight } from '@/lib/units';
 import { epley1RM } from '@/lib/onerm';
+import { getCheckIn, todayDate as checkinTodayDate } from '@/lib/data/checkin';
 
 // The curated starter menus now live in lib/exercise-db.ts (phase B); this
 // adapter keeps the CoachMenu shape so the rendering below stays unchanged.
@@ -163,6 +165,25 @@ export default function WorkoutPage() {
   // Entry form anchor for the empty-timeline CTA (#5).
   const entryFormRef = useRef<HTMLElement | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Session-start gate (P0 #9): logging UI stays hidden until SessionStart
+  // reports completion. `onComplete({rest: true})` fires when the user
+  // confirms Rest Day — SessionStart keeps rendering its own affirmation
+  // panel in that case, so the gated logging UI below must stay hidden too
+  // (sessionStarted stays false) until its OWN "log anyway" link fires
+  // `onComplete({rest: false})`, which is functionally identical to a normal
+  // check-in completion for gating purposes.
+  const [sessionStarted, setSessionStarted] = useState(false);
+
+  useEffect(() => {
+    const saved = getCheckIn(checkinTodayDate());
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only localStorage read on mount
+    if (saved) setSessionStarted(true);
+  }, []);
+
+  const handleSessionStartComplete = (result: { rest: boolean }) => {
+    if (!result.rest) setSessionStarted(true);
+  };
 
   const loadData = useCallback(() => {
     const data = getAppData();
@@ -351,6 +372,15 @@ export default function WorkoutPage() {
         </div>
       )}
 
+      {/* Session start (P0 #9): single entry point, gates the logging UI below.
+          On Rest Day, SessionStart renders its own affirmation panel (with its
+          own "log anyway" escape link) in place of the chips — nothing more
+          to show here until sessionStarted flips true. */}
+      <div className="px-4 pt-5">
+        <SessionStart onComplete={handleSessionStartComplete} />
+      </div>
+
+      {sessionStarted && (
       <div className="px-4 pt-5 space-y-4">
 
         {/* 1 ── 部位別メニュー ─────────────── */}
@@ -838,6 +868,7 @@ export default function WorkoutPage() {
           </section>
         )}
       </div>
+      )}
 
       <BottomNav />
     </main>

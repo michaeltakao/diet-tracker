@@ -36,13 +36,25 @@ interface SuggestRequest {
   // Training environment (phase B) — client-side prefs, validated below.
   environment?:      'home' | 'gym';
   equipment?:        string[];
+  // Session start (P0 #9) — superset of `environment`; when present it takes
+  // precedence and `environment` is derived from it server-side (below).
+  location?:          'home' | 'gym' | 'hotel_gym' | 'outdoor' | 'rest_day';
+  duration?:           15 | 30 | 45 | 60;
 }
 
 const VALID_ENVIRONMENTS = ['home', 'gym'] as const;
+const VALID_LOCATIONS = ['home', 'gym', 'hotel_gym', 'outdoor', 'rest_day'] as const;
+const VALID_DURATIONS = [15, 30, 45, 60] as const;
 const VALID_EQUIPMENT = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'] as const;
 const EQUIPMENT_LABELS: Record<string, string> = {
   barbell: 'バーベル', dumbbell: 'ダンベル', machine: 'マシン',
   cable: 'ケーブル', bodyweight: '自重のみ',
+};
+const LOCATION_LABELS: Record<string, string> = {
+  home: '自宅', gym: 'ジム', hotel_gym: 'ホテルジム', outdoor: '屋外',
+};
+const DURATION_LABELS: Record<number, string> = {
+  15: '15分', 30: '30分', 45: '45分', 60: '60分以上',
 };
 
 const SYSTEM_PROMPT = `You are an expert Japanese personal trainer and sports scientist inside a training app.
@@ -61,6 +73,11 @@ Guidelines:
 - When a training environment (自宅/ジム) or available-equipment list is given, ONLY suggest exercises
   feasible there — never machines or cables for a home user without them; prefer dumbbell/bodyweight
   alternatives and say what you substituted.
+- When a location is 'hotel_gym', treat it like a gym but do not assume any specific machine is
+  present — favor barbell/dumbbell/bodyweight staples over exotic machines.
+- When a location is 'outdoor', suggest bodyweight/calisthenics-only sessions (no equipment assumed).
+- When a time budget (利用可能時間) is given, size the session to fit it: trim sets/exercises rather
+  than rushing rest periods, and say in intensityNote or adjustments what was trimmed to fit the time.
 - Keep all text in Japanese. Be warm, specific, and actionable.`;
 
 const RESPONSE_SCHEMA: Schema = {
@@ -109,10 +126,27 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: 'Missing or invalid checkIn' }, { status: 400 });
   }
   const sorenessAreas = Array.isArray(checkIn.sorenessAreas) ? checkIn.sorenessAreas : [];
-  // Environment prefs: unknown values are dropped, never echoed into the prompt.
-  const environment = VALID_ENVIRONMENTS.includes(body.environment as 'home' | 'gym')
-    ? body.environment
+
+  // Session start (P0 #9): location is a superset of the legacy `environment`.
+  // Rest Day is a client-side short-circuit (SessionStart never calls this
+  // route for it) — reject defensively rather than silently falling through
+  // to a generic suggestion for a day the user marked as rest.
+  const location = VALID_LOCATIONS.includes(body.location as typeof VALID_LOCATIONS[number])
+    ? body.location
     : undefined;
+  if (location === 'rest_day') {
+    return NextResponse.json({ error: 'No suggestion for a rest day' }, { status: 400 });
+  }
+  const duration = VALID_DURATIONS.includes(body.duration as typeof VALID_DURATIONS[number])
+    ? body.duration
+    : undefined;
+
+  // Environment prefs: unknown values are dropped, never echoed into the prompt.
+  // `location` (when present) is the source of truth; `environment` is only a
+  // fallback for older clients that haven't picked up the location chips yet.
+  const environment = location === 'home' || location === 'gym'
+    ? location
+    : (VALID_ENVIRONMENTS.includes(body.environment as 'home' | 'gym') ? body.environment : undefined);
   const equipment = Array.isArray(body.equipment)
     ? body.equipment.filter((e): e is string => VALID_EQUIPMENT.includes(e as typeof VALID_EQUIPMENT[number]))
     : [];
@@ -235,17 +269,29 @@ export async function POST(request: Request): Promise<NextResponse> {
     targetWeight   != null ? `・目標体重: ${targetWeight} kg`  : '',
     currentWeight  != null ? `・現在体重: ${currentWeight} kg` : '',
     '',
-    // Equipment restriction only makes sense for 'home' — a gym is assumed
-    // fully equipped, so a stale localStorage equipment list from a prior
-    // home session must not leak into a gym-environment suggestion.
-    environment || (environment === 'home' && equipment.length > 0)
+    // Equipment restriction only makes sense for 'home'/'outdoor' — a gym or
+    // hotel gym is assumed equipped, so a stale localStorage equipment list
+    // from a prior home session must not leak into a gym-environment
+    // suggestion. `location` (P0 #9) supersedes the legacy `environment`
+    // block; when only `environment` is present (older client), fall back to
+    // the original rendering.
+    location
       ? [
-          `【トレーニング環境】${environment === 'home' ? '自宅' : environment === 'gym' ? 'ジム' : '未設定'}`,
-          environment === 'home' && equipment.length > 0
+          `【今日の場所】${LOCATION_LABELS[location] ?? location}`,
+          (location === 'home' || location === 'outdoor') && equipment.length > 0
             ? `・使える器具: ${equipment.map((e) => EQUIPMENT_LABELS[e] ?? e).join('、')}（これ以外の器具は使えません）`
             : '',
         ].filter(Boolean).join('\n')
-      : '',
+      : environment || (environment === 'home' && equipment.length > 0)
+        ? [
+            `【トレーニング環境】${environment === 'home' ? '自宅' : environment === 'gym' ? 'ジム' : '未設定'}`,
+            environment === 'home' && equipment.length > 0
+              ? `・使える器具: ${equipment.map((e) => EQUIPMENT_LABELS[e] ?? e).join('、')}（これ以外の器具は使えません）`
+              : '',
+          ].filter(Boolean).join('\n')
+        : '',
+    '',
+    duration ? `【利用可能時間】${DURATION_LABELS[duration] ?? `${duration}分`}` : '',
     '',
     plannedSession
       ? [

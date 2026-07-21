@@ -6,6 +6,7 @@
  * Query params:
  *   user_id  — filter to a specific participant (optional; omit for all)
  *   table    — 'food_logs' | 'weight_logs' | 'workout_logs' | 'recommendation_feedback'
+ *              | 'sus_responses' | 'beta_feedback'
  *              (optional; omit for full export as nested JSON)
  *   format   — 'json' (default) | 'csv'
  *
@@ -20,13 +21,17 @@ import { NextResponse } from 'next/server';
 import { getServerUser, createServerSupabase, createServiceSupabase } from '@/lib/supabase-server';
 import type { ResearcherAccessLogInsert } from '@/lib/database.types';
 
-type SupportedTable = 'food_logs' | 'weight_logs' | 'workout_logs' | 'recommendation_feedback';
+type SupportedTable =
+  | 'food_logs' | 'weight_logs' | 'workout_logs' | 'recommendation_feedback'
+  | 'sus_responses' | 'beta_feedback';
 
 const SUPPORTED_TABLES: SupportedTable[] = [
   'food_logs',
   'weight_logs',
   'workout_logs',
   'recommendation_feedback',
+  'sus_responses',
+  'beta_feedback',
 ];
 
 function toCsv(rows: Record<string, unknown>[]): string {
@@ -126,17 +131,19 @@ export async function GET(request: Request): Promise<NextResponse> {
     return q;
   };
 
-  const [food, weight, workout, feedback] = await Promise.all(
+  const [food, weight, workout, feedback, sus, betaFeedback] = await Promise.all(
     SUPPORTED_TABLES.map(buildQuery),
   );
 
   const payload = {
     exported_at: new Date().toISOString(),
     filter_user_id: userId ?? null,
-    food_logs:                (food.data     ?? []) as Record<string, unknown>[],
-    weight_logs:              (weight.data   ?? []) as Record<string, unknown>[],
-    workout_logs:             (workout.data  ?? []) as Record<string, unknown>[],
-    recommendation_feedback:  (feedback.data ?? []) as Record<string, unknown>[],
+    food_logs:                (food.data         ?? []) as Record<string, unknown>[],
+    weight_logs:              (weight.data        ?? []) as Record<string, unknown>[],
+    workout_logs:             (workout.data       ?? []) as Record<string, unknown>[],
+    recommendation_feedback:  (feedback.data      ?? []) as Record<string, unknown>[],
+    sus_responses:            (sus.data           ?? []) as Record<string, unknown>[],
+    beta_feedback:            (betaFeedback.data  ?? []) as Record<string, unknown>[],
   };
 
   return NextResponse.json(payload, {

@@ -17,15 +17,38 @@ import { CATEGORY_META } from './category-meta';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { jstToday, isoWeekKey } from '@/lib/streak';
+import { hasCelebrated, markCelebrated } from '@/lib/celebrate-once';
 
 export function CategoryBadges() {
   const { t } = useLanguage();
   const [stats, setStats] = useState<DashboardCategoryStats | null>(null);
+  const [justEarned, setJustEarned] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
     setStats(getDashboardStats());
   }, []);
+
+  // Phase 6: pop the ⭐ chip once per category per ISO week, on first render
+  // where that category has crossed WEEKLY_GOAL_DAYS. Guarded by localStorage
+  // (not just component state) so a reload after earning doesn't re-pop.
+  useEffect(() => {
+    if (!stats) return;
+    const week = isoWeekKey(jstToday());
+    const newlyEarned = new Set<string>();
+    for (const c of stats.categories) {
+      if (c.weekDays < WEEKLY_GOAL_DAYS) continue;
+      const key = `diet-tracker-category-celebrated:${week}:${c.key}`;
+      if (hasCelebrated(key)) continue;
+      markCelebrated(key);
+      newlyEarned.add(c.key);
+    }
+    if (newlyEarned.size > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot celebration flags driven by a localStorage guard, not re-derivable from props/state
+      setJustEarned(newlyEarned);
+    }
+  }, [stats]);
 
   if (!stats) return null;
 
@@ -47,7 +70,7 @@ export function CategoryBadges() {
                   <Icon className="size-7 text-white" aria-hidden="true" />
                   {earned && (
                     <span
-                      className="absolute -right-1 -top-1 flex size-6 items-center justify-center rounded-full bg-warning-soft text-xs shadow-[0_2px_0_rgba(0,0,0,0.12)]"
+                      className={`absolute -right-1 -top-1 flex size-6 items-center justify-center rounded-full bg-warning-soft text-xs shadow-[0_2px_0_rgba(0,0,0,0.12)] ${justEarned.has(c.key) ? 'animate-badge-pop' : ''}`}
                       aria-label={t.ringDone}
                     >
                       ⭐

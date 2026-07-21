@@ -6,6 +6,15 @@
  * research participation is 18+; minors use the app in guest mode).
  * Called by the /consent page on submission.
  *
+ * Also assigns profiles.study_cohort (FTUE P0 #10) atomically with consent,
+ * once, on first consent only — never re-assigned (the existing 409-on-
+ * already-consented path below makes this idempotent for free). The
+ * assigned cohort is intentionally NOT echoed in the response: this keeps
+ * the client blind to its own bucket, which matters once cohort-conditioned
+ * behavior (e.g. XAI why-badges) is implemented in a future round. Behavior
+ * branching on cohort is explicitly out of scope for this round — only the
+ * assignment itself.
+ *
  * Request body: { adultConfirmed: true }
  * Response (200): { consentedAt: string }
  * 400 — adultConfirmed flag missing/false
@@ -19,6 +28,7 @@ import {
   createServerSupabase,
   createServiceSupabase,
 } from '@/lib/supabase-server';
+import { assignCohort } from '@/lib/cohort';
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const user = await getServerUser();
@@ -45,7 +55,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // Check if already consented
   const { data: profile } = await supabase
     .from('profiles')
-    .select('consented_at')
+    .select('consented_at, study_cohort')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -53,10 +63,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ consentedAt: profile.consented_at }, { status: 409 });
   }
 
+  // Assign once, only on this first-consent path. If a profiles row exists
+  // but somehow already has a cohort (shouldn't happen pre-consent, but keep
+  // assignment idempotent defensively), don't clobber it.
+  const cohort = profile?.study_cohort ?? assignCohort({ next: Math.random });
+
   const consentedAt = new Date().toISOString();
   const { data: updated, error } = await supabase
     .from('profiles')
-    .update({ consented_at: consentedAt, adult_confirmed_at: consentedAt })
+    .update({ consented_at: consentedAt, adult_confirmed_at: consentedAt, study_cohort: cohort })
     .eq('id', user.id)
     .select('id');
 
@@ -88,6 +103,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           id: user.id,
           consented_at: consentedAt,
           adult_confirmed_at: consentedAt,
+          study_cohort: cohort,
           display_name:
             (user.user_metadata?.full_name as string | undefined) ??
             user.email?.split('@')[0] ??

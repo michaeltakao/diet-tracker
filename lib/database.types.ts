@@ -1,6 +1,6 @@
 /**
  * Auto-generated Supabase database types.
- * Regenerated 2026-07-19 (phase D) via the Supabase MCP `generate_typescript_types` (project chkkpucuiyjdeqgyyszt).
+ * Regenerated 2026-07-21 (P0 #10: sus_responses + beta_feedback, migration 019) via the Supabase MCP `generate_typescript_types` (project chkkpucuiyjdeqgyyszt).
  * DO NOT hand-edit the Database type below — regenerate with:
  *   npx supabase gen types typescript --project-id chkkpucuiyjdeqgyyszt > lib/database.types.ts
  *
@@ -99,6 +99,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "badges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      beta_feedback: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          page_path: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          page_path?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          page_path?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beta_feedback_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -586,6 +618,162 @@ export type Database = {
           },
         ]
       }
+      steps_logs: {
+        Row: {
+          id: string
+          logged_date: string
+          source: string
+          steps: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          logged_date: string
+          source?: string
+          steps?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          logged_date?: string
+          source?: string
+          steps?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "steps_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sus_responses: {
+        Row: {
+          created_at: string
+          id: string
+          item_1: number
+          item_10: number
+          item_2: number
+          item_3: number
+          item_4: number
+          item_5: number
+          item_6: number
+          item_7: number
+          item_8: number
+          item_9: number
+          total_score: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_1: number
+          item_10: number
+          item_2: number
+          item_3: number
+          item_4: number
+          item_5: number
+          item_6: number
+          item_7: number
+          item_8: number
+          item_9: number
+          total_score: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_1?: number
+          item_10?: number
+          item_2?: number
+          item_3?: number
+          item_4?: number
+          item_5?: number
+          item_6?: number
+          item_7?: number
+          item_8?: number
+          item_9?: number
+          total_score?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sus_responses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      symptom_logs: {
+        Row: {
+          action_taken: string | null
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          logged_date: string
+          note: string | null
+          onset_at: string
+          related_meal_id: string | null
+          related_meal_name: string | null
+          related_workout_id: string | null
+          related_workout_name: string | null
+          severity: number
+          symptom_name: string
+          trigger_tag: string | null
+          user_id: string
+        }
+        Insert: {
+          action_taken?: string | null
+          created_at?: string
+          duration_minutes?: number | null
+          id: string
+          logged_date: string
+          note?: string | null
+          onset_at: string
+          related_meal_id?: string | null
+          related_meal_name?: string | null
+          related_workout_id?: string | null
+          related_workout_name?: string | null
+          severity: number
+          symptom_name: string
+          trigger_tag?: string | null
+          user_id: string
+        }
+        Update: {
+          action_taken?: string | null
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          logged_date?: string
+          note?: string | null
+          onset_at?: string
+          related_meal_id?: string | null
+          related_meal_name?: string | null
+          related_workout_id?: string | null
+          related_workout_name?: string | null
+          severity?: number
+          symptom_name?: string
+          trigger_tag?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "symptom_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tdee_estimates: {
         Row: {
           created_at: string
@@ -658,6 +846,68 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "training_programs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vital_logs: {
+        Row: {
+          created_at: string
+          diastolic: number | null
+          glucose_context: string | null
+          glucose_mg_dl: number | null
+          hba1c_percent: number | null
+          hdl_mg_dl: number | null
+          id: string
+          kind: string
+          ldl_mg_dl: number | null
+          logged_date: string
+          notes: string | null
+          systolic: number | null
+          total_chol_mg_dl: number | null
+          triglycerides_mg_dl: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          diastolic?: number | null
+          glucose_context?: string | null
+          glucose_mg_dl?: number | null
+          hba1c_percent?: number | null
+          hdl_mg_dl?: number | null
+          id: string
+          kind: string
+          ldl_mg_dl?: number | null
+          logged_date: string
+          notes?: string | null
+          systolic?: number | null
+          total_chol_mg_dl?: number | null
+          triglycerides_mg_dl?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          diastolic?: number | null
+          glucose_context?: string | null
+          glucose_mg_dl?: number | null
+          hba1c_percent?: number | null
+          hdl_mg_dl?: number | null
+          id?: string
+          kind?: string
+          ldl_mg_dl?: number | null
+          logged_date?: string
+          notes?: string | null
+          systolic?: number | null
+          total_chol_mg_dl?: number | null
+          triglycerides_mg_dl?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vital_logs_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -791,165 +1041,6 @@ export type Database = {
           },
         ]
       }
-      steps_logs: {
-        Row: {
-          id: string
-          logged_date: string
-          source: string
-          steps: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          id?: string
-          logged_date: string
-          source?: string
-          steps?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          id?: string
-          logged_date?: string
-          source?: string
-          steps?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "steps_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      symptom_logs: {
-        Row: {
-          action_taken: string | null
-          created_at: string
-          duration_minutes: number | null
-          id: string
-          logged_date: string
-          note: string | null
-          onset_at: string
-          related_meal_id: string | null
-          related_meal_name: string | null
-          related_workout_id: string | null
-          related_workout_name: string | null
-          severity: number
-          symptom_name: string
-          trigger_tag: string | null
-          user_id: string
-        }
-        Insert: {
-          action_taken?: string | null
-          created_at?: string
-          duration_minutes?: number | null
-          id: string
-          logged_date: string
-          note?: string | null
-          onset_at: string
-          related_meal_id?: string | null
-          related_meal_name?: string | null
-          related_workout_id?: string | null
-          related_workout_name?: string | null
-          severity: number
-          symptom_name: string
-          trigger_tag?: string | null
-          user_id: string
-        }
-        Update: {
-          action_taken?: string | null
-          created_at?: string
-          duration_minutes?: number | null
-          id?: string
-          logged_date?: string
-          note?: string | null
-          onset_at?: string
-          related_meal_id?: string | null
-          related_meal_name?: string | null
-          related_workout_id?: string | null
-          related_workout_name?: string | null
-          severity?: number
-          symptom_name?: string
-          trigger_tag?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "symptom_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      vital_logs: {
-        Row: {
-          created_at: string
-          diastolic: number | null
-          glucose_context: string | null
-          glucose_mg_dl: number | null
-          hba1c_percent: number | null
-          hdl_mg_dl: number | null
-          id: string
-          kind: string
-          ldl_mg_dl: number | null
-          logged_date: string
-          notes: string | null
-          systolic: number | null
-          total_chol_mg_dl: number | null
-          triglycerides_mg_dl: number | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          diastolic?: number | null
-          glucose_context?: string | null
-          glucose_mg_dl?: number | null
-          hba1c_percent?: number | null
-          hdl_mg_dl?: number | null
-          id: string
-          kind: string
-          ldl_mg_dl?: number | null
-          logged_date: string
-          notes?: string | null
-          systolic?: number | null
-          total_chol_mg_dl?: number | null
-          triglycerides_mg_dl?: number | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          diastolic?: number | null
-          glucose_context?: string | null
-          glucose_mg_dl?: number | null
-          hba1c_percent?: number | null
-          hdl_mg_dl?: number | null
-          id?: string
-          kind?: string
-          ldl_mg_dl?: number | null
-          logged_date?: string
-          notes?: string | null
-          systolic?: number | null
-          total_chol_mg_dl?: number | null
-          triglycerides_mg_dl?: number | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "vital_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       weight_logs: {
         Row: {
           created_at: string
@@ -1050,7 +1141,7 @@ export type Database = {
     }
     Functions: {
       increment_ai_usage: {
-        Args: { p_route: string; p_est_tokens?: number }
+        Args: { p_est_tokens?: number; p_route: string }
         Returns: undefined
       }
     }
@@ -1075,6 +1166,145 @@ export type Database = {
     }
   }
 }
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      badge_type: [
+        "streak3",
+        "streak7",
+        "streak30",
+        "water_goal",
+        "calorie_goal",
+        "workout_master",
+        "pr_achieved",
+        "first_food",
+        "first_workout",
+        "vitals_week",
+      ],
+      meal_type: ["breakfast", "lunch", "dinner", "snack"],
+      muscle_part: ["chest", "back", "legs", "shoulders", "arms", "abs"],
+      workout_category: ["strength", "cardio", "flexibility", "other"],
+    },
+  },
+} as const
 
 // ── Backward-compatible named type aliases ──────────────────────────────────
 // Existing codebase imports these by name; keep them in sync with the
@@ -1106,6 +1336,8 @@ export type MealTemplateRow      = Database["public"]["Tables"]["meal_templates"
 export type AiUsageRow           = Database["public"]["Tables"]["ai_usage"]["Row"]
 export type PushSubscriptionRow  = Database["public"]["Tables"]["push_subscriptions"]["Row"]
 export type StepsLogRow          = Database["public"]["Tables"]["steps_logs"]["Row"]
+export type SusResponseRow       = Database["public"]["Tables"]["sus_responses"]["Row"]
+export type BetaFeedbackRow      = Database["public"]["Tables"]["beta_feedback"]["Row"]
 
 export type FoodLogInsert           = Database["public"]["Tables"]["food_logs"]["Insert"]
 export type WorkoutLogInsert        = Database["public"]["Tables"]["workout_logs"]["Insert"]
@@ -1123,6 +1355,8 @@ export type FavoriteFoodInsert      = Database["public"]["Tables"]["favorite_foo
 export type MealTemplateInsert      = Database["public"]["Tables"]["meal_templates"]["Insert"]
 export type AiUsageInsert           = Database["public"]["Tables"]["ai_usage"]["Insert"]
 export type StepsLogInsert          = Database["public"]["Tables"]["steps_logs"]["Insert"]
+export type SusResponseInsert       = Database["public"]["Tables"]["sus_responses"]["Insert"]
+export type BetaFeedbackInsert      = Database["public"]["Tables"]["beta_feedback"]["Insert"]
 
 export type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"]
 

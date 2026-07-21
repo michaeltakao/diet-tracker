@@ -14,6 +14,8 @@ import { useEffect, useState } from 'react';
 import { getDashboardStats, type DashboardCategoryStats } from '@/lib/dashboard-data';
 import { CATEGORY_META } from './category-meta';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { jstToday } from '@/lib/streak';
+import { hasCelebrated, markCelebrated } from '@/lib/celebrate-once';
 
 const SIZE = 240;
 const CENTER = SIZE / 2;
@@ -26,11 +28,24 @@ const SEGMENT = CIRC / 4 - GAP;
 export function ProgressRing() {
   const { t } = useLanguage();
   const [stats, setStats] = useState<DashboardCategoryStats | null>(null);
+  const [justCelebrated, setJustCelebrated] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
     setStats(getDashboardStats());
   }, []);
+
+  // Phase 6: pop the center text once per day on the false→true 100% transition.
+  // Guarded by localStorage (not just component state) so a reload right after
+  // hitting 100% doesn't re-trigger the pop animation.
+  useEffect(() => {
+    if (!stats || stats.todayPct < 100) return;
+    const key = `diet-tracker-ring-celebrated:${jstToday()}`;
+    if (hasCelebrated(key)) return;
+    markCelebrated(key);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot celebration flag driven by a localStorage guard, not re-derivable from props/state
+    setJustCelebrated(true);
+  }, [stats]);
 
   if (!stats) return null;
 
@@ -92,7 +107,11 @@ export function ProgressRing() {
           })}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-5xl font-black text-fg tabular-nums">{stats.todayPct}%</span>
+          <span
+            className={`text-5xl font-black text-fg tabular-nums ${justCelebrated ? 'animate-badge-pop' : ''}`}
+          >
+            {stats.todayPct}%
+          </span>
           <span className="text-xs font-bold text-muted">{t.ringAchieved}</span>
         </div>
       </div>
