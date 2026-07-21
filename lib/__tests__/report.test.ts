@@ -19,6 +19,8 @@ function emptyData(): AppData {
     streakState: { longest: 0, repairedDates: [] },
     vitalEntries: [],
     symptomEntries: [],
+    xp: 0,
+    highestRank: 'E',
   };
 }
 

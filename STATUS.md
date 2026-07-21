@@ -1,6 +1,30 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-21 Solo Leveling rank system — Phase 1/4 (XP foundation + dark
+  theme), committed:** migration **020 applied to prod**
+  (`chkkpucuiyjdeqgyyszt`): `user_ranks` (total_xp monotonic, highest_rank
+  ratchet E/D/C/B/A/S, owner-only RLS). `lib/rank.ts` (pure `getRankForXp`/
+  `rankAtLeast`, 6-tier thresholds 0/500/1500/4000/8000/15000, lower-bound
+  inclusive, S has no ceiling) + `lib/xp.ts` (`addXp` localStorage-first +
+  Supabase dual-write via `getWriteContext`, same idiom as
+  `lib/data/badges.ts`). **Nothing calls `addXp` yet** — quest logic lands
+  in Phase 3, so `StatusBar` honestly shows `0/500 E級` for every user
+  (verified live via Chrome DevTools, `.system-panel` neon border/inset-glow
+  + `.neon-text` cyan glow render correctly after a `.next` cache clear —
+  Turbopack served stale CSS from a prior session's server on the same port
+  until `rm -rf .next` + restart). `AppData` gains `xp`/`highestRank`
+  (defaulted + hydrated in `lib/storage.ts`, `lib/export.ts` merge takes the
+  max of both sides — same policy as `streakState.longest`). New always-dark
+  `--sys-*`/`--rank-*` CSS tokens on `:root` (no `prefers-color-scheme`
+  hook, independent of the existing light/dark system) +
+  `system-scanline`/`system-glitch` keyframes (auto-inherit the existing
+  global reduced-motion `!important` rule — verified the rule is present
+  and scoped `*, ::before, ::after`). `lib/rank-icons.tsx` (6 hand-drawn SVG
+  paths), `components/SystemPanel.tsx`/`SystemGlow.tsx`/`StatusBar.tsx`.
+  12 new i18n keys ×2 langs. 32 new tests (`rank.test.ts` + `xp.test.ts`,
+  387 total passing), lint clean, build clean. Next: Phase 2 (rank badge +
+  XP progress bar UI, no migration).
 - **2026-07-21 BETA READINESS ROUND (6 workstreams, uncommitted):**
   **WS1** Vercel env: `CRON_SECRET`/VAPID keypair generated + set (production
   + preview) + `SUPABASE_SERVICE_ROLE_KEY` (user-provided) set; prod redeployed;

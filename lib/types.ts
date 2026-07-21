@@ -1,3 +1,5 @@
+import type { RankId } from './rank';
+
 /** Where a food entry's nutrition values came from. */
 export type FoodSource = 'manual' | 'ai' | 'db' | 'barcode';
 
@@ -222,6 +224,8 @@ export interface AppData {
   streakState: StreakState;        // longest streak + repair-ticket memory (device-local)
   vitalEntries: VitalEntry[];      // BP / glucose measurements (record-only)
   symptomEntries: SymptomEntry[];  // symptom log (record-only, non-diagnostic)
+  xp: number;                      // Solo Leveling rank system (Phase 1): cumulative XP, never decreases
+  highestRank: RankId;             // ratchet — highest rank ever reached, independent of current XP
 }
 
 // ── Health Profile (stored in localStorage + profiles table) ──

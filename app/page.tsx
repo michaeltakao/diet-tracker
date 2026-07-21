@@ -20,6 +20,7 @@ import BadgeShelf from '@/components/BadgeShelf';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
 import { StreakHeader } from '@/components/dashboard/StreakHeader';
+import StatusBar from '@/components/StatusBar';
 import { ProgressRing } from '@/components/dashboard/ProgressRing';
 import { CategoryBadges } from '@/components/dashboard/CategoryBadges';
 import NudgeBanner from '@/components/NudgeBanner';
@@ -201,6 +202,11 @@ export default function HomePage() {
             <Settings size={18} aria-hidden="true" />
           </Link>
         </div>
+      </div>
+
+      {/* ── Solo Leveling rank/XP status strip (Phase 1) ────── */}
+      <div className="mb-3">
+        <StatusBar />
       </div>
 
       {/* ── Streak banner + stats pill (phase 5) ────── */}

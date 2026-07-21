@@ -8,6 +8,7 @@
 
 import { AppData } from './types';
 import { getAppData, saveAppData } from './storage';
+import { rankAtLeast } from './rank';
 
 const STORAGE_KEY = 'diet-tracker-v1';
 
@@ -174,6 +175,12 @@ export async function importFromFile(file: File): Promise<ImportResult> {
           ]),
         ).sort(),
       },
+      // XP/rank never decreases — same "keep the higher value" merge as
+      // streakState.longest above.
+      xp: Math.max(current.xp ?? 0, incoming.xp ?? 0),
+      highestRank: rankAtLeast(current.highestRank ?? 'E', incoming.highestRank ?? 'E')
+        ? (current.highestRank ?? 'E')
+        : (incoming.highestRank ?? 'E'),
     };
 
     saveAppData(merged);

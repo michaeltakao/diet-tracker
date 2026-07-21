@@ -1,7 +1,13 @@
 import { AppData, Badge, BadgeType, DailyGoals, FavoriteFood, FoodEntry, MealTemplate, PersonalRecord, RecommendationFeedback, SymptomEntry, VitalEntry, WeightEntry, WorkoutEntry } from './types';
 import { activityDaysFrom, computeStreak, jstToday } from './streak';
+import type { RankId } from './rank';
 
 const STORAGE_KEY = 'diet-tracker-v1';
+
+const RANK_IDS: readonly RankId[] = ['E', 'D', 'C', 'B', 'A', 'S'];
+function isRankId(v: unknown): v is RankId {
+  return typeof v === 'string' && (RANK_IDS as readonly string[]).includes(v);
+}
 
 export const DEFAULT_GOALS: DailyGoals = {
   calories: 2000,
@@ -41,6 +47,8 @@ const DEFAULT_DATA: AppData = {
   streakState: { longest: 0, repairedDates: [] },
   vitalEntries: [],
   symptomEntries: [],
+  xp: 0,
+  highestRank: 'E',
 };
 
 export function getAppData(): AppData {
@@ -66,6 +74,8 @@ export function getAppData(): AppData {
       },
       vitalEntries: parsed.vitalEntries ?? [],
       symptomEntries: parsed.symptomEntries ?? [],
+      xp: typeof parsed.xp === 'number' && parsed.xp >= 0 ? parsed.xp : 0,
+      highestRank: isRankId(parsed.highestRank) ? parsed.highestRank : 'E',
     };
   } catch {
     return { ...DEFAULT_DATA, goals: { ...DEFAULT_GOALS } };
