@@ -14,7 +14,8 @@ import {
   Dumbbell, Clock, Flame, ShieldAlert, CheckCircle,
   Trash2, ChevronRight, ChevronDown, Sparkles, X,
 } from 'lucide-react';
-import { getExercises } from '@/lib/exercise-db';
+import { getExercises, findExercise } from '@/lib/exercise-db';
+import ExerciseVideo from '@/components/ExerciseVideo';
 import { summarizeSets, nextSetSuggestion } from '@/lib/workout-sets';
 import BottomNav from '@/components/BottomNav';
 import { Toast } from '@/components/ui/Toast';
@@ -147,6 +148,10 @@ export default function WorkoutPage() {
   const [coachAdvice, setCoachAdvice]    = useState(t.defaultCoachTip);
   const [allBadges, setAllBadges]        = useState<Badge[]>([]);
   const [pickerOpen, setPickerOpen]      = useState(false);
+  // Which ExerciseDef was clicked (recommended card or full picker), for
+  // the demo-video display below the exercise name. Presentation-only —
+  // never touches WorkoutEntry/PersonalRecord.
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
 
   // AI coach
   const [aiAdvice, setAiAdvice]    = useState<CoachAdvice | null>(null);
@@ -233,6 +238,7 @@ export default function WorkoutPage() {
     const last      = getLastSession(menu.name, allWorkouts, today);
     const suggested = suggestWeight(last, menu.defaultWeight);
     setName(menu.name);
+    setSelectedExerciseId(menu.id);
     setMusclePart(menu.musclePart);
     // Form weight is shown in the user's display unit; storage stays kg.
     const w = String(toDisplay(suggested, unit));
@@ -533,6 +539,7 @@ export default function WorkoutPage() {
                       const last = getLastSession(ex.nameJa, allWorkouts, today);
                       const suggested = suggestWeight(last, 0);
                       setName(ex.nameJa);
+                      setSelectedExerciseId(ex.id);
                       setMusclePart(ex.musclePart);
                       const w = String(toDisplay(suggested, unit));
                       setWeight(w);
@@ -575,6 +582,13 @@ export default function WorkoutPage() {
                 placeholder="ベンチプレス、スクワットなど"
                 className="w-full text-sm bg-surface-2 border border-line-strong rounded-xl px-3 py-2.5 text-fg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-400" />
             </div>
+
+            {/* Demo video (static assets / YouTube-search link only — no
+                third-party API). Shown only once an exercise has been
+                picked from a card/picker; hidden on the blank default. */}
+            {selectedExerciseId && (
+              <ExerciseVideo video={findExercise(selectedExerciseId)?.video} exerciseName={name} />
+            )}
 
             {/* Log time */}
             <div>

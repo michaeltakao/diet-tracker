@@ -461,6 +461,8 @@ export const translations = {
     setDetailToggle: 'セットごとに記録',
     est1rmPr: '推定1RM',
     volumeLabel: '総挙上量',
+    videoComingSoon: '🎬 デモ動画は準備中です',
+    videoSearchYoutube: 'YouTubeで検索',
     // Training environment (phase B)
     envQuestion: 'トレーニング環境',
     envHome: '🏠 自宅',
@@ -1067,6 +1069,8 @@ export const translations = {
     setDetailToggle: 'Log each set',
     est1rmPr: 'Est. 1RM',
     volumeLabel: 'Volume',
+    videoComingSoon: '🎬 Demo video coming soon',
+    videoSearchYoutube: 'Search on YouTube',
     // Training environment (phase B)
     envQuestion: 'Training environment',
     envHome: '🏠 Home',

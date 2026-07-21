@@ -46,6 +46,27 @@ export interface ExerciseRecommendation {
   coachTipEn: string;
 }
 
+/**
+ * Static, no-third-party-API demo-media pointer (see
+ * docs — no "WorkoutX API" exists; this repo already concluded static
+ * assets/links beat a live-fetched GIF API, per OSS_RESEARCH_REPORT.md).
+ *
+ * 'local-gif'      — self-hosted asset under public/exercise-media/.
+ * 'youtube-search' — no local asset yet; deep-link to a YouTube search so
+ *                     the user still gets something useful. Never a
+ *                     caller-controlled or remote-API host.
+ */
+export interface ExerciseVideo {
+  type: 'local-gif' | 'youtube-search';
+  /** Relative path (e.g. '/exercise-media/bench-press.gif') for
+   *  'local-gif', or a full youtube.com/results?search_query=... URL for
+   *  'youtube-search'. */
+  url: string;
+  /** Optional static poster frame (e.g. for reduced-motion / slow connections). */
+  thumbnail?: string;
+  title?: string;
+}
+
 export interface ExerciseDef {
   id: string;
   nameJa: string;
@@ -57,23 +78,38 @@ export interface ExerciseDef {
   pattern?: MovementPattern;
   /** Present on the curated starter menus (former RECOMMENDED_MENUS). */
   recommended?: ExerciseRecommendation;
+  /** Optional demo video/GIF pointer. Undefined is the common case. */
+  video?: ExerciseVideo;
+}
+
+/** Deterministic YouTube-search URL for an exercise name — never hand-typed. */
+export function youtubeSearchUrl(nameEn: string): string {
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(`${nameEn} exercise form`)}`;
+}
+
+/** Builds a `video: { type: 'youtube-search', ... }` entry for a curated exercise. */
+function ytVideo(nameEn: string): ExerciseVideo {
+  return { type: 'youtube-search', url: youtubeSearchUrl(nameEn), title: nameEn };
 }
 
 const CHEST_EXERCISES: readonly ExerciseDef[] = [
   { id: 'bench-press', nameJa: 'ベンチプレス', nameEn: 'Bench Press', musclePart: 'chest', equipment: 'barbell', isCompound: true, pattern: 'h-push',
     recommended: { sets: 3, reps: 10, defaultWeightKg: 40,
       coachTipJa: '大胸筋をしっかりストレッチさせる意識で、バーを胸まで下ろしましょう！',
-      coachTipEn: 'Focus on stretching your chest as you lower the bar — bring it all the way to your chest!' } },
+      coachTipEn: 'Focus on stretching your chest as you lower the bar — bring it all the way to your chest!' },
+    video: ytVideo('Bench Press') },
   { id: 'dumbbell-fly', nameJa: 'ダンベルフライ', nameEn: 'Dumbbell Fly', musclePart: 'chest', equipment: 'dumbbell', isCompound: false, pattern: 'isolation',
     recommended: { sets: 3, reps: 12, defaultWeightKg: 10,
       coachTipJa: 'トップポジションで顎を引くと、大胸筋上部まで強く収縮します！',
-      coachTipEn: 'Tuck your chin at the top to engage the upper chest for a stronger contraction.' } },
+      coachTipEn: 'Tuck your chin at the top to engage the upper chest for a stronger contraction.' },
+    video: ytVideo('Dumbbell Fly') },
   { id: 'incline-dumbbell-press', nameJa: 'インクラインダンベルプレス', nameEn: 'Incline Dumbbell Press', musclePart: 'chest', equipment: 'dumbbell', isCompound: true, pattern: 'h-push' },
   { id: 'incline-bench-press', nameJa: 'インクラインベンチプレス', nameEn: 'Incline Bench Press', musclePart: 'chest', equipment: 'barbell', isCompound: true, pattern: 'h-push' },
   { id: 'chest-press-machine', nameJa: 'チェストプレス', nameEn: 'Chest Press Machine', musclePart: 'chest', equipment: 'machine', isCompound: true, pattern: 'h-push' },
   { id: 'pec-deck', nameJa: 'ペックデック', nameEn: 'Pec Deck Fly', musclePart: 'chest', equipment: 'machine', isCompound: false, pattern: 'isolation' },
   { id: 'cable-crossover', nameJa: 'ケーブルクロスオーバー', nameEn: 'Cable Crossover', musclePart: 'chest', equipment: 'cable', isCompound: false, pattern: 'isolation' },
-  { id: 'push-up', nameJa: '腕立て伏せ', nameEn: 'Push-Up', musclePart: 'chest', equipment: 'bodyweight', isCompound: true, pattern: 'h-push' },
+  { id: 'push-up', nameJa: '腕立て伏せ', nameEn: 'Push-Up', musclePart: 'chest', equipment: 'bodyweight', isCompound: true, pattern: 'h-push',
+    video: ytVideo('Push-Up') },
   { id: 'dips', nameJa: 'ディップス', nameEn: 'Dips', musclePart: 'chest', equipment: 'bodyweight', isCompound: true, pattern: 'h-push' },
   { id: 'dumbbell-pullover', nameJa: 'ダンベルプルオーバー', nameEn: 'Dumbbell Pullover', musclePart: 'chest', equipment: 'dumbbell', isCompound: false, pattern: 'isolation' },
   // ── new ──────────────────────────────────────────────────────────────────
@@ -104,14 +140,17 @@ const BACK_EXERCISES: readonly ExerciseDef[] = [
   { id: 'lat-pulldown', nameJa: 'ラットプルダウン', nameEn: 'Lat Pulldown', musclePart: 'back', equipment: 'machine', isCompound: true, pattern: 'v-pull',
     recommended: { sets: 3, reps: 10, defaultWeightKg: 35,
       coachTipJa: '胸を張り、バーを鎖骨に向かって引くことで背中に強烈に効きます。',
-      coachTipEn: 'Puff your chest out and pull the bar toward your collarbone for maximum back engagement.' } },
+      coachTipEn: 'Puff your chest out and pull the bar toward your collarbone for maximum back engagement.' },
+    video: ytVideo('Lat Pulldown') },
   { id: 'deadlift', nameJa: 'デッドリフト', nameEn: 'Deadlift', musclePart: 'back', equipment: 'barbell', isCompound: true, pattern: 'hinge',
     recommended: { sets: 3, reps: 8, defaultWeightKg: 60,
       coachTipJa: '背中を絶対に丸めないように！お腹に力を入れて体幹を固定しましょう。',
-      coachTipEn: 'Never round your back! Brace your core hard to keep your spine neutral throughout.' } },
+      coachTipEn: 'Never round your back! Brace your core hard to keep your spine neutral throughout.' },
+    video: ytVideo('Deadlift') },
   { id: 'bent-over-row', nameJa: 'ベントオーバーロウ', nameEn: 'Bent-Over Row', musclePart: 'back', equipment: 'barbell', isCompound: true, pattern: 'h-pull' },
   { id: 'one-arm-dumbbell-row', nameJa: 'ワンハンドロウ', nameEn: 'One-Arm Dumbbell Row', musclePart: 'back', equipment: 'dumbbell', isCompound: true, pattern: 'h-pull' },
-  { id: 'pull-up', nameJa: '懸垂', nameEn: 'Pull-Up', musclePart: 'back', equipment: 'bodyweight', isCompound: true, pattern: 'v-pull' },
+  { id: 'pull-up', nameJa: '懸垂', nameEn: 'Pull-Up', musclePart: 'back', equipment: 'bodyweight', isCompound: true, pattern: 'v-pull',
+    video: ytVideo('Pull-Up') },
   { id: 'seated-cable-row', nameJa: 'シーテッドロウ', nameEn: 'Seated Cable Row', musclePart: 'back', equipment: 'cable', isCompound: true, pattern: 'h-pull' },
   { id: 't-bar-row', nameJa: 'Tバーロウ', nameEn: 'T-Bar Row', musclePart: 'back', equipment: 'barbell', isCompound: true, pattern: 'h-pull' },
   { id: 'back-extension', nameJa: 'バックエクステンション', nameEn: 'Back Extension', musclePart: 'back', equipment: 'bodyweight', isCompound: false, pattern: 'hinge' },
@@ -152,11 +191,13 @@ const LEGS_EXERCISES: readonly ExerciseDef[] = [
   { id: 'barbell-squat', nameJa: 'バーベルスクワット', nameEn: 'Barbell Squat', musclePart: 'legs', equipment: 'barbell', isCompound: true, pattern: 'squat',
     recommended: { sets: 3, reps: 8, defaultWeightKg: 50,
       coachTipJa: 'お尻を後ろに引くように。膝が内側に入らないよう注意してください！',
-      coachTipEn: 'Push your hips back and keep your knees tracking over your toes — never let them cave in.' } },
+      coachTipEn: 'Push your hips back and keep your knees tracking over your toes — never let them cave in.' },
+    video: ytVideo('Barbell Squat') },
   { id: 'leg-press', nameJa: 'レッグプレス', nameEn: 'Leg Press', musclePart: 'legs', equipment: 'machine', isCompound: true, pattern: 'squat',
     recommended: { sets: 3, reps: 12, defaultWeightKg: 80,
       coachTipJa: '膝が90度になる位置まで深く下ろすと大腿四頭筋にしっかり効きます。',
-      coachTipEn: 'Lower the platform until your knees reach 90° for full quad activation.' } },
+      coachTipEn: 'Lower the platform until your knees reach 90° for full quad activation.' },
+    video: ytVideo('Leg Press') },
   { id: 'lunge', nameJa: 'ランジ', nameEn: 'Lunge', musclePart: 'legs', equipment: 'dumbbell', isCompound: true, pattern: 'lunge' },
   { id: 'leg-extension', nameJa: 'レッグエクステンション', nameEn: 'Leg Extension', musclePart: 'legs', equipment: 'machine', isCompound: false, pattern: 'isolation' },
   { id: 'leg-curl', nameJa: 'レッグカール', nameEn: 'Leg Curl', musclePart: 'legs', equipment: 'machine', isCompound: false, pattern: 'isolation' },
@@ -204,12 +245,15 @@ const SHOULDERS_EXERCISES: readonly ExerciseDef[] = [
   { id: 'shoulder-press', nameJa: 'ショルダープレス', nameEn: 'Shoulder Press', musclePart: 'shoulders', equipment: 'dumbbell', isCompound: true, pattern: 'v-push',
     recommended: { sets: 3, reps: 12, defaultWeightKg: 10,
       coachTipJa: '肩がすくまないように、耳から肩を離した状態で真上に押し上げます。',
-      coachTipEn: 'Keep your shoulders down — press straight up with ears away from shoulders.' } },
+      coachTipEn: 'Keep your shoulders down — press straight up with ears away from shoulders.' },
+    video: ytVideo('Shoulder Press') },
   { id: 'side-raise', nameJa: 'サイドレイズ', nameEn: 'Lateral Raise', musclePart: 'shoulders', equipment: 'dumbbell', isCompound: false, pattern: 'isolation',
     recommended: { sets: 3, reps: 15, defaultWeightKg: 5,
       coachTipJa: '小指側を少し高くして、三角筋中部を意識して真横に上げましょう。',
-      coachTipEn: 'Lead with your pinky slightly higher to isolate the lateral deltoid.' } },
-  { id: 'overhead-press', nameJa: 'オーバーヘッドプレス', nameEn: 'Overhead Press', musclePart: 'shoulders', equipment: 'barbell', isCompound: true, pattern: 'v-push' },
+      coachTipEn: 'Lead with your pinky slightly higher to isolate the lateral deltoid.' },
+    video: ytVideo('Lateral Raise') },
+  { id: 'overhead-press', nameJa: 'オーバーヘッドプレス', nameEn: 'Overhead Press', musclePart: 'shoulders', equipment: 'barbell', isCompound: true, pattern: 'v-push',
+    video: ytVideo('Overhead Press') },
   { id: 'front-raise', nameJa: 'フロントレイズ', nameEn: 'Front Raise', musclePart: 'shoulders', equipment: 'dumbbell', isCompound: false, pattern: 'isolation' },
   { id: 'rear-delt-fly', nameJa: 'リアデルトフライ', nameEn: 'Rear Delt Fly', musclePart: 'shoulders', equipment: 'dumbbell', isCompound: false, pattern: 'isolation' },
   { id: 'upright-row', nameJa: 'アップライトロウ', nameEn: 'Upright Row', musclePart: 'shoulders', equipment: 'barbell', isCompound: true, pattern: 'v-pull' },
@@ -246,11 +290,13 @@ const ARMS_EXERCISES: readonly ExerciseDef[] = [
   { id: 'arm-curl', nameJa: 'アームカール', nameEn: 'Biceps Curl', musclePart: 'arms', equipment: 'dumbbell', isCompound: false, pattern: 'isolation',
     recommended: { sets: 3, reps: 12, defaultWeightKg: 8,
       coachTipJa: '肘の位置をしっかりと固定し、反動を使わずに二頭筋の力だけで持ち上げて！',
-      coachTipEn: 'Lock your elbows in place and curl using only your biceps — no swinging!' } },
+      coachTipEn: 'Lock your elbows in place and curl using only your biceps — no swinging!' },
+    video: ytVideo('Biceps Curl') },
   { id: 'triceps-pressdown', nameJa: 'トライセプスプレスダウン', nameEn: 'Triceps Pressdown', musclePart: 'arms', equipment: 'cable', isCompound: false, pattern: 'isolation',
     recommended: { sets: 3, reps: 12, defaultWeightKg: 15,
       coachTipJa: '肘を体の横に固定したまま、前腕だけを動かして三頭筋を収縮させましょう。',
-      coachTipEn: 'Keep elbows pinned to your sides and move only your forearms to fully squeeze the triceps.' } },
+      coachTipEn: 'Keep elbows pinned to your sides and move only your forearms to fully squeeze the triceps.' },
+    video: ytVideo('Triceps Pressdown') },
   { id: 'barbell-curl', nameJa: 'バーベルカール', nameEn: 'Barbell Curl', musclePart: 'arms', equipment: 'barbell', isCompound: false, pattern: 'isolation' },
   { id: 'hammer-curl', nameJa: 'ハンマーカール', nameEn: 'Hammer Curl', musclePart: 'arms', equipment: 'dumbbell', isCompound: false, pattern: 'isolation' },
   { id: 'incline-dumbbell-curl', nameJa: 'インクラインダンベルカール', nameEn: 'Incline Dumbbell Curl', musclePart: 'arms', equipment: 'dumbbell', isCompound: false, pattern: 'isolation' },
@@ -294,11 +340,13 @@ const ABS_EXERCISES: readonly ExerciseDef[] = [
   { id: 'crunch', nameJa: 'クランチ', nameEn: 'Crunch', musclePart: 'abs', equipment: 'bodyweight', isCompound: false, pattern: 'core',
     recommended: { sets: 3, reps: 15, defaultWeightKg: 0,
       coachTipJa: 'おへそを覗き込むようにして、お腹を上から潰していく感覚が大切です。',
-      coachTipEn: 'Curl up as if trying to see your navel — imagine crushing your abs from the top down.' } },
+      coachTipEn: 'Curl up as if trying to see your navel — imagine crushing your abs from the top down.' },
+    video: ytVideo('Crunch') },
   { id: 'plank', nameJa: 'プランク', nameEn: 'Plank', musclePart: 'abs', equipment: 'bodyweight', isCompound: false, pattern: 'core',
     recommended: { sets: 3, reps: 30, defaultWeightKg: 0,
       coachTipJa: '腰が落ちないよう体を一直線に保ちながら、お腹に力を入れ続けましょう。',
-      coachTipEn: 'Keep your body in a straight line — don\'t let your hips drop, and squeeze your core continuously.' } },
+      coachTipEn: 'Keep your body in a straight line — don\'t let your hips drop, and squeeze your core continuously.' },
+    video: ytVideo('Plank') },
   { id: 'leg-raise', nameJa: 'レッグレイズ', nameEn: 'Leg Raise', musclePart: 'abs', equipment: 'bodyweight', isCompound: false, pattern: 'core' },
   { id: 'russian-twist', nameJa: 'ロシアンツイスト', nameEn: 'Russian Twist', musclePart: 'abs', equipment: 'bodyweight', isCompound: false, pattern: 'core' },
   { id: 'ab-roller', nameJa: 'アブローラー', nameEn: 'Ab Wheel Rollout', musclePart: 'abs', equipment: 'bodyweight', isCompound: true, pattern: 'core' },
