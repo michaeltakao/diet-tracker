@@ -525,7 +525,7 @@ export default function WorkoutPage() {
             {pickerOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
           </button>
           {pickerOpen && (
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5 overflow-y-auto max-h-[400px]">
               {getExercises(selectedPart).filter((e) => !e.recommended).map((ex) => {
                 const equipLabel = {
                   barbell: t.equipBarbell, dumbbell: t.equipDumbbell, machine: t.equipMachine,
