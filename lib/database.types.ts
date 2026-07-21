@@ -1,6 +1,6 @@
 /**
  * Auto-generated Supabase database types.
- * Regenerated 2026-07-21 (Solo Leveling Phase 3: user_quests, migration 021) via the Supabase MCP `generate_typescript_types` (project chkkpucuiyjdeqgyyszt).
+ * Regenerated 2026-07-21 (Solo Leveling Phase 4: user_titles, migration 022) via the Supabase MCP `generate_typescript_types` (project chkkpucuiyjdeqgyyszt).
  * DO NOT hand-edit the Database type below — regenerate with:
  *   npx supabase gen types typescript --project-id chkkpucuiyjdeqgyyszt > lib/database.types.ts
  *
@@ -923,6 +923,38 @@ export type Database = {
           },
         ]
       }
+      user_titles: {
+        Row: {
+          awarded_at: string
+          display_name: string
+          id: string
+          title_key: string
+          user_id: string
+        }
+        Insert: {
+          awarded_at?: string
+          display_name: string
+          id?: string
+          title_key: string
+          user_id: string
+        }
+        Update: {
+          awarded_at?: string
+          display_name?: string
+          id?: string
+          title_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_titles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vital_logs: {
         Row: {
           created_at: string
@@ -1410,6 +1442,7 @@ export type SusResponseRow       = Database["public"]["Tables"]["sus_responses"]
 export type BetaFeedbackRow      = Database["public"]["Tables"]["beta_feedback"]["Row"]
 export type UserRankRow          = Database["public"]["Tables"]["user_ranks"]["Row"]
 export type UserQuestRow         = Database["public"]["Tables"]["user_quests"]["Row"]
+export type UserTitleRow         = Database["public"]["Tables"]["user_titles"]["Row"]
 
 export type FoodLogInsert           = Database["public"]["Tables"]["food_logs"]["Insert"]
 export type WorkoutLogInsert        = Database["public"]["Tables"]["workout_logs"]["Insert"]
@@ -1431,6 +1464,7 @@ export type SusResponseInsert       = Database["public"]["Tables"]["sus_response
 export type BetaFeedbackInsert      = Database["public"]["Tables"]["beta_feedback"]["Insert"]
 export type UserRankInsert          = Database["public"]["Tables"]["user_ranks"]["Insert"]
 export type UserQuestInsert         = Database["public"]["Tables"]["user_quests"]["Insert"]
+export type UserTitleInsert         = Database["public"]["Tables"]["user_titles"]["Insert"]
 
 export type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"]
 

@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Save, Check, Upload, Trash2, Database, FileJson, FileSpreadsheet, User, Pill, Plus, X, Sparkles } from 'lucide-react';
-import { getAppData, updateGoals, getHealthProfile, updateHealthProfile, getLatestWeightEntry } from '@/lib/data';
+import { getAppData, updateGoals, getHealthProfile, updateHealthProfile, getLatestWeightEntry, getStreakState } from '@/lib/data';
+import { getEarnedTitleKeys } from '@/lib/data/titles';
+import { evaluateTitles, awardTitle, type TitleKey } from '@/lib/titles';
+import TitleDisplay from '@/components/TitleDisplay';
 import { DailyGoals, UserHealthProfile, FitnessGoal, ActivityLevel } from '@/lib/types';
 import { recommendedGoals, ageBand } from '@/lib/nutrition-standards';
 import { getTextScale, setTextScale, type TextScale } from '@/components/TextScaleInit';
@@ -86,6 +89,7 @@ export default function SettingsPage() {
   });
   const [medInput, setMedInput] = useState('');
   const [textScale, setTextScaleState] = useState<TextScale>('standard');
+  const [earnedTitles, setEarnedTitles] = useState<Set<TitleKey>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -102,6 +106,27 @@ export default function SettingsPage() {
     setStats(getStorageStats());
     setHealthProfile(getHealthProfile());
     setTextScaleState(getTextScale());
+
+    // Solo Leveling titles (Phase 4) — evaluate + award any newly-earned
+    // titles, then reflect the (possibly updated) earned set in state.
+    void (async () => {
+      const alreadyEarned = getEarnedTitleKeys();
+      const streakState = getStreakState();
+      const waterLogDayCount = Object.values(data.waterByDate).filter((ml) => ml > 0).length;
+      const ctx = {
+        streak: streakState.current,
+        longestStreak: streakState.longest,
+        mealCount: data.foodEntries.length,
+        workoutCount: data.workoutEntries.length,
+        waterLogDayCount,
+        highestRank: data.highestRank,
+      };
+      const newlyEarned = evaluateTitles(ctx, alreadyEarned);
+      for (const def of newlyEarned) {
+        await awardTitle(null, def.key);
+      }
+      setEarnedTitles(getEarnedTitleKeys());
+    })();
   }, []);
 
   const refreshStats = () => setStats(getStorageStats());
@@ -220,6 +245,11 @@ export default function SettingsPage() {
 
       {/* ── Account ───────────────────────────── */}
       <AccountSection cardCls={cardCls} />
+
+      {/* ── Solo Leveling titles (Phase 4) ───────────────── */}
+      <div className="mb-3">
+        <TitleDisplay earned={earnedTitles} />
+      </div>
 
       {/* ── Web Push (authed users only; hidden for guests) ── */}
       <PushSettingsRow cardCls={cardCls} />

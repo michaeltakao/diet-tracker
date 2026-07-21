@@ -181,6 +181,10 @@ export async function importFromFile(file: File): Promise<ImportResult> {
       highestRank: rankAtLeast(current.highestRank ?? 'E', incoming.highestRank ?? 'E')
         ? (current.highestRank ?? 'E')
         : (incoming.highestRank ?? 'E'),
+      // Titles are once-earned-never-revoked (like badges) — union both sides.
+      earnedTitles: Array.from(
+        new Set([...(current.earnedTitles ?? []), ...(incoming.earnedTitles ?? [])]),
+      ),
     };
 
     saveAppData(merged);

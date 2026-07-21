@@ -49,6 +49,7 @@ const DEFAULT_DATA: AppData = {
   symptomEntries: [],
   xp: 0,
   highestRank: 'E',
+  earnedTitles: [],
 };
 
 export function getAppData(): AppData {
@@ -76,6 +77,7 @@ export function getAppData(): AppData {
       symptomEntries: parsed.symptomEntries ?? [],
       xp: typeof parsed.xp === 'number' && parsed.xp >= 0 ? parsed.xp : 0,
       highestRank: isRankId(parsed.highestRank) ? parsed.highestRank : 'E',
+      earnedTitles: Array.isArray(parsed.earnedTitles) ? parsed.earnedTitles : [],
     };
   } catch {
     return { ...DEFAULT_DATA, goals: { ...DEFAULT_GOALS } };

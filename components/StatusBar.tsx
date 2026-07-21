@@ -1,18 +1,25 @@
 'use client';
 
-import { getXpState } from '@/lib/xp';
-import { getRankForXp } from '@/lib/rank';
+import { getRankForXp, type RankId } from '@/lib/rank';
 import { RankIcon } from '@/lib/rank-icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 
+interface StatusBarProps {
+  xp: number;
+  highestRank: RankId;
+}
+
 /**
- * Compact always-visible XP/rank strip. Reads localStorage synchronously on
- * every render (cheap: one JSON.parse via getAppData()), same pattern as
- * other dashboard cards that call getAppData()-backed getters in loadData().
+ * Compact always-visible XP/rank strip. Takes xp/highestRank as props from
+ * the parent's already-hydration-safe state (HomePage's loadData() →
+ * getAppData(), same source RankBadge/XpProgressBar use) rather than
+ * reading localStorage directly — a direct read here would render 0/E on
+ * the server and the real value on the client, causing a hydration
+ * mismatch on first paint.
  */
-export default function StatusBar() {
+export default function StatusBar({ xp, highestRank }: StatusBarProps) {
   const { t } = useLanguage();
-  const { totalXp, highestRank } = getXpState();
+  const totalXp = xp;
   const progress = getRankForXp(totalXp);
   const rankName = t[`rankName${progress.rank}` as keyof typeof t] as string;
 

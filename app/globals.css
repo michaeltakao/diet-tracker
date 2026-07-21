@@ -401,6 +401,16 @@ body {
   box-shadow: 0 0 12px var(--sys-primary-glow);
 }
 
+/* ── Rank-up flash (Phase 4) ─────────────────────────────────────────── */
+@keyframes rank-flash {
+  0%   { opacity: 0; }
+  15%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+.animate-rank-flash {
+  animation: rank-flash 0.8s ease-out both;
+}
+
 /* Large-text mode (settings 文字サイズ「大」) — everything rem-based scales. */
 html.text-scale-large {
   font-size: 112.5%;

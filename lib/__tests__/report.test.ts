@@ -21,6 +21,7 @@ function emptyData(): AppData {
     symptomEntries: [],
     xp: 0,
     highestRank: 'E',
+    earnedTitles: [],
   };
 }
 

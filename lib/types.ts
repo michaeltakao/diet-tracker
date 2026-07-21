@@ -226,6 +226,7 @@ export interface AppData {
   symptomEntries: SymptomEntry[];  // symptom log (record-only, non-diagnostic)
   xp: number;                      // Solo Leveling rank system (Phase 1): cumulative XP, never decreases
   highestRank: RankId;             // ratchet — highest rank ever reached, independent of current XP
+  earnedTitles: string[];          // Solo Leveling titles (Phase 4): TitleKey[], stored untyped here to avoid a types.ts <-> titles.ts import cycle
 }
 
 // ── Health Profile (stored in localStorage + profiles table) ──

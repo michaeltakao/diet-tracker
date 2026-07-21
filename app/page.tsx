@@ -28,6 +28,8 @@ import SystemPanel from '@/components/SystemPanel';
 import RankBadge from '@/components/RankBadge';
 import XpProgressBar from '@/components/XpProgressBar';
 import { getRankForXp, type RankId } from '@/lib/rank';
+import RankUpCelebration from '@/components/RankUpCelebration';
+import { hasCelebrated, markCelebrated } from '@/lib/celebrate-once';
 import { ProgressRing } from '@/components/dashboard/ProgressRing';
 import { CategoryBadges } from '@/components/dashboard/CategoryBadges';
 import NudgeBanner from '@/components/NudgeBanner';
@@ -72,6 +74,7 @@ export default function HomePage() {
   const [sex, setSex]                             = useState<'male' | 'female' | null>(null);
   const [xpState, setXpState] = useState({ xp: 0, highestRank: 'E' as RankId });
   const [quests, setQuests]   = useState<Quest[]>([]);
+  const [rankUpEvent, setRankUpEvent] = useState<{ oldRank: RankId; newRank: RankId } | null>(null);
 
   const loadData = () => {
     const data = getAppData();
@@ -97,6 +100,12 @@ export default function HomePage() {
    * same "not yet completed" snapshot and double-award XP for the same quest.
    */
   const runQuestCheck = async () => {
+    // Read pre-award XP from storage (NOT the xpState React variable — that's
+    // still the initial {xp:0} default when this is called synchronously
+    // after loadData() in the mount effect, since setXpState hasn't
+    // committed yet; storage always reflects the true current value).
+    const xpBeforeAward = getAppData().xp;
+
     const goalsAreReal = getRealGoals() !== null;
     const candidates = evaluateDailyQuests(getAppData(), today, getTodayQuestState(today), { goalsAreReal });
 
@@ -108,9 +117,23 @@ export default function HomePage() {
     }
 
     if (newlyCompleted.length > 0) {
+      const oldRank = getRankForXp(xpBeforeAward).rank;
       const refreshed = getAppData();
+      const newRank = getRankForXp(refreshed.xp).rank;
+
       setXpState({ xp: refreshed.xp, highestRank: refreshed.highestRank });
       setQuests(generateDailyQuests(refreshed, today, { goalsAreReal }));
+
+      // Rank is derived (not a one-time award like a badge), so it needs an
+      // explicit celebrate-once gate keyed by the destination rank —
+      // otherwise a reload while still at that rank would re-fire the modal.
+      if (newRank !== oldRank) {
+        const celebrateKey = `diet-tracker-rankup-celebrated:${newRank}`;
+        if (!hasCelebrated(celebrateKey)) {
+          markCelebrated(celebrateKey);
+          setRankUpEvent({ oldRank, newRank });
+        }
+      }
     }
   };
 
@@ -199,6 +222,16 @@ export default function HomePage() {
         <BadgeCelebration badges={celebrationBadges} onClose={() => setCelebrationBadges([])} />
       )}
 
+      {/* Solo Leveling rank-up celebration (Phase 4) */}
+      {rankUpEvent && (
+        <RankUpCelebration
+          oldRank={rankUpEvent.oldRank}
+          newRank={rankUpEvent.newRank}
+          xp={xpState.xp}
+          onClose={() => setRankUpEvent(null)}
+        />
+      )}
+
       {/* Copy-yesterday toast */}
       <Toast message={copyToast} variant="neutral" />
 
@@ -247,7 +280,7 @@ export default function HomePage() {
 
       {/* ── Solo Leveling rank/XP status strip (Phase 1) ────── */}
       <div className="mb-3">
-        <StatusBar />
+        <StatusBar xp={xpState.xp} highestRank={xpState.highestRank} />
       </div>
 
       {/* ── Solo Leveling detailed rank panel (Phase 2) ────── */}

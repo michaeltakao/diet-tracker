@@ -1,6 +1,53 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-21 Solo Leveling rank system — Phase 4/4 (rank-up celebration +
+  title system), COMMITTED — all 4 phases complete:** migration **022
+  applied to prod** (`user_titles`: once-earned-never-revoked, owner-only
+  RLS, same semantics as `badges`). `lib/titles.ts` (11 titles: 5 milestone
+  + 6 rank-gated "shadow_*"; `shadow_rookie` earned trivially at the XP-0
+  starting state, by design — everyone starts as a "shadow rookie").
+  `AppData` gains `earnedTitles: string[]` (untyped as `TitleKey[]` at the
+  storage layer specifically to avoid a `types.ts` ↔ `titles.ts` import
+  cycle; `lib/export.ts` backup-merge unions both sides, matching badges'
+  once-earned-never-revoked policy rather than `xp`'s take-max policy).
+  `components/RankUpCelebration.tsx` (white-flash → particle burst →
+  hexagon badge-pop → XP jump-bar → ding+bass sound), `components/
+  ParticleBurst.tsx` (**Canvas + requestAnimationFrame**, deliberately NOT
+  BadgeCelebration's CSS/DOM confetti pattern — explicit reduced-motion
+  check via `matchMedia` since Canvas drawing doesn't inherit the global
+  CSS reduced-motion rule), `lib/rank-up-sound.ts` (Web Audio API
+  synthesis, no audio assets, try/catch-silent when AudioContext is
+  blocked pre-gesture), `components/TitleDisplay.tsx` mounted on
+  `/settings` (11-title grid, locked = lock icon + grayscale + hint-only).
+  **Two more bugs found + fixed during live verification** (on top of
+  Phase 3's two): (1) `runQuestCheck`'s old-rank comparison read the
+  `xpState` React state variable, which is still its initial `{xp:0}`
+  default when the function is called synchronously right after
+  `loadData()` in the same mount-effect tick (state updates aren't
+  synchronous) — the rank-up modal silently never fired because
+  "oldRank" was always computed as E. Fixed by reading pre-award XP
+  straight from `getAppData()` instead of React state. (2) `StatusBar`
+  read `getXpState()` (localStorage) directly during render with no
+  SSR guard, unlike every sibling rank component (`RankBadge`/
+  `XpProgressBar` take `xp` as a prop) — this rendered `0/E` on the server
+  and the real value on the client, throwing a React hydration-mismatch
+  error on every first paint (auto-recovered, not user-visible, but a
+  real defect). Fixed by converting `StatusBar` to accept `xp`/
+  `highestRank` as props from `HomePage`'s already-hydration-safe
+  `xpState`, same source the other two components use — confirmed zero
+  console errors on reload after the fix. Verified live via Chrome
+  DevTools: localStorage XP set to 495 (just below the D-rank threshold)
+  → meal-quest completion crosses 500 → celebration fires with correct
+  icon/color/E→D transition text/particle burst, auto-closes at 4s,
+  does NOT re-fire on reload (celebrate-once keyed by destination rank),
+  settings page shows 11 titles with 2 correctly pre-earned
+  (shadow_rookie + shadow_veteran) at D-rank. 14 new tests
+  (`titles.test.ts`, **416 total passing**), lint clean, build clean.
+  **All 3 migrations (020/021/022) applied to prod
+  `chkkpucuiyjdeqgyyszt`.** Not yet pushed to origin (4 local commits
+  ahead of `main` — Vercel prod deploy intentionally deferred per plan,
+  pending explicit user go-ahead).
 - **2026-07-21 Solo Leveling rank system — Phase 3/4 (daily quests), committed:**
   migration **021 applied to prod** (`user_quests`: 5 quest_type CHECK values,
   UNIQUE(user_id,quest_date,quest_type), owner-only RLS). `lib/daily-quests.ts`

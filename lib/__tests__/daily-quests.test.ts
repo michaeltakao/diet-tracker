@@ -118,7 +118,7 @@ describe('evaluateDailyQuests', () => {
     goals: { calories: 2000, protein: 150, fat: 60, carbs: 200, water: 2000 },
     waterByDate: {}, badges: [], personalRecords: {}, recommendationFeedback: [],
     favoriteFoods: [], mealTemplates: [], streakState: { longest: 0, repairedDates: [] },
-    vitalEntries: [], symptomEntries: [], xp: 0, highestRank: 'E',
+    vitalEntries: [], symptomEntries: [], xp: 0, highestRank: 'E', earnedTitles: [],
     ...over,
   });
 
