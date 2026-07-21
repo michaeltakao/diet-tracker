@@ -1,6 +1,47 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-21 Solo Leveling rank system — Phase 3/4 (daily quests), committed:**
+  migration **021 applied to prod** (`user_quests`: 5 quest_type CHECK values,
+  UNIQUE(user_id,quest_date,quest_type), owner-only RLS). `lib/daily-quests.ts`
+  (pure `generateDailyQuests`/`evaluateDailyQuests`, same shape as
+  `checkAndAwardBadges`, water quest reuses the `goalsAreReal` gate) +
+  `lib/data/quests.ts` (own localStorage key `diet-tracker-quests-v1`,
+  self-resetting per JST day — NOT part of the synced `AppData` blob; XP
+  granted via `lib/xp.ts addXp`). `components/DailyQuests.tsx` mounted on
+  the dashboard. Wired at all 4 call sites: `app/page.tsx` (mount effect +
+  `handleAddWater`), `app/workout/page.tsx` (submit handler, folds XP text
+  into the existing PR toast when both fire together to avoid two
+  overlapping `<Toast>`s), `app/weight/page.tsx` (**newly wired** — this
+  page previously had zero badge/XP connection; `handleAdd` made `async`
+  and now `await`s `addWeightEntry` which was previously fire-and-forgotten).
+  **Bug found + fixed during live verification**: `addXp`/`recordQuestCompletion`
+  took a `userId` param per the plan's spec but gated the Supabase dual-write
+  leg on `if (!userId) return` — since no call site in this codebase resolves
+  `userId` before calling (every other `lib/data/*.ts` dual-write function
+  re-resolves auth via `getWriteContext()` instead), passing `null` would have
+  silently skipped Supabase sync for actually-authenticated users; fixed by
+  dropping the gate and always deferring to `getWriteContext()`. **Second bug
+  found + fixed**: `runQuestCheck` computed `alreadyCompleted` ONCE upfront
+  then looped `recordQuestCompletion` — under React StrictMode's dev-mode
+  double-effect-invocation (or any two near-simultaneous calls), both
+  invocations could read the same stale "nothing completed yet" snapshot and
+  double-award XP for the same quest; fixed by re-reading
+  `getTodayQuestState()` before each individual award, skipping any quest
+  already recorded by a concurrent call. Verified live via Chrome DevTools:
+  4/4 quests + all_complete bonus = exactly 100 XP (10+20+5+15+50), confirmed
+  stable (no drift) across 3 subsequent reloads; date-rollover reset
+  (quest-state blob date ≠ AppData's "today") correctly re-evaluates and
+  re-awards, as designed (quests are daily, not migrated forward).
+  **Gotcha hit during verification and worth remembering**: a stale
+  service worker (this is a PWA with offline support) was intercepting
+  `localhost:3000` and serving a pre-Phase-3 cached bundle — `rm -rf .next`
+  + full dev-server restart did NOT fix it (browser never even reached the
+  new server); had to `navigator.serviceWorker.getRegistrations()` →
+  `.unregister()` + `caches.delete()` before a reload showed current code.
+  15 new tests (`daily-quests.test.ts`, 402 total passing), lint clean,
+  build clean. Next: Phase 4 (rank-up celebration + title system,
+  migration 022).
 - **2026-07-21 Solo Leveling rank system — Phase 2/4 (rank badge + XP
   progress bar), committed:** no migration (fully derived from Phase 1's
   `user_ranks`/`AppData.xp`). `lib/rank-icons.tsx` 6 hand-drawn SVG paths

@@ -42,13 +42,18 @@ export function getXpState(): XpState {
  * `user_ranks` when authenticated (fire-and-forget; localStorage write has
  * already succeeded regardless).
  *
- * `userId: null` (guest / not authenticated) skips the Supabase leg entirely.
+ * `userId` is accepted for interface symmetry with other quest/XP call
+ * sites but is NOT used to gate the Supabase leg — auth is always
+ * re-resolved via getWriteContext() (same as every other lib/data/*.ts
+ * dual-write function), so passing `null` here never silently skips a
+ * write for an actually-authenticated user.
  */
 export async function addXp(
   userId: string | null,
   action: XpAction,
   amount: number,
 ): Promise<XpState> {
+  void userId;  // see doc comment — real auth check is getWriteContext() below
   void action; // reserved for future per-action analytics; not persisted per-event today
 
   const data = getAppData();
@@ -61,8 +66,6 @@ export async function addXp(
   saveAppData(data);
 
   const state: XpState = { totalXp: newXp, highestRank: newHighest };
-
-  if (!userId) return state;
 
   const ctx = await getWriteContext();
   if (!ctx) return state;

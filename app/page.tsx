@@ -8,6 +8,9 @@ import {
   checkAndAwardBadges, getBadges, addFoodEntry, getRealGoals, getHealthProfile,
   getStepsForDate, setSteps,
 } from '@/lib/data';
+import { evaluateDailyQuests, generateDailyQuests, type Quest } from '@/lib/daily-quests';
+import { getTodayQuestState, recordQuestCompletion } from '@/lib/data/quests';
+import DailyQuests from '@/components/DailyQuests';
 import { sumSodiumFiber, sodiumMgToSaltG, saltTargetG, fiberTargetG } from '@/lib/micros';
 import { FoodEntry, DailyGoals, Badge } from '@/lib/types';
 import CalorieBar from '@/components/CalorieBar';
@@ -68,6 +71,7 @@ export default function HomePage() {
   const [copyToast, setCopyToast]                 = useState<string | null>(null);
   const [sex, setSex]                             = useState<'male' | 'female' | null>(null);
   const [xpState, setXpState] = useState({ xp: 0, highestRank: 'E' as RankId });
+  const [quests, setQuests]   = useState<Quest[]>([]);
 
   const loadData = () => {
     const data = getAppData();
@@ -79,6 +83,35 @@ export default function HomePage() {
     setEarnedBadges(getBadges());
     setSex(getHealthProfile().sex ?? null);
     setXpState({ xp: data.xp, highestRank: data.highestRank });
+    setQuests(generateDailyQuests(data, today, { goalsAreReal: getRealGoals() !== null }));
+  };
+
+  /**
+   * Evaluate today's quests against current data; record + XP any
+   * newly-completed ones, then refresh local state.
+   *
+   * Re-reads getTodayQuestState() before EACH recordQuestCompletion call
+   * (not just once upfront) so two concurrent/duplicate invocations of this
+   * function (React StrictMode double-invokes effects in dev; a user could
+   * also trigger two call sites in quick succession) can't both observe the
+   * same "not yet completed" snapshot and double-award XP for the same quest.
+   */
+  const runQuestCheck = async () => {
+    const goalsAreReal = getRealGoals() !== null;
+    const candidates = evaluateDailyQuests(getAppData(), today, getTodayQuestState(today), { goalsAreReal });
+
+    const newlyCompleted: typeof candidates = [];
+    for (const quest of candidates) {
+      if (getTodayQuestState(today).has(quest.type)) continue; // already recorded by a concurrent call
+      await recordQuestCompletion(null, today, quest);
+      newlyCompleted.push(quest);
+    }
+
+    if (newlyCompleted.length > 0) {
+      const refreshed = getAppData();
+      setXpState({ xp: refreshed.xp, highestRank: refreshed.highestRank });
+      setQuests(generateDailyQuests(refreshed, today, { goalsAreReal }));
+    }
   };
 
   useEffect(() => {
@@ -87,6 +120,7 @@ export default function HomePage() {
     void checkAndAwardBadges(getTodayDate()).then(newBadges => {
       if (newBadges.length > 0) setCelebrationBadges(newBadges);
     });
+    void runQuestCheck();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -98,6 +132,7 @@ export default function HomePage() {
     setWater(getWaterForDate(today));
     const newBadges = await checkAndAwardBadges(today);
     if (newBadges.length > 0) { setCelebrationBadges(newBadges); setEarnedBadges(getBadges()); }
+    await runQuestCheck();
   };
 
   // Steps do NOT join the any-log streak or badge checks (scope cut, phase D).
@@ -233,6 +268,11 @@ export default function HomePage() {
             </div>
           </div>
         </SystemPanel>
+      </div>
+
+      {/* ── Solo Leveling daily quests (Phase 3) ────── */}
+      <div className="mb-3">
+        <DailyQuests quests={quests} />
       </div>
 
       {/* ── Streak banner + stats pill (phase 5) ────── */}

@@ -7,6 +7,8 @@ import {
   checkAndUpdatePR, addBadge, checkAndAwardBadges, getStreak, getBadges,
   getHealthProfile, getRealGoals,
 } from '@/lib/data';
+import { evaluateDailyQuests } from '@/lib/daily-quests';
+import { getTodayQuestState, recordQuestCompletion } from '@/lib/data/quests';
 import { WorkoutEntry, MusclePart, CoachMenu, FoodEntry, Badge, PersonalRecord, DailyGoals, SetDetail } from '@/lib/types';
 import {
   Dumbbell, Clock, Flame, ShieldAlert, CheckCircle,
@@ -154,6 +156,7 @@ export default function WorkoutPage() {
   // PR & Badge celebration
   const [celebrationBadges, setCelebrationBadges] = useState<Badge[]>([]);
   const [prToast, setPrToast]                     = useState<string | null>(null);
+  const [questToast, setQuestToast]                = useState<string | null>(null);
 
   // History for smart recommendations
   const [allWorkouts,    setAllWorkouts]    = useState<WorkoutEntry[]>([]);
@@ -205,6 +208,12 @@ export default function WorkoutPage() {
     const t = setTimeout(() => setPrToast(null), 3000);
     return () => clearTimeout(t);
   }, [prToast]);
+
+  useEffect(() => {
+    if (!questToast) return;
+    const t = setTimeout(() => setQuestToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [questToast]);
 
   /** Last previous session's per-set breakdown for an exercise (ghost text). */
   const getLastSetDetails = (exerciseName: string): SetDetail[] | null => {
@@ -295,6 +304,31 @@ export default function WorkoutPage() {
     const newBadges = await checkAndAwardBadges(today);
     if (newBadges.length > 0 && !isNewPR) setCelebrationBadges(newBadges);
 
+    // Solo Leveling daily quests (Phase 3) — evaluate + award XP for the
+    // workout quest (and all_complete, if this was the last of the 4).
+    // Re-checks getTodayQuestState() before each award (not just once
+    // upfront) so a rapid double-submit can't double-award the same quest.
+    const goalsAreReal = getRealGoals() !== null;
+    const questCandidates = evaluateDailyQuests(getAppData(), today, getTodayQuestState(today), { goalsAreReal });
+    const newlyCompletedQuests: typeof questCandidates = [];
+    for (const quest of questCandidates) {
+      if (getTodayQuestState(today).has(quest.type)) continue;
+      await recordQuestCompletion(null, today, quest);
+      newlyCompletedQuests.push(quest);
+    }
+    if (newlyCompletedQuests.length > 0) {
+      const totalXp = newlyCompletedQuests.reduce((sum, q) => sum + q.xp, 0);
+      const xpText = t.questXpEarned.replace('{n}', String(totalXp));
+      // PR toast and quest toast share the same fixed position — when both
+      // fire from the same submit, fold the XP text into the PR toast
+      // instead of mounting two overlapping <Toast>s.
+      if (isNewPR && wt > 0) {
+        setPrToast(`🏆 PR更新！${name.trim()} ${formatWeight(wt, unit)} · ${xpText}`);
+      } else {
+        setQuestToast(xpText);
+      }
+    }
+
     loadData();
     setName('');
     setLogTime(getCurrentTime());
@@ -356,6 +390,9 @@ export default function WorkoutPage() {
 
       {/* PR Toast */}
       <Toast message={prToast} variant="celebrate" />
+
+      {/* Solo Leveling quest XP toast (Phase 3) */}
+      <Toast message={questToast} variant="celebrate" />
 
       {/* Header */}
       <div className="bg-gradient-to-br from-brand-500 via-brand-600 to-brand-700 text-white px-4 pt-12 pb-8 rounded-b-[2.5rem] shadow-[0_16px_48px_rgba(88,204,2,0.25)]">

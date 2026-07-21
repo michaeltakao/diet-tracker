@@ -5,7 +5,10 @@ import Link from 'next/link';
 import { Scale, Plus, Trash2, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import {
   addWeightEntry, getWeightEntries, getAllWeightEntries, removeWeightEntry, getAppData,
+  getRealGoals,
 } from '@/lib/data';
+import { evaluateDailyQuests } from '@/lib/daily-quests';
+import { getTodayQuestState, recordQuestCompletion } from '@/lib/data/quests';
 import { WeightEntry } from '@/lib/types';
 import WeightChart from '@/components/WeightChart';
 import BottomNav from '@/components/BottomNav';
@@ -16,6 +19,7 @@ function getTodayDate() { return new Date().toISOString().split('T')[0]; }
 
 import { fmtShortJa } from '@/lib/format-date';
 import { CARD_CLASS as cardCls } from '@/components/ui/Card';
+import { Toast } from '@/components/ui/Toast';
 
 function formatDateShort(dateStr: string) {
   return fmtShortJa(dateStr);
@@ -27,6 +31,7 @@ export default function WeightPage() {
   const [goalWeight, setGoalWeightState] = useState<number | undefined>();
   const [input, setInput]               = useState('');
   const [showForm, setShowForm]         = useState(false);
+  const [questToast, setQuestToast]     = useState<string | null>(null);
 
   const load = () => {
     setEntries(getWeightEntries(60));
@@ -37,18 +42,42 @@ export default function WeightPage() {
   // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
   useEffect(() => { load(); }, []);
 
-  const handleAdd = () => {
+  useEffect(() => {
+    if (!questToast) return;
+    const timer = setTimeout(() => setQuestToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [questToast]);
+
+  const handleAdd = async () => {
     const val = parseFloat(input);
     if (isNaN(val) || val <= 0 || val > 300) return;
-    addWeightEntry({
+    const today = getTodayDate();
+    await addWeightEntry({
       id: crypto.randomUUID(),
-      date: getTodayDate(),
+      date: today,
       weight: Math.round(val * 10) / 10,
       addedAt: new Date().toISOString(),
     });
     setInput('');
     setShowForm(false);
     load();
+
+    // Solo Leveling daily quests (Phase 3) — weight quest is newly wired
+    // here; this page previously had no badge/XP connection at all.
+    // Re-checks getTodayQuestState() before each award (not just once
+    // upfront) so a rapid double-submit can't double-award the same quest.
+    const goalsAreReal = getRealGoals() !== null;
+    const questCandidates = evaluateDailyQuests(getAppData(), today, getTodayQuestState(today), { goalsAreReal });
+    const newlyCompletedQuests: typeof questCandidates = [];
+    for (const quest of questCandidates) {
+      if (getTodayQuestState(today).has(quest.type)) continue;
+      await recordQuestCompletion(null, today, quest);
+      newlyCompletedQuests.push(quest);
+    }
+    if (newlyCompletedQuests.length > 0) {
+      const totalXp = newlyCompletedQuests.reduce((sum, q) => sum + q.xp, 0);
+      setQuestToast(t.questXpEarned.replace('{n}', String(totalXp)));
+    }
   };
 
   const handleDelete = (id: string) => { removeWeightEntry(id); load(); };
@@ -77,6 +106,9 @@ export default function WeightPage() {
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
+      {/* Solo Leveling quest XP toast (Phase 3) */}
+      <Toast message={questToast} variant="celebrate" />
+
       {/* ── Header ────────────────────────────── */}
       <div className="flex items-center justify-between pt-6 pb-5">
         <div className="flex items-center gap-2.5">
