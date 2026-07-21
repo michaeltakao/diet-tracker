@@ -21,6 +21,10 @@ import BadgeCelebration from '@/components/BadgeCelebration';
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
 import { StreakHeader } from '@/components/dashboard/StreakHeader';
 import StatusBar from '@/components/StatusBar';
+import SystemPanel from '@/components/SystemPanel';
+import RankBadge from '@/components/RankBadge';
+import XpProgressBar from '@/components/XpProgressBar';
+import { getRankForXp, type RankId } from '@/lib/rank';
 import { ProgressRing } from '@/components/dashboard/ProgressRing';
 import { CategoryBadges } from '@/components/dashboard/CategoryBadges';
 import NudgeBanner from '@/components/NudgeBanner';
@@ -63,6 +67,7 @@ export default function HomePage() {
   const [collapsedMeals, setCollapsedMeals]       = useState<Set<string>>(new Set());
   const [copyToast, setCopyToast]                 = useState<string | null>(null);
   const [sex, setSex]                             = useState<'male' | 'female' | null>(null);
+  const [xpState, setXpState] = useState({ xp: 0, highestRank: 'E' as RankId });
 
   const loadData = () => {
     const data = getAppData();
@@ -73,6 +78,7 @@ export default function HomePage() {
     setStepsState(getStepsForDate(today));
     setEarnedBadges(getBadges());
     setSex(getHealthProfile().sex ?? null);
+    setXpState({ xp: data.xp, highestRank: data.highestRank });
   };
 
   useEffect(() => {
@@ -207,6 +213,26 @@ export default function HomePage() {
       {/* ── Solo Leveling rank/XP status strip (Phase 1) ────── */}
       <div className="mb-3">
         <StatusBar />
+      </div>
+
+      {/* ── Solo Leveling detailed rank panel (Phase 2) ────── */}
+      <div className="mb-3">
+        <SystemPanel className="rounded-2xl p-4">
+          <div className="flex items-center gap-4">
+            <RankBadge xp={xpState.xp} size="md" />
+            <div className="flex-1 min-w-0">
+              <XpProgressBar xp={xpState.xp} />
+              {xpState.highestRank !== getRankForXp(xpState.xp).rank && (
+                <p className="mt-1.5 text-[10px] text-[var(--sys-text-muted)]">
+                  {t.statusBarHighest.replace(
+                    '{rank}',
+                    t[`rankName${xpState.highestRank}` as keyof typeof t] as string,
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+        </SystemPanel>
       </div>
 
       {/* ── Streak banner + stats pill (phase 5) ────── */}

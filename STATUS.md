@@ -1,6 +1,26 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-21 Solo Leveling rank system — Phase 2/4 (rank badge + XP
+  progress bar), committed:** no migration (fully derived from Phase 1's
+  `user_ranks`/`AppData.xp`). `lib/rank-icons.tsx` 6 hand-drawn SVG paths
+  (already real geometry from Phase 1, not placeholders — nothing to
+  "complete" here). `components/RankBadge.tsx` (hexagonal `clip-path`,
+  metallic gradient `--sys-surface-2` → rank color, neon box-shadow) +
+  `components/XpProgressBar.tsx` (scanline-backed fill bar, gradient
+  current→next rank color, `jumpFrom` prop reserved for Phase 4's rank-up
+  replay — unused until then). `app/page.tsx` reads `xp`/`highestRank`
+  straight off the existing `loadData()` → `getAppData()` call (no new
+  `useEffect`), renders a `SystemPanel`-wrapped detail block below
+  `StatusBar`. Verified live via Chrome DevTools at 3 XP values (0 E-rank,
+  1000 D-rank mid-fill, 9500 A-rank) + a highest-rank≠current-rank case
+  (500 XP D-rank with highestRank=S) — hexagon colors, gradient fill %,
+  and the "最高到達: S級" ratchet-mismatch line all render correctly.
+  Zero new i18n keys (Phase 1's `statusBarMaxRank` already covers Phase
+  2's need). 387 tests still passing (no new pure logic to test — these
+  are presentational components fully driven by Phase 1's tested
+  `getRankForXp`), lint clean, build clean. Next: Phase 3 (daily quests,
+  migration 021).
 - **2026-07-21 Solo Leveling rank system — Phase 1/4 (XP foundation + dark
   theme), committed:** migration **020 applied to prod**
   (`chkkpucuiyjdeqgyyszt`): `user_ranks` (total_xp monotonic, highest_rank
