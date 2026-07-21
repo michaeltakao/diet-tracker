@@ -195,11 +195,11 @@ export default function AddPage() {
 
   const validate = (): boolean => {
     const newErrors: Partial<FormData> = {};
-    if (!form.name.trim())                 newErrors.name     = '名前を入力してください';
-    if (isInvalidNutrition(form.calories)) newErrors.calories = '数値を入力してください';
-    if (isInvalidNutrition(form.protein))  newErrors.protein  = '数値を入力してください';
-    if (isInvalidNutrition(form.fat))      newErrors.fat      = '数値を入力してください';
-    if (isInvalidNutrition(form.carbs))    newErrors.carbs    = '数値を入力してください';
+    if (!form.name.trim())                 newErrors.name     = t.nameRequiredError;
+    if (isInvalidNutrition(form.calories)) newErrors.calories = t.numberRequiredError;
+    if (isInvalidNutrition(form.protein))  newErrors.protein  = t.numberRequiredError;
+    if (isInvalidNutrition(form.fat))      newErrors.fat      = t.numberRequiredError;
+    if (isInvalidNutrition(form.carbs))    newErrors.carbs    = t.numberRequiredError;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };

@@ -185,7 +185,7 @@ export default function WeightPage() {
                 text-sm
               "
             >
-              {t.addButton}
+              {t.logWeight}
             </button>
           </div>
           {todayEntry && (

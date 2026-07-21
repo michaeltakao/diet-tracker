@@ -110,7 +110,7 @@ export function FoodEntryForm({
           type="text"
           value={form.name}
           onChange={(e) => onUpdateField('name', e.target.value)}
-          placeholder="例：鶏むね肉サラダ"
+          placeholder={t.foodNamePlaceholder}
           className={`
             w-full px-3 py-2.5 rounded-xl
             border text-sm

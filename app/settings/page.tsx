@@ -19,6 +19,7 @@ import AccountSection from '@/components/AccountSection';
 import PushSettingsRow from '@/components/PushSettingsRow';
 import { Button } from '@/components/ui/Button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import type { Translations } from '@/lib/i18n';
 import { useWeightUnit } from '@/lib/units';
 
 interface GoalForm {
@@ -40,21 +41,25 @@ const DIETARY_RESTRICTIONS = [
   '乳製品除去', 'ナッツアレルギー', '低FODMAP', 'ハラール',
 ] as const;
 
-const FITNESS_GOALS: Array<{ value: FitnessGoal; label: string; icon: string }> = [
-  { value: 'weight_loss',  label: '減量',         icon: '📉' },
-  { value: 'muscle_gain',  label: '筋肉増量',     icon: '💪' },
-  { value: 'maintenance',  label: '維持',         icon: '⚖️' },
-  { value: 'endurance',    label: '持久力向上',   icon: '🏃' },
-  { value: 'flexibility',  label: '柔軟性向上',   icon: '🧘' },
-];
+function getFitnessGoals(t: Translations): Array<{ value: FitnessGoal; label: string; icon: string }> {
+  return [
+    { value: 'weight_loss',  label: t.fitnessGoalWeightLoss,  icon: '📉' },
+    { value: 'muscle_gain',  label: t.fitnessGoalMuscleGain,  icon: '💪' },
+    { value: 'maintenance',  label: t.fitnessGoalMaintenance, icon: '⚖️' },
+    { value: 'endurance',    label: t.fitnessGoalEndurance,   icon: '🏃' },
+    { value: 'flexibility',  label: t.fitnessGoalFlexibility, icon: '🧘' },
+  ];
+}
 
-const ACTIVITY_LEVELS: Array<{ value: ActivityLevel; label: string }> = [
-  { value: 'sedentary',          label: '座り仕事中心' },
-  { value: 'lightly_active',     label: '軽い運動（週1-2回）' },
-  { value: 'moderately_active',  label: '適度な運動（週3-5回）' },
-  { value: 'very_active',        label: '活発な運動（週6-7回）' },
-  { value: 'extra_active',       label: '超激しい運動' },
-];
+function getActivityLevels(t: Translations): Array<{ value: ActivityLevel; label: string }> {
+  return [
+    { value: 'sedentary',          label: t.activityLevelSedentary },
+    { value: 'lightly_active',     label: t.activityLevelLightlyActive },
+    { value: 'moderately_active',  label: t.activityLevelModeratelyActive },
+    { value: 'very_active',        label: t.activityLevelVeryActive },
+    { value: 'extra_active',       label: t.activityLevelExtraActive },
+  ];
+}
 
 const inputCls = `
   w-full px-3.5 py-3 rounded-2xl text-sm font-semibold
@@ -372,12 +377,12 @@ export default function SettingsPage() {
             `}
           >
             <Sparkles size={14} aria-hidden="true" />
-            年齢に合わせた推奨値を入力
+            {t.applyRecommendedGoals}
           </button>
           <p className="text-[10px] text-faint mt-1.5">
             {recommendReady
-              ? '日本人の食事摂取基準（2025年版）に基づく目安値。入力後に保存してください。'
-              : '健康プロフィールで年齢（12歳以上）を設定すると使えます。'}
+              ? t.recommendedGoalsNote
+              : t.recommendedGoalsLocked}
           </p>
         </div>
 
@@ -539,10 +544,10 @@ export default function SettingsPage() {
         <div>
           <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide mb-2">
             <span>🎯</span>
-            <span>フィットネス目標</span>
+            <span>{t.fitnessGoalHeading}</span>
           </label>
           <div className="grid grid-cols-3 gap-2">
-            {FITNESS_GOALS.map(({ value, label, icon }) => (
+            {getFitnessGoals(t).map(({ value, label, icon }) => (
               <button
                 key={value}
                 onClick={() => { setHealthProfile(prev => ({ ...prev, fitnessGoal: value })); setSaved(false); }}
@@ -566,10 +571,10 @@ export default function SettingsPage() {
         <div>
           <label className="flex items-center gap-1.5 text-xs font-bold text-faint uppercase tracking-wide mb-2">
             <span>⚡</span>
-            <span>活動レベル</span>
+            <span>{t.activityLevelHeading}</span>
           </label>
           <div className="space-y-1.5">
-            {ACTIVITY_LEVELS.map(({ value, label }) => (
+            {getActivityLevels(t).map(({ value, label }) => (
               <button
                 key={value}
                 onClick={() => { setHealthProfile(prev => ({ ...prev, activityLevel: value })); setSaved(false); }}

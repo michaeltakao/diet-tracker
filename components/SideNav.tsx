@@ -16,7 +16,7 @@ export default function SideNav() {
     { href: '/add',      label: t.navAdd,     icon: PlusCircle,  accent: true },
     { href: '/workout',  label: t.navWorkout, icon: Dumbbell },
     { href: '/form',     label: 'フォーム',   icon: ScanLine },
-    { href: '/plan',     label: 'プラン',     icon: CalendarDays },
+    { href: '/plan',     label: t.navPlan,    icon: CalendarDays },
     { href: '/weight',   label: t.navWeight,  icon: Scale },
     { href: '/vitals',   label: t.navVitals,  icon: HeartPulse },
     { href: '/symptoms', label: t.navSymptoms, icon: Stethoscope },

@@ -14,7 +14,7 @@ export default function BottomNav() {
     { href: '/log',     label: t.navLog,     icon: BookOpen },
     { href: '/add',     label: t.navAdd,     icon: PlusCircle },
     { href: '/workout', label: t.navWorkout, icon: Dumbbell },
-    { href: '/plan',    label: 'プラン',     icon: CalendarDays },
+    { href: '/plan',    label: t.navPlan,    icon: CalendarDays },
     { href: '/weight',  label: t.navWeight,  icon: Scale },
   ];
 
