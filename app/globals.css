@@ -415,3 +415,8 @@ body {
 html.text-scale-large {
   font-size: 112.5%;
 }
+
+/* Extra-large text mode (settings 文字サイズ「特大」) — same rem cascade. */
+html.text-scale-xlarge {
+  font-size: 130%;
+}

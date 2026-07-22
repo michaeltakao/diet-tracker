@@ -4,16 +4,25 @@ import { useEffect } from 'react';
 
 const TEXT_SCALE_KEY = 'diet-tracker:text-scale';
 const LARGE_CLASS = 'text-scale-large';
+const XLARGE_CLASS = 'text-scale-xlarge';
+const SCALE_CLASSES = [LARGE_CLASS, XLARGE_CLASS];
 
-export type TextScale = 'standard' | 'large';
+export type TextScale = 'standard' | 'large' | 'xlarge';
 
 export function getTextScale(): TextScale {
   if (typeof window === 'undefined') return 'standard';
   try {
-    return localStorage.getItem(TEXT_SCALE_KEY) === 'large' ? 'large' : 'standard';
+    const v = localStorage.getItem(TEXT_SCALE_KEY);
+    return v === 'large' || v === 'xlarge' ? v : 'standard';
   } catch {
     return 'standard';
   }
+}
+
+function applyTextScaleClass(scale: TextScale): void {
+  document.documentElement.classList.remove(...SCALE_CLASSES);
+  if (scale === 'large') document.documentElement.classList.add(LARGE_CLASS);
+  if (scale === 'xlarge') document.documentElement.classList.add(XLARGE_CLASS);
 }
 
 export function setTextScale(scale: TextScale): void {
@@ -22,7 +31,7 @@ export function setTextScale(scale: TextScale): void {
   } catch {
     // localStorage unavailable (private mode / quota) — still apply visually
   }
-  document.documentElement.classList.toggle(LARGE_CLASS, scale === 'large');
+  applyTextScaleClass(scale);
 }
 
 /**
@@ -32,7 +41,7 @@ export function setTextScale(scale: TextScale): void {
  */
 export default function TextScaleInit() {
   useEffect(() => {
-    document.documentElement.classList.toggle(LARGE_CLASS, getTextScale() === 'large');
+    applyTextScaleClass(getTextScale());
   }, []);
   return null;
 }
