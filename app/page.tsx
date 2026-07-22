@@ -11,6 +11,7 @@ import {
 import { evaluateDailyQuests, generateDailyQuests, type Quest } from '@/lib/daily-quests';
 import { getTodayQuestState, recordQuestCompletion } from '@/lib/data/quests';
 import DailyQuests from '@/components/DailyQuests';
+import DailyChallengeCard from '@/components/DailyChallengeCard';
 import { sumSodiumFiber, sodiumMgToSaltG, saltTargetG, fiberTargetG } from '@/lib/micros';
 import { FoodEntry, DailyGoals, Badge } from '@/lib/types';
 import CalorieBar from '@/components/CalorieBar';
@@ -307,6 +308,9 @@ export default function HomePage() {
       <div className="mb-3">
         <DailyQuests quests={quests} />
       </div>
+
+      {/* ── Shadow Training Grounds (daily challenge) ────── */}
+      <DailyChallengeCard />
 
       {/* ── Streak banner + stats pill (phase 5) ────── */}
       <StreakHeader />

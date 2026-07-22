@@ -239,6 +239,7 @@ const LEGS_EXERCISES: readonly ExerciseDef[] = [
   { id: 'wall-sit', nameJa: 'ウォールシット', nameEn: 'Wall Sit', musclePart: 'legs', equipment: 'bodyweight', isCompound: false, pattern: 'isolation' },
   { id: 'zercher-squat', nameJa: 'ザーチャースクワット', nameEn: 'Zercher Squat', musclePart: 'legs', equipment: 'barbell', isCompound: true, pattern: 'squat' },
   { id: 'belt-squat', nameJa: 'ベルトスクワット', nameEn: 'Belt Squat', musclePart: 'legs', equipment: 'machine', isCompound: true, pattern: 'squat' },
+  { id: 'burpee', nameJa: 'バーピー', nameEn: 'Burpee', musclePart: 'legs', equipment: 'bodyweight', isCompound: true, pattern: 'squat' },
 ] as const;
 
 const SHOULDERS_EXERCISES: readonly ExerciseDef[] = [

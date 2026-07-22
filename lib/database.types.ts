@@ -853,6 +853,41 @@ export type Database = {
           },
         ]
       }
+      user_challenges: {
+        Row: {
+          challenge_date: string
+          challenge_type: string
+          completed_at: string | null
+          id: string
+          user_id: string
+          xp_earned: number
+        }
+        Insert: {
+          challenge_date: string
+          challenge_type: string
+          completed_at?: string | null
+          id?: string
+          user_id: string
+          xp_earned?: number
+        }
+        Update: {
+          challenge_date?: string
+          challenge_type?: string
+          completed_at?: string | null
+          id?: string
+          user_id?: string
+          xp_earned?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_challenges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_quests: {
         Row: {
           completed: boolean
@@ -1442,6 +1477,7 @@ export type SusResponseRow       = Database["public"]["Tables"]["sus_responses"]
 export type BetaFeedbackRow      = Database["public"]["Tables"]["beta_feedback"]["Row"]
 export type UserRankRow          = Database["public"]["Tables"]["user_ranks"]["Row"]
 export type UserQuestRow         = Database["public"]["Tables"]["user_quests"]["Row"]
+export type UserChallengeRow     = Database["public"]["Tables"]["user_challenges"]["Row"]
 export type UserTitleRow         = Database["public"]["Tables"]["user_titles"]["Row"]
 
 export type FoodLogInsert           = Database["public"]["Tables"]["food_logs"]["Insert"]
@@ -1464,6 +1500,7 @@ export type SusResponseInsert       = Database["public"]["Tables"]["sus_response
 export type BetaFeedbackInsert      = Database["public"]["Tables"]["beta_feedback"]["Insert"]
 export type UserRankInsert          = Database["public"]["Tables"]["user_ranks"]["Insert"]
 export type UserQuestInsert         = Database["public"]["Tables"]["user_quests"]["Insert"]
+export type UserChallengeInsert     = Database["public"]["Tables"]["user_challenges"]["Insert"]
 export type UserTitleInsert         = Database["public"]["Tables"]["user_titles"]["Insert"]
 
 export type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"]

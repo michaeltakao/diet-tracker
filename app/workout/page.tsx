@@ -9,6 +9,9 @@ import {
 } from '@/lib/data';
 import { evaluateDailyQuests } from '@/lib/daily-quests';
 import { getTodayQuestState, recordQuestCompletion } from '@/lib/data/quests';
+import { getDailyChallengeProgress, DAILY_CHALLENGE_XP } from '@/lib/daily-challenge';
+import { isChallengeCompletedToday, recordChallengeCompletion } from '@/lib/data/daily-challenge';
+import { jstToday } from '@/lib/streak';
 import { WorkoutEntry, MusclePart, CoachMenu, FoodEntry, Badge, PersonalRecord, DailyGoals, SetDetail } from '@/lib/types';
 import {
   Dumbbell, Clock, Flame, ShieldAlert, CheckCircle,
@@ -322,17 +325,35 @@ export default function WorkoutPage() {
       await recordQuestCompletion(null, today, quest);
       newlyCompletedQuests.push(quest);
     }
-    if (newlyCompletedQuests.length > 0) {
-      const totalXp = newlyCompletedQuests.reduce((sum, q) => sum + q.xp, 0);
-      const xpText = t.questXpEarned.replace('{n}', String(totalXp));
-      // PR toast and quest toast share the same fixed position — when both
-      // fire from the same submit, fold the XP text into the PR toast
-      // instead of mounting two overlapping <Toast>s.
-      if (isNewPR && wt > 0) {
-        setPrToast(`🏆 PR更新！${name.trim()} ${formatWeight(wt, unit)} · ${xpText}`);
-      } else {
-        setQuestToast(xpText);
+    // Shadow Training Grounds: this submit may have pushed today's challenge
+    // over its target. JST edge (accepted): the challenge date is jstToday()
+    // while entries carry this page's UTC date — 00:00–09:00 JST logs won't
+    // count toward the JST challenge (same class as the quest/dashboard UTC
+    // inconsistency; do not mix date bases).
+    const challengeDate = jstToday();
+    const challengeProgress = getDailyChallengeProgress(getAppData().workoutEntries, challengeDate);
+    let challengeText: string | null = null;
+    if (challengeProgress.completed && !isChallengeCompletedToday(challengeDate)) {
+      await recordChallengeCompletion(null, challengeDate, challengeProgress.challenge);
+      challengeText = t.dailyChallengeToast.replace('{n}', String(DAILY_CHALLENGE_XP));
+    }
+
+    // PR / quest / challenge toasts share the same fixed position — fold
+    // everything this submit earned into a single toast joined with '·'
+    // instead of mounting overlapping <Toast>s.
+    const questText = newlyCompletedQuests.length > 0
+      ? t.questXpEarned.replace(
+          '{n}',
+          String(newlyCompletedQuests.reduce((sum, q) => sum + q.xp, 0)),
+        )
+      : null;
+    const xpTexts = [questText, challengeText].filter((s): s is string => s !== null);
+    if (isNewPR && wt > 0) {
+      if (xpTexts.length > 0) {
+        setPrToast([`🏆 PR更新！${name.trim()} ${formatWeight(wt, unit)}`, ...xpTexts].join(' · '));
       }
+    } else if (xpTexts.length > 0) {
+      setQuestToast(xpTexts.join(' · '));
     }
 
     loadData();

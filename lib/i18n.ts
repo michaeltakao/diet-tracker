@@ -581,6 +581,16 @@ export const translations = {
     questSummary: '{n}/{total} クエスト達成',
     questCompleted: '達成！',
     questXpEarned: '+{n} XP',
+    // Shadow Training Grounds (daily challenge)
+    dailyChallengeTitle: 'シャドウ訓練場',
+    dailyChallengeNamePushup100: '腕立て伏せ 100回',
+    dailyChallengeNameSquat150: 'スクワット 150回',
+    dailyChallengeNamePlank180: 'プランク 180秒',
+    dailyChallengeNameLunge80: 'ランジ 80回',
+    dailyChallengeNameBurpee50: 'バーピー 50回',
+    dailyChallengeNameMountain60: 'マウンテンクライマー 60回',
+    dailyChallengeDone: '✅ クリア！+{n} XP',
+    dailyChallengeToast: '⚔️ シャドウ訓練場クリア！+{n} XP',
     // Titles + rank-up celebration (Phase 4)
     titleNameUnbroken: '不屈の者',
     titleDescUnbroken: '30日連続で記録を継続した',
@@ -1189,6 +1199,16 @@ export const translations = {
     questSummary: '{n}/{total} quests complete today',
     questCompleted: 'Completed!',
     questXpEarned: '+{n} XP',
+    // Shadow Training Grounds (daily challenge)
+    dailyChallengeTitle: 'Shadow Training Grounds',
+    dailyChallengeNamePushup100: '100 Push-Ups',
+    dailyChallengeNameSquat150: '150 Squats',
+    dailyChallengeNamePlank180: '180s Plank',
+    dailyChallengeNameLunge80: '80 Lunges',
+    dailyChallengeNameBurpee50: '50 Burpees',
+    dailyChallengeNameMountain60: '60 Mountain Climbers',
+    dailyChallengeDone: '✅ Cleared! +{n} XP',
+    dailyChallengeToast: '⚔️ Shadow Training Grounds cleared! +{n} XP',
     // Titles + rank-up celebration (Phase 4)
     titleNameUnbroken: 'Unbroken',
     titleDescUnbroken: 'Logged activity 30 days in a row',

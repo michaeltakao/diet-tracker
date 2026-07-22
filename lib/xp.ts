@@ -1,7 +1,8 @@
 /**
  * Solo Leveling XP primitive — localStorage read + dual-write to Supabase.
  *
- * XP is granted ONLY by daily-quest completion (lib/daily-quests.ts, Phase 3).
+ * XP is granted by daily-quest completion (lib/daily-quests.ts, Phase 3) and
+ * the daily challenge (lib/daily-challenge.ts).
  * This module is the low-level primitive; nothing calls addXp() until Phase 3
  * wires quest evaluation in, so in Phase 1 every user simply starts and stays
  * at 0/500 E-rank — an honest empty state, not a bug.
@@ -21,7 +22,8 @@ export type XpAction =
   | 'quest_workout'
   | 'quest_water'
   | 'quest_weight'
-  | 'quest_all_complete';
+  | 'quest_all_complete'
+  | 'daily_challenge';
 
 export interface XpState {
   totalXp: number;
