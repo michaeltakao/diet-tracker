@@ -1,10 +1,13 @@
 /**
  * POST /api/consent
  *
- * Records the authenticated user's consent timestamp in profiles.consented_at
- * plus the 18+ attestation in profiles.adult_confirmed_at (APPI hygiene —
- * research participation is 18+; minors use the app in guest mode).
+ * Records the authenticated user's consent timestamp in profiles.consented_at.
  * Called by the /consent page on submission.
+ *
+ * No age-eligibility gate: the study no longer restricts participation by
+ * age, so profiles.adult_confirmed_at is not written by this route (the
+ * column remains in the schema for historical rows only — see
+ * supabase/migrations/007 and 010).
  *
  * Also assigns profiles.study_cohort (FTUE P0 #10) atomically with consent,
  * once, on first consent only — never re-assigned (the existing 409-on-
@@ -15,14 +18,13 @@
  * branching on cohort is explicitly out of scope for this round — only the
  * assignment itself.
  *
- * Request body: { adultConfirmed: true }
+ * Request body: (none required)
  * Response (200): { consentedAt: string }
- * 400 — adultConfirmed flag missing/false
  * 401 — not authenticated
  * 409 — already consented
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import {
   getServerUser,
   createServerSupabase,
@@ -30,24 +32,10 @@ import {
 } from '@/lib/supabase-server';
 import { assignCohort } from '@/lib/cohort';
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
+export async function POST(): Promise<NextResponse> {
   const user = await getServerUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  let adultConfirmed = false;
-  try {
-    const body = await req.json();
-    adultConfirmed = body?.adultConfirmed === true;
-  } catch {
-    // no/invalid JSON body — adultConfirmed stays false
-  }
-  if (!adultConfirmed) {
-    return NextResponse.json(
-      { error: '18歳以上であることの確認が必要です' },
-      { status: 400 },
-    );
   }
 
   const supabase = await createServerSupabase();
@@ -71,7 +59,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const consentedAt = new Date().toISOString();
   const { data: updated, error } = await supabase
     .from('profiles')
-    .update({ consented_at: consentedAt, adult_confirmed_at: consentedAt, study_cohort: cohort })
+    .update({ consented_at: consentedAt, study_cohort: cohort })
     .eq('id', user.id)
     .select('id');
 
@@ -102,7 +90,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         {
           id: user.id,
           consented_at: consentedAt,
-          adult_confirmed_at: consentedAt,
           study_cohort: cohort,
           display_name:
             (user.user_metadata?.full_name as string | undefined) ??
