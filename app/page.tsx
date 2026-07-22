@@ -42,7 +42,9 @@ import TdeeCard from '@/components/TdeeCard';
 import BottomNav from '@/components/BottomNav';
 import { Toast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
+import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getStoredEasyMode } from '@/lib/easy-mode';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
@@ -76,6 +78,11 @@ export default function HomePage() {
   const [xpState, setXpState] = useState({ xp: 0, highestRank: 'E' as RankId });
   const [quests, setQuests]   = useState<Quest[]>([]);
   const [rankUpEvent, setRankUpEvent] = useState<{ oldRank: RankId; newRank: RankId } | null>(null);
+  // Easy Mode (accessibility 5-pack, feature backlog — see FTUE roadmap §8):
+  // SSR renders false; the real stored value is applied client-only, same
+  // hydration-safe pattern as lib/easy-mode.ts / TextScaleInit.
+  const [easyMode, setEasyModeState] = useState(false);
+  const [easyModeDetailsOpen, setEasyModeDetailsOpen] = useState(false);
 
   const loadData = () => {
     const data = getAppData();
@@ -141,6 +148,7 @@ export default function HomePage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
     loadData();
+    setEasyModeState(getStoredEasyMode());
     void checkAndAwardBadges(getTodayDate()).then(newBadges => {
       if (newBadges.length > 0) setCelebrationBadges(newBadges);
     });
@@ -279,41 +287,117 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ── Solo Leveling rank/XP status strip (Phase 1) ────── */}
-      <div className="mb-3">
-        <StatusBar xp={xpState.xp} highestRank={xpState.highestRank} />
-      </div>
-
-      {/* ── Solo Leveling detailed rank panel (Phase 2) ────── */}
-      <div className="mb-3">
-        <SystemPanel className="rounded-2xl p-4">
-          <div className="flex items-center gap-4">
-            <RankBadge xp={xpState.xp} size="md" />
-            <div className="flex-1 min-w-0">
-              <XpProgressBar xp={xpState.xp} />
-              {xpState.highestRank !== getRankForXp(xpState.xp).rank && (
-                <p className="mt-1.5 text-[10px] text-[var(--sys-text-muted)]">
-                  {t.statusBarHighest.replace(
-                    '{rank}',
-                    t[`rankName${xpState.highestRank}` as keyof typeof t] as string,
-                  )}
-                </p>
-              )}
-            </div>
+      {/* ── Easy Mode: gamification layer collapsed behind a disclosure
+          (accessibility 5-pack — non-gamer users profile in the FTUE
+          roadmap; opt-in, not a removal of the layer). Standard mode
+          renders it inline as before. ────── */}
+      {easyMode ? (
+        <div className="mb-3">
+          <button
+            type="button"
+            onClick={() => setEasyModeDetailsOpen((v) => !v)}
+            aria-expanded={easyModeDetailsOpen}
+            className="w-full flex items-center justify-between text-xs font-bold text-faint hover:text-fg py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] rounded"
+          >
+            <span>{easyModeDetailsOpen ? t.easyModeHideDetails : t.easyModeShowDetails}</span>
+            {easyModeDetailsOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+          </button>
+          {easyModeDetailsOpen && (
+            <>
+              <div className="mb-3">
+                <StatusBar xp={xpState.xp} highestRank={xpState.highestRank} />
+              </div>
+              <div className="mb-3">
+                <SystemPanel className="rounded-2xl p-4">
+                  <div className="flex items-center gap-4">
+                    <RankBadge xp={xpState.xp} size="md" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[10px] font-bold text-[var(--sys-text-muted)] uppercase tracking-wide">XP</span>
+                        <InfoTooltip label={t.infoXpTitle}>
+                          <p className="font-bold text-fg mb-0.5">{t.infoXpTitle}</p>
+                          <p>{t.infoXpBody}</p>
+                        </InfoTooltip>
+                      </div>
+                      <XpProgressBar xp={xpState.xp} />
+                      {xpState.highestRank !== getRankForXp(xpState.xp).rank && (
+                        <p className="mt-1.5 text-[10px] text-[var(--sys-text-muted)]">
+                          {t.statusBarHighest.replace(
+                            '{rank}',
+                            t[`rankName${xpState.highestRank}` as keyof typeof t] as string,
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </SystemPanel>
+              </div>
+              <div className="mb-3">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <InfoTooltip label={t.infoQuestTitle}>
+                    <p className="font-bold text-fg mb-0.5">{t.infoQuestTitle}</p>
+                    <p>{t.infoQuestBody}</p>
+                  </InfoTooltip>
+                </div>
+                <DailyQuests quests={quests} />
+              </div>
+              <DailyChallengeCard />
+              <StreakHeader />
+            </>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* ── Solo Leveling rank/XP status strip (Phase 1) ────── */}
+          <div className="mb-3">
+            <StatusBar xp={xpState.xp} highestRank={xpState.highestRank} />
           </div>
-        </SystemPanel>
-      </div>
 
-      {/* ── Solo Leveling daily quests (Phase 3) ────── */}
-      <div className="mb-3">
-        <DailyQuests quests={quests} />
-      </div>
+          {/* ── Solo Leveling detailed rank panel (Phase 2) ────── */}
+          <div className="mb-3">
+            <SystemPanel className="rounded-2xl p-4">
+              <div className="flex items-center gap-4">
+                <RankBadge xp={xpState.xp} size="md" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="text-[10px] font-bold text-[var(--sys-text-muted)] uppercase tracking-wide">XP</span>
+                    <InfoTooltip label={t.infoXpTitle}>
+                      <p className="font-bold text-fg mb-0.5">{t.infoXpTitle}</p>
+                      <p>{t.infoXpBody}</p>
+                    </InfoTooltip>
+                  </div>
+                  <XpProgressBar xp={xpState.xp} />
+                  {xpState.highestRank !== getRankForXp(xpState.xp).rank && (
+                    <p className="mt-1.5 text-[10px] text-[var(--sys-text-muted)]">
+                      {t.statusBarHighest.replace(
+                        '{rank}',
+                        t[`rankName${xpState.highestRank}` as keyof typeof t] as string,
+                      )}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </SystemPanel>
+          </div>
 
-      {/* ── Shadow Training Grounds (daily challenge) ────── */}
-      <DailyChallengeCard />
+          {/* ── Solo Leveling daily quests (Phase 3) ────── */}
+          <div className="mb-3">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <InfoTooltip label={t.infoQuestTitle}>
+                <p className="font-bold text-fg mb-0.5">{t.infoQuestTitle}</p>
+                <p>{t.infoQuestBody}</p>
+              </InfoTooltip>
+            </div>
+            <DailyQuests quests={quests} />
+          </div>
 
-      {/* ── Streak banner + stats pill (phase 5) ────── */}
-      <StreakHeader />
+          {/* ── Shadow Training Grounds (daily challenge) ────── */}
+          <DailyChallengeCard />
+
+          {/* ── Streak banner + stats pill (phase 5) ────── */}
+          <StreakHeader />
+        </>
+      )}
 
       {/* ── Streak nudge (max 1/day, dismissible) ───── */}
       <NudgeBanner />
@@ -355,7 +439,13 @@ export default function HomePage() {
 
           {/* ── PFC Donut ───────────────────────────────── */}
           <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
-            <h2 className="text-sm font-bold text-muted mb-2">{t.macroBreakdown}</h2>
+            <div className="flex items-center gap-1.5 mb-2">
+              <h2 className="text-sm font-bold text-muted">{t.macroBreakdown}</h2>
+              <InfoTooltip label={t.infoPfcTitle}>
+                <p className="font-bold text-fg mb-0.5">{t.infoPfcTitle}</p>
+                <p>{t.infoPfcBody}</p>
+              </InfoTooltip>
+            </div>
             <PFCDonut
               protein={totals.protein} fat={totals.fat} carbs={totals.carbs}
               goalProtein={goals.protein} goalFat={goals.fat} goalCarbs={goals.carbs}
@@ -417,17 +507,26 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* ── Daily 4-category progress ring (phase 5) ── */}
-      <ProgressRing />
-
-      {/* ── Personalized Recommendation ─────────────── */}
+      {/* ── Personalized Recommendation (today's recommended workout —
+          closest existing surface to that concept; kept visible in Easy
+          Mode as one of the "just what to do today" essentials) ─── */}
       <RecommendationCard />
 
-      {/* ── AI nutritionist (今日の食事チェック) ─────── */}
-      <NutritionistCard />
+      {/* ── Easy Mode: everything below that isn't Food Log / Water /
+          Steps / Recommendation collapses behind the same disclosure
+          toggled above (ring, AI nutritionist, TDEE, weekly badges). ── */}
+      {easyMode && !easyModeDetailsOpen ? null : (
+        <>
+          {/* ── Daily 4-category progress ring (phase 5) ── */}
+          <ProgressRing />
 
-      {/* ── Adaptive TDEE ───────────────────────────── */}
-      <TdeeCard />
+          {/* ── AI nutritionist (今日の食事チェック) ─────── */}
+          <NutritionistCard />
+
+          {/* ── Adaptive TDEE ───────────────────────────── */}
+          <TdeeCard />
+        </>
+      )}
 
       {/* ── Water Tracker ───────────────────────────── */}
       <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
@@ -443,13 +542,13 @@ export default function HomePage() {
       <WeeklyChallengeCard />
 
       {/* ── Per-category weekly badges (phase 5) ────── */}
-      <CategoryBadges />
+      {(!easyMode || easyModeDetailsOpen) && <CategoryBadges />}
 
       {/* ── Recent symptoms (renders only when any exist) ── */}
       <RecentSymptomsCard />
 
       {/* ── Badge shelf ─────────────────────────────── */}
-      {earnedBadges.length > 0 && (
+      {earnedBadges.length > 0 && (!easyMode || easyModeDetailsOpen) && (
         <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
           <BadgeShelf badges={earnedBadges} title="🏅 獲得バッジ" />
         </div>
