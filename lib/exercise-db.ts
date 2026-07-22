@@ -403,6 +403,18 @@ export function getExercises(part?: MusclePart): ExerciseDef[] {
   return part ? EXERCISE_DB.filter((e) => e.musclePart === part) : [...EXERCISE_DB];
 }
 
+/**
+ * Beginner-friendly subset: isolation/simple movements (`!isCompound`) for a
+ * muscle part. This is a cheap proxy, not a rated difficulty field — there is
+ * no `difficulty` on ExerciseDef and no cardio/flexibility category in
+ * MusclePart, so "beginner" here means "single-joint, lower-complexity",
+ * not "walking/stretching" (out of scope — see plan notes on scope
+ * decisions for this filter).
+ */
+export function getBeginnerExercises(part?: MusclePart): ExerciseDef[] {
+  return getExercises(part).filter((e) => !e.isCompound);
+}
+
 /** Lookup by stable id; undefined when unknown. */
 export function findExercise(id: string): ExerciseDef | undefined {
   return EXERCISE_DB.find((e) => e.id === id);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { EXERCISE_DB, getExercises, findExercise, type MovementPattern } from '@/lib/exercise-db';
+import { EXERCISE_DB, getExercises, findExercise, getBeginnerExercises, type MovementPattern } from '@/lib/exercise-db';
 import type { MusclePart } from '@/lib/types';
 
 const PARTS: MusclePart[] = ['chest', 'back', 'legs', 'shoulders', 'arms', 'abs'];
@@ -96,5 +96,34 @@ describe('EXERCISE_DB', () => {
     expect(all.length).toBe(originalLength);
     all.pop();
     expect(EXERCISE_DB.length).toBe(originalLength); // original untouched
+  });
+});
+
+describe('getBeginnerExercises', () => {
+  it('returns only non-compound entries', () => {
+    const beginner = getBeginnerExercises();
+    expect(beginner.length).toBeGreaterThan(0);
+    for (const e of beginner) {
+      expect(e.isCompound, e.id).toBe(false);
+    }
+  });
+
+  it('filters by muscle part when given one', () => {
+    for (const part of PARTS) {
+      const beginner = getBeginnerExercises(part);
+      for (const e of beginner) {
+        expect(e.musclePart, e.id).toBe(part);
+        expect(e.isCompound, e.id).toBe(false);
+      }
+    }
+  });
+
+  it('is a strict subset of getExercises for the same part', () => {
+    const all = getExercises('chest');
+    const beginner = getBeginnerExercises('chest');
+    expect(beginner.length).toBeLessThan(all.length);
+    for (const e of beginner) {
+      expect(all.some((a) => a.id === e.id)).toBe(true);
+    }
   });
 });
