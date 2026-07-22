@@ -17,13 +17,14 @@ import {
   Dumbbell, Clock, Flame, ShieldAlert, CheckCircle,
   Trash2, ChevronRight, ChevronDown, Sparkles, X,
 } from 'lucide-react';
-import { getExercises, findExercise } from '@/lib/exercise-db';
+import { getExercises, getBeginnerExercises, findExercise } from '@/lib/exercise-db';
 import ExerciseVideo from '@/components/ExerciseVideo';
 import { summarizeSets, nextSetSuggestion, comboBonusXp } from '@/lib/workout-sets';
 import { addXp } from '@/lib/xp';
 import ComboMeter from '@/components/ComboMeter';
 import BottomNav from '@/components/BottomNav';
 import { Toast } from '@/components/ui/Toast';
+import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import BadgeShelf from '@/components/BadgeShelf';
 import MedWarning from '@/components/MedWarning';
@@ -153,6 +154,7 @@ export default function WorkoutPage() {
   const [coachAdvice, setCoachAdvice]    = useState(t.defaultCoachTip);
   const [allBadges, setAllBadges]        = useState<Badge[]>([]);
   const [pickerOpen, setPickerOpen]      = useState(false);
+  const [beginnerFilter, setBeginnerFilter] = useState(false);
   // Which ExerciseDef was clicked (recommended card or full picker), for
   // the demo-video display below the exercise name. Presentation-only —
   // never touches WorkoutEntry/PersonalRecord.
@@ -616,8 +618,28 @@ export default function WorkoutPage() {
             {pickerOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
           </button>
           {pickerOpen && (
-            <div className="grid grid-cols-2 gap-1.5 overflow-y-auto max-h-[400px]">
-              {getExercises(selectedPart).filter((e) => !e.recommended).map((ex) => {
+            <>
+              {/* Beginner-friendly filter chip (accessibility/first-run
+                  improvement — isolation-movement proxy, see lib/exercise-db.ts
+                  getBeginnerExercises docs for why this isn't a real
+                  difficulty rating). */}
+              <button
+                type="button"
+                onClick={() => setBeginnerFilter((v) => !v)}
+                aria-pressed={beginnerFilter}
+                className={`
+                  inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 my-1.5 rounded-full
+                  transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                  ${beginnerFilter
+                    ? 'bg-brand-500 text-white'
+                    : 'bg-surface-2 text-faint border border-line hover:bg-line'}
+                `}
+              >
+                {t.beginnerFilterLabel}
+              </button>
+              <div className="grid grid-cols-2 gap-1.5 overflow-y-auto max-h-[400px]">
+                {(beginnerFilter ? getBeginnerExercises(selectedPart) : getExercises(selectedPart))
+                  .filter((e) => !e.recommended).map((ex) => {
                 const equipLabel = {
                   barbell: t.equipBarbell, dumbbell: t.equipDumbbell, machine: t.equipMachine,
                   cable: t.equipCable, bodyweight: t.equipBodyweight,
@@ -654,7 +676,8 @@ export default function WorkoutPage() {
                   </button>
                 );
               })}
-            </div>
+              </div>
+            </>
           )}
         </section>
 
@@ -795,7 +818,13 @@ export default function WorkoutPage() {
                       >
                         {t.addSet}
                       </button>
-                      <ComboMeter lastSetAt={lastSetAt} comboCount={comboCount} />
+                      <div className="flex items-center gap-1">
+                        <ComboMeter lastSetAt={lastSetAt} comboCount={comboCount} />
+                        <InfoTooltip label={t.infoComboTitle}>
+                          <p className="font-bold text-fg mb-0.5">{t.infoComboTitle}</p>
+                          <p>{t.infoComboBody}</p>
+                        </InfoTooltip>
+                      </div>
                     </div>
                   </div>
                 );
