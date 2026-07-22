@@ -23,7 +23,8 @@ export type XpAction =
   | 'quest_water'
   | 'quest_weight'
   | 'quest_all_complete'
-  | 'daily_challenge';
+  | 'daily_challenge'
+  | 'combo_bonus';
 
 export interface XpState {
   totalXp: number;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { summarizeSets, nextSetSuggestion } from '@/lib/workout-sets';
+import { summarizeSets, nextSetSuggestion, comboBonusXp } from '@/lib/workout-sets';
 
 describe('summarizeSets', () => {
   it('summarizes: top weight, its reps, count, volume, best 1RM', () => {
@@ -57,5 +57,27 @@ describe('nextSetSuggestion', () => {
   it('falls back when no history or bodyweight', () => {
     expect(nextSetSuggestion(null, 40)).toEqual({ weight: 40, reps: 10 });
     expect(nextSetSuggestion({ weight: 0, reps: 15 }, 0)).toEqual({ weight: 0, reps: 15 });
+  });
+});
+
+describe('comboBonusXp', () => {
+  it('awards fast-tier XP up to and including 60s', () => {
+    expect(comboBonusXp(0)).toBe(5);
+    expect(comboBonusXp(59_999)).toBe(5);
+    expect(comboBonusXp(60_000)).toBe(5);
+  });
+
+  it('awards slow-tier XP between 60s and 120s inclusive', () => {
+    expect(comboBonusXp(60_001)).toBe(3);
+    expect(comboBonusXp(120_000)).toBe(3);
+  });
+
+  it('awards no XP beyond 120s (combo broken)', () => {
+    expect(comboBonusXp(120_001)).toBe(0);
+  });
+
+  it('treats negative or non-finite elapsed time as no bonus', () => {
+    expect(comboBonusXp(-1)).toBe(0);
+    expect(comboBonusXp(NaN)).toBe(0);
   });
 });

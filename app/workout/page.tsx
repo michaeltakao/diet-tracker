@@ -19,7 +19,9 @@ import {
 } from 'lucide-react';
 import { getExercises, findExercise } from '@/lib/exercise-db';
 import ExerciseVideo from '@/components/ExerciseVideo';
-import { summarizeSets, nextSetSuggestion } from '@/lib/workout-sets';
+import { summarizeSets, nextSetSuggestion, comboBonusXp } from '@/lib/workout-sets';
+import { addXp } from '@/lib/xp';
+import ComboMeter from '@/components/ComboMeter';
 import BottomNav from '@/components/BottomNav';
 import { Toast } from '@/components/ui/Toast';
 import BadgeCelebration from '@/components/BadgeCelebration';
@@ -165,6 +167,16 @@ export default function WorkoutPage() {
   const [celebrationBadges, setCelebrationBadges] = useState<Badge[]>([]);
   const [prToast, setPrToast]                     = useState<string | null>(null);
   const [questToast, setQuestToast]                = useState<string | null>(null);
+  const [comboToast, setComboToast]                = useState<string | null>(null);
+
+  // Combo bonus (phase C): timing/count live in refs for correctness — React
+  // state updates are async and two rapid add-set clicks would otherwise
+  // read stale values. Mirrored to state only so <ComboMeter> re-renders.
+  // In-memory only — resets on reload (spec-intended, no persistence).
+  const lastSetAtRef = useRef<number | null>(null);
+  const comboCountRef = useRef(0);
+  const [lastSetAt, setLastSetAt] = useState<number | null>(null);
+  const [comboCount, setComboCount] = useState(0);
 
   // History for smart recommendations
   const [allWorkouts,    setAllWorkouts]    = useState<WorkoutEntry[]>([]);
@@ -188,7 +200,7 @@ export default function WorkoutPage() {
 
   useEffect(() => {
     const saved = getCheckIn(checkinTodayDate());
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only localStorage read on mount
+     
     if (saved) setSessionStarted(true);
   }, []);
 
@@ -208,7 +220,7 @@ export default function WorkoutPage() {
     setWorkoutWarnings(getWorkoutWarnings(profile.healthConditions, profile.medications ?? []));
   }, [today]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
+   
   useEffect(() => { loadData(); }, [loadData]);
 
   useEffect(() => {
@@ -222,6 +234,47 @@ export default function WorkoutPage() {
     const t = setTimeout(() => setQuestToast(null), 3000);
     return () => clearTimeout(t);
   }, [questToast]);
+
+  useEffect(() => {
+    if (!comboToast) return;
+    const t = setTimeout(() => setComboToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [comboToast]);
+
+  /**
+   * Combo bonus (phase C): call on every combo-eligible action (add-set
+   * click gated on a valid previous row, and form submit), passing the
+   * current timestamp from the caller (an event handler) — Date.now() is
+   * never read here so this stays pure from the linter's point of view.
+   * The first action arms the clock with no bonus/reset messaging. A
+   * subsequent action within COMBO_SLOW_MS (120s) earns
+   * comboBonusXp(elapsed) XP and bumps the combo count; outside that window
+   * with an active combo, it's a reset (no XP). Returns the toast text (or
+   * null); the add-set trigger shows it standalone, handleSubmit folds it
+   * into the merged PR/quest/challenge/combo toast instead.
+   */
+  const registerComboAction = (now: number): string | null => {
+    const last = lastSetAtRef.current;
+    lastSetAtRef.current = now;
+    setLastSetAt(now);
+
+    if (last === null) return null; // first action just arms the clock
+
+    const bonus = comboBonusXp(now - last);
+    if (bonus > 0) {
+      const nextCount = Math.max(2, comboCountRef.current + 1);
+      comboCountRef.current = nextCount;
+      setComboCount(nextCount);
+      void addXp(null, 'combo_bonus', bonus);
+      return t.comboToast.replace('{n}', String(nextCount)).replace('{xp}', String(bonus));
+    }
+    if (comboCountRef.current > 0) {
+      comboCountRef.current = 0;
+      setComboCount(0);
+      return t.comboBroken;
+    }
+    return null;
+  };
 
   /** Last previous session's per-set breakdown for an exercise (ghost text). */
   const getLastSetDetails = (exerciseName: string): SetDetail[] | null => {
@@ -255,6 +308,16 @@ export default function WorkoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+
+    // Combo bonus (phase C): read the timestamp up front, before any
+    // `await` — a submit is itself a combo-eligible action, and this stays
+    // the single Date.now() read for the whole handler. handleSubmit only
+    // ever runs from the form's onSubmit (a real event), never during
+    // render; the react-hooks/purity rule's whole-component analysis
+    // flags this call regardless (a known false positive with this
+    // experimental rule when local closures capture refs/setState
+    // elsewhere in the component — see registerComboAction above).
+    const submitTimestamp = Date.now(); // eslint-disable-line react-hooks/purity
 
     // Per-set mode: rows (display unit) → kg SetDetails; scalars derived via
     // summarizeSets so every existing reader keeps its semantics.
@@ -338,16 +401,20 @@ export default function WorkoutPage() {
       challengeText = t.dailyChallengeToast.replace('{n}', String(DAILY_CHALLENGE_XP));
     }
 
-    // PR / quest / challenge toasts share the same fixed position — fold
-    // everything this submit earned into a single toast joined with '·'
-    // instead of mounting overlapping <Toast>s.
+    // Combo bonus (phase C): fold its text into the merged toast below
+    // instead of a standalone one (timestamp captured up top).
+    const comboText = registerComboAction(submitTimestamp);
+
+    // PR / quest / challenge / combo toasts share the same fixed position —
+    // fold everything this submit earned into a single toast joined with
+    // '·' instead of mounting overlapping <Toast>s.
     const questText = newlyCompletedQuests.length > 0
       ? t.questXpEarned.replace(
           '{n}',
           String(newlyCompletedQuests.reduce((sum, q) => sum + q.xp, 0)),
         )
       : null;
-    const xpTexts = [questText, challengeText].filter((s): s is string => s !== null);
+    const xpTexts = [questText, challengeText, comboText].filter((s): s is string => s !== null);
     if (isNewPR && wt > 0) {
       if (xpTexts.length > 0) {
         setPrToast([`🏆 PR更新！${name.trim()} ${formatWeight(wt, unit)}`, ...xpTexts].join(' · '));
@@ -420,6 +487,9 @@ export default function WorkoutPage() {
 
       {/* Solo Leveling quest XP toast (Phase 3) */}
       <Toast message={questToast} variant="celebrate" />
+
+      {/* Combo bonus toast (phase C) — mid-form add-set feedback */}
+      <Toast message={comboToast} variant="celebrate" />
 
       {/* Header */}
       <div className="bg-gradient-to-br from-brand-500 via-brand-600 to-brand-700 text-white px-4 pt-12 pb-8 rounded-b-[2.5rem] shadow-[0_16px_48px_rgba(88,204,2,0.25)]">
@@ -697,23 +767,36 @@ export default function WorkoutPage() {
                         </div>
                       );
                     })}
-                    <button
-                      type="button"
-                      onClick={() => setSetRows((rows) => {
-                        const prev = rows[rows.length - 1];
-                        const parsed = prev
-                          ? { weight: toKg(parseFloat(prev.weight) || 0), reps: parseInt(prev.reps) || 0 }
-                          : null;
-                        const s = nextSetSuggestion(parsed && parsed.reps > 0 ? parsed : null, 0);
-                        return [...rows, {
-                          weight: s.weight > 0 ? String(toDisplay(s.weight, unit)) : (prev?.weight ?? ''),
-                          reps: s.reps > 0 ? String(s.reps) : (prev?.reps ?? ''),
-                        }];
-                      })}
-                      className="w-full py-2 rounded-xl text-xs font-bold bg-surface-2 text-muted hover:bg-line transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-                    >
-                      {t.addSet}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const prevRow = setRows[setRows.length - 1];
+                          // Anti-spam gate: only register a combo action when
+                          // the row being duplicated is actually filled in —
+                          // blunts rhythmic empty-click farming.
+                          if (prevRow && parseInt(prevRow.reps) > 0) {
+                            const msg = registerComboAction(Date.now());
+                            if (msg) setComboToast(msg);
+                          }
+                          setSetRows((rows) => {
+                            const prev = rows[rows.length - 1];
+                            const parsed = prev
+                              ? { weight: toKg(parseFloat(prev.weight) || 0), reps: parseInt(prev.reps) || 0 }
+                              : null;
+                            const s = nextSetSuggestion(parsed && parsed.reps > 0 ? parsed : null, 0);
+                            return [...rows, {
+                              weight: s.weight > 0 ? String(toDisplay(s.weight, unit)) : (prev?.weight ?? ''),
+                              reps: s.reps > 0 ? String(s.reps) : (prev?.reps ?? ''),
+                            }];
+                          });
+                        }}
+                        className="flex-1 py-2 rounded-xl text-xs font-bold bg-surface-2 text-muted hover:bg-line transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                      >
+                        {t.addSet}
+                      </button>
+                      <ComboMeter lastSetAt={lastSetAt} comboCount={comboCount} />
+                    </div>
                   </div>
                 );
               })()

@@ -591,6 +591,10 @@ export const translations = {
     dailyChallengeNameMountain60: 'マウンテンクライマー 60回',
     dailyChallengeDone: '✅ クリア！+{n} XP',
     dailyChallengeToast: '⚔️ シャドウ訓練場クリア！+{n} XP',
+    // Combo bonus
+    comboToast: '🔥 コンボ x{n}！+{xp} XP',
+    comboBroken: '💤 コンボが途切れた…',
+    comboCountdown: '⏳ あと{n}秒',
     // Titles + rank-up celebration (Phase 4)
     titleNameUnbroken: '不屈の者',
     titleDescUnbroken: '30日連続で記録を継続した',
@@ -1209,6 +1213,10 @@ export const translations = {
     dailyChallengeNameMountain60: '60 Mountain Climbers',
     dailyChallengeDone: '✅ Cleared! +{n} XP',
     dailyChallengeToast: '⚔️ Shadow Training Grounds cleared! +{n} XP',
+    // Combo bonus
+    comboToast: '🔥 Combo x{n}! +{xp} XP',
+    comboBroken: '💤 Combo broken…',
+    comboCountdown: '⏳ {n}s left',
     // Titles + rank-up celebration (Phase 4)
     titleNameUnbroken: 'Unbroken',
     titleDescUnbroken: 'Logged activity 30 days in a row',

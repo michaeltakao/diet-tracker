@@ -61,3 +61,26 @@ export function nextSetSuggestion(
   if (!prev || prev.weight <= 0) return { weight: fallbackWeightKg, reps: prev?.reps ?? 10 };
   return { weight: prev.reps >= 12 ? prev.weight + 2.5 : prev.weight, reps: prev.reps };
 }
+
+/**
+ * Combo bonus thresholds — rewards logging consecutive sets without long
+ * rests. Farmable by rhythmic clicking in principle; blunted by the
+ * valid-row gate at the call site (app/workout/page.tsx) and low-stakes for
+ * a single-user personal app. Not persisted per-event, only as XP totals.
+ */
+export const COMBO_FAST_MS = 60_000;
+export const COMBO_SLOW_MS = 120_000;
+export const COMBO_FAST_XP = 5;
+export const COMBO_SLOW_XP = 3;
+
+/**
+ * XP bonus for the elapsed time since the previous combo action.
+ * ≤ 60s → 5 XP (fast), ≤ 120s → 3 XP (slow), otherwise 0 (combo broken).
+ * Non-finite or negative input → 0 (defensive; callers pass Date.now() diffs).
+ */
+export function comboBonusXp(elapsedMs: number): number {
+  if (!Number.isFinite(elapsedMs) || elapsedMs < 0) return 0;
+  if (elapsedMs <= COMBO_FAST_MS) return COMBO_FAST_XP;
+  if (elapsedMs <= COMBO_SLOW_MS) return COMBO_SLOW_XP;
+  return 0;
+}
