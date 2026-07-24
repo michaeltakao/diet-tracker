@@ -634,6 +634,11 @@ anyway since it was cheap alongside the lipid/HbA1c work).
   validation, unbounded arrays, shared access code in localStorage, no CSP/
   security headers. Answered user Q: non-AI routes do NOT need guardAiRoute
   (they're authed + session-derived id filters, no RLS-only route found).
+  **FIXED 2026-07-24 (commit `8bc2655`):** `resolveSafeNext` now resolves
+  `next` against `origin` via `new URL` and explicitly rejects
+  `pathname.startsWith('//')`, matching price-commons' guard; 8 new unit
+  tests in `app/auth/callback/callback.test.ts`. Remaining P1s (Gemini
+  error-echo, unlogged export reads, prompt-injection) still open.
 - **2026-07-15 P0 #3 DONE: suggest-workout guard + durable ai_usage daily quota** —
   `app/api/suggest-workout/route.ts` now goes through `guardAiRoute` (was the
   only AI route with inline auth; its 429 also gains the missing `Retry-After`).
@@ -798,11 +803,22 @@ anyway since it was cheap alongside the lipid/HbA1c work).
   CRON_SECRET route so nudges fire without the user opening the app — the
   actual point of push; the current client-triggered send mostly mirrors
   in-app banners.
-- **[🔒user] to finish production**:
+- **2026-07-24 scope change: "usable by other users" clarified as general
+  public** (不特定多数), not just the known research/UX-test cohort. This
+  does NOT reopen the consent/guest-mode design (ADR-004 already handles an
+  unknown-population age split: 18+ attest via `/consent`, server-enforced
+  in `app/api/consent/route.ts`; under-18 steered to on-device guest mode).
+  It DOES raise the urgency of the items below — they now block **all**
+  public users' login, not just the developer's own E2E test — and adds
+  one new item (#5, rate limiting) that only matters once the app is
+  reachable by unknown traffic.
+- **[🔒user] to finish production — now blocking ALL public users' login,
+  not just dev E2E**:
   1. Vercel env (Production): add `SUPABASE_SERVICE_ROLE_KEY` (enables export +
      participant self-delete + **push-subscribe upsert**) and confirm
      `GEMINI_API_KEY` value is current (photo AI). `APP_ACCESS_CODE` already
-     set.
+     set. Self-delete matters more now: real strangers may invoke their APPI
+     deletion right, not just known participants.
   2. Supabase dashboard → Auth → URL Configuration: add
      `https://diet-tracker-two-blue.vercel.app` to Site URL / Redirect URLs
      (Google OAuth + magic link won't round-trip until then).
@@ -811,6 +827,20 @@ anyway since it was cheap alongside the lipid/HbA1c work).
 - **[🔒user] Supabase dashboard → Auth → Providers: Google is DISABLED**
   (`external.google=false`) — the login page's Google button cannot work against
   this project until enabled (or hide the button).
+- **[🔒user] Google Cloud Console → Credentials → OAuth client: confirm
+  Authorized redirect URIs include the Supabase project's own callback**
+  (`https://<project-ref>.supabase.co/auth/v1/callback`) — a separate config
+  surface from both Supabase and Vercel; a mismatch here can also produce an
+  opaque Google-side OAuth error at the callback.
+- **[🔒user] general-public-only addition: Supabase dashboard → Auth → Rate
+  Limits / Attack Protection** — review defaults, enable CAPTCHA
+  (Turnstile/hCaptcha) before opening to unknown public traffic. No app-code
+  rate limiter exists for `/login`, magic-link requests, or OAuth initiation;
+  this repo relies entirely on Supabase's platform-level defaults, which
+  have not yet been reviewed or enabled. Low-risk for a small known cohort,
+  real abuse vector (unauthenticated magic-link spam) once the app is
+  discoverable by anyone. Not solved in code — building a custom limiter
+  would duplicate what Supabase already offers.
 - **[🔒user] Gemini CLI ineligible** (IneligibleTierError) — migrate to Antigravity
   or council loses its preferred cross-vendor reviewer (Copilot/GPT still works).
 - **[🔒user] local `.env.local` has placeholder NEXT_PUBLIC_SUPABASE_* values and
