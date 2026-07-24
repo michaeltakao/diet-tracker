@@ -37,6 +37,7 @@ import NudgeBanner from '@/components/NudgeBanner';
 import PushPermissionCard from '@/components/PushPermissionCard';
 import RecentSymptomsCard from '@/components/RecentSymptomsCard';
 import RecommendationCard from '@/components/RecommendationCard';
+import WorkoutGeneratorCard from '@/components/WorkoutGeneratorCard';
 import { NutritionistCard } from '@/components/NutritionistCard';
 import TdeeCard from '@/components/TdeeCard';
 import BottomNav from '@/components/BottomNav';
@@ -522,6 +523,11 @@ export default function HomePage() {
 
           {/* ── AI nutritionist (今日の食事チェック) ─────── */}
           <NutritionistCard />
+
+          {/* ── AI Personal Trainer (on-demand full plan generator; distinct
+              from RecommendationCard's always-on affinity ranking — see
+              WorkoutGeneratorCard's doc comment) ──────────────────────── */}
+          <WorkoutGeneratorCard />
 
           {/* ── Adaptive TDEE ───────────────────────────── */}
           <TdeeCard />
