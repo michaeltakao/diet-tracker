@@ -1,6 +1,6 @@
 /**
  * Auto-generated Supabase database types.
- * Regenerated 2026-07-21 (Solo Leveling Phase 4: user_titles, migration 022) via the Supabase MCP `generate_typescript_types` (project chkkpucuiyjdeqgyyszt).
+ * Regenerated 2026-07-25 (per-exercise strength rank: exercise_ranks, migration 024) via the Supabase MCP `generate_typescript_types` (project chkkpucuiyjdeqgyyszt).
  * DO NOT hand-edit the Database type below — regenerate with:
  *   npx supabase gen types typescript --project-id chkkpucuiyjdeqgyyszt > lib/database.types.ts
  *
@@ -187,6 +187,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "checkins_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exercise_ranks: {
+        Row: {
+          achieved_at: string
+          exercise_id: string
+          id: string
+          rank: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          achieved_at?: string
+          exercise_id: string
+          id?: string
+          rank: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          achieved_at?: string
+          exercise_id?: string
+          id?: string
+          rank?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_ranks_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -1479,6 +1514,8 @@ export type UserRankRow          = Database["public"]["Tables"]["user_ranks"]["R
 export type UserQuestRow         = Database["public"]["Tables"]["user_quests"]["Row"]
 export type UserChallengeRow     = Database["public"]["Tables"]["user_challenges"]["Row"]
 export type UserTitleRow         = Database["public"]["Tables"]["user_titles"]["Row"]
+export type ExerciseRankRow      = Database["public"]["Tables"]["exercise_ranks"]["Row"]
+export type ExerciseRankInsert   = Database["public"]["Tables"]["exercise_ranks"]["Insert"]
 
 export type FoodLogInsert           = Database["public"]["Tables"]["food_logs"]["Insert"]
 export type WorkoutLogInsert        = Database["public"]["Tables"]["workout_logs"]["Insert"]

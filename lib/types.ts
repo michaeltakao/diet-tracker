@@ -227,6 +227,13 @@ export interface AppData {
   xp: number;                      // Solo Leveling rank system (Phase 1): cumulative XP, never decreases
   highestRank: RankId;             // ratchet — highest rank ever reached, independent of current XP
   earnedTitles: string[];          // Solo Leveling titles (Phase 4): TitleKey[], stored untyped here to avoid a types.ts <-> titles.ts import cycle
+  exerciseRanks: Record<string, ExerciseRankState>; // per-exercise strength rank (Liftoff-inspired), keyed by ExerciseDef.id — only the 10 curated rankable lifts ever get an entry
+}
+
+/** Stored per-exercise rank state — the achieved tier + when it was reached. */
+export interface ExerciseRankState {
+  rank: 'novice' | 'intermediate' | 'advanced' | 'expert' | 'elite'; // 'unranked' is never persisted (absence of a row = unranked, mirrors PersonalRecord's "no row = no PR yet")
+  achievedAt: string; // ISO
 }
 
 // ── Health Profile (stored in localStorage + profiles table) ──

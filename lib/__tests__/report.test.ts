@@ -22,6 +22,7 @@ function emptyData(): AppData {
     xp: 0,
     highestRank: 'E',
     earnedTitles: [],
+    exerciseRanks: {},
   };
 }
 

@@ -6,7 +6,11 @@ import {
   getAppData, addWorkoutEntry, removeWorkoutEntry,
   checkAndUpdatePR, addBadge, checkAndAwardBadges, getStreak, getBadges,
   getHealthProfile, getRealGoals,
+  recomputeAndPersistExerciseRank,
 } from '@/lib/data';
+import { isRankableExercise, type ExerciseRankId } from '@/lib/exercise-rank';
+import ExerciseRankBadge from '@/components/ExerciseRankBadge';
+import ExerciseRankUpCelebration from '@/components/ExerciseRankUpCelebration';
 import { evaluateDailyQuests } from '@/lib/daily-quests';
 import { getTodayQuestState, recordQuestCompletion } from '@/lib/data/quests';
 import { getDailyChallengeProgress, DAILY_CHALLENGE_XP } from '@/lib/daily-challenge';
@@ -17,7 +21,7 @@ import {
   Dumbbell, Clock, Flame, ShieldAlert, CheckCircle,
   Trash2, ChevronRight, ChevronDown, Sparkles, X,
 } from 'lucide-react';
-import { getExercises, getBeginnerExercises, findExercise } from '@/lib/exercise-db';
+import { getExercises, getBeginnerExercises, findExercise, EXERCISE_DB } from '@/lib/exercise-db';
 import ExerciseVideo from '@/components/ExerciseVideo';
 import { summarizeSets, nextSetSuggestion, comboBonusXp } from '@/lib/workout-sets';
 import { addXp } from '@/lib/xp';
@@ -167,6 +171,10 @@ export default function WorkoutPage() {
 
   // PR & Badge celebration
   const [celebrationBadges, setCelebrationBadges] = useState<Badge[]>([]);
+  // Per-exercise strength rank-up celebration (Liftoff-inspired) — queued
+  // separately from celebrationBadges so it can stack behind/after the PR
+  // badge modal rather than fight it for the same state slot.
+  const [exerciseRankUp, setExerciseRankUp] = useState<{ exerciseName: string; newRank: Exclude<ExerciseRankId, 'unranked'> } | null>(null);
   const [prToast, setPrToast]                     = useState<string | null>(null);
   const [questToast, setQuestToast]                = useState<string | null>(null);
   const [comboToast, setComboToast]                = useState<string | null>(null);
@@ -375,6 +383,20 @@ export default function WorkoutPage() {
       setCelebrationBadges([prBadge]);
     }
 
+    // Per-exercise strength rank (Liftoff-inspired, Phase 1). The form logs
+    // by nameJa (free-typed / menu-selected), not ExerciseDef.id — resolve
+    // it here rather than threading an id through the whole form. Only the
+    // 10 curated rankable lifts resolve to a non-null id AND have
+    // threshold data; everything else is a no-op via
+    // recomputeAndPersistExerciseRank's own isRankableExercise guard.
+    const loggedExercise = EXERCISE_DB.find((ex) => ex.nameJa === name.trim());
+    if (loggedExercise && isRankableExercise(loggedExercise.id) && est1RM > 0) {
+      const rankResult = await recomputeAndPersistExerciseRank(loggedExercise.id, est1RM);
+      if (rankResult && rankResult.newRank !== rankResult.oldRank && rankResult.newRank !== 'unranked') {
+        setExerciseRankUp({ exerciseName: name.trim(), newRank: rankResult.newRank });
+      }
+    }
+
     const newBadges = await checkAndAwardBadges(today);
     if (newBadges.length > 0 && !isNewPR) setCelebrationBadges(newBadges);
 
@@ -484,6 +506,17 @@ export default function WorkoutPage() {
         <BadgeCelebration badges={celebrationBadges} onClose={() => setCelebrationBadges([])} />
       )}
 
+      {/* Exercise Rank-Up Celebration (Liftoff-inspired) — queued behind the
+          badge celebration above when both fire from the same submit, so
+          they never visually overlap. */}
+      {celebrationBadges.length === 0 && exerciseRankUp && (
+        <ExerciseRankUpCelebration
+          exerciseName={exerciseRankUp.exerciseName}
+          newRank={exerciseRankUp.newRank}
+          onClose={() => setExerciseRankUp(null)}
+        />
+      )}
+
       {/* PR Toast */}
       <Toast message={prToast} variant="celebrate" />
 
@@ -577,6 +610,7 @@ export default function WorkoutPage() {
                           🏆 PR {formatWeight(pr.maxWeight, unit)}
                         </span>
                       )}
+                      {isRankableExercise(menu.id) && <ExerciseRankBadge exerciseId={menu.id} size="sm" />}
                     </div>
                     {last ? (
                       <div className="mt-0.5 space-y-0.5">

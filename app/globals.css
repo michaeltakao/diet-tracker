@@ -119,6 +119,15 @@
   --rank-a: #7fd8ff; /* Platinum */
   --rank-b: #ffd447; /* Gold */
   --rank-s: #ff4fd8; /* Diamond */
+
+  /* Per-exercise strength rank tier colors (Novice → Elite) — deliberately
+     a distinct green→orange ramp from the account-rank metal ladder above,
+     so the two progression systems never look like the same currency. */
+  --exrank-novice:       #4ade80; /* soft green */
+  --exrank-intermediate: #22c55e; /* green */
+  --exrank-advanced:     #f59e0b; /* amber */
+  --exrank-expert:       #f97316; /* orange */
+  --exrank-elite:        #ef4444; /* red-hot */
 }
 
 @media (prefers-color-scheme: dark) {

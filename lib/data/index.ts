@@ -26,3 +26,4 @@ export * from './vitals';
 export * from './symptoms';
 export * from './workout-prefs';
 export * from './steps';
+export * from './exercise-rank';

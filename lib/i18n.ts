@@ -664,6 +664,15 @@ export const translations = {
     rankUpCongrats: 'おめでとう、ハンター！',
     rankUpTitle: 'ランクアップ！',
     rankUpClose: '閉じる',
+    // Per-exercise strength rank (Liftoff-inspired, Phase 1)
+    exerciseRankNameNovice: 'ノービス',
+    exerciseRankNameIntermediate: 'インターミディエイト',
+    exerciseRankNameAdvanced: 'アドバンスド',
+    exerciseRankNameExpert: 'エキスパート',
+    exerciseRankNameElite: 'エリート',
+    exerciseRankUpTitle: '種目ランクアップ！',
+    exerciseRankUpCongrats: '{exercise} のランクが上がりました！',
+    exerciseRankUnranked: '体重を記録するとランクが表示されます',
     // Consent screen
     consentTitle: '研究へのご協力のお願い',
     consentLabAttribution: 'University of Aizu — Prof. Hamada Lab',
@@ -1357,6 +1366,15 @@ export const translations = {
     rankUpCongrats: 'Congratulations, Hunter!',
     rankUpTitle: 'Rank Up!',
     rankUpClose: 'Close',
+    // Per-exercise strength rank (Liftoff-inspired, Phase 1)
+    exerciseRankNameNovice: 'Novice',
+    exerciseRankNameIntermediate: 'Intermediate',
+    exerciseRankNameAdvanced: 'Advanced',
+    exerciseRankNameExpert: 'Expert',
+    exerciseRankNameElite: 'Elite',
+    exerciseRankUpTitle: 'Exercise Rank Up!',
+    exerciseRankUpCongrats: 'Your {exercise} rank went up!',
+    exerciseRankUnranked: 'Log your bodyweight to see your rank',
     // Consent screen
     consentTitle: 'Help Us With Our Research',
     consentLabAttribution: 'University of Aizu — Prof. Hamada Lab',

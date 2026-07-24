@@ -6,9 +6,10 @@
  * acting as a manual sync mechanism until Supabase is integrated.
  */
 
-import { AppData } from './types';
+import { AppData, ExerciseRankState } from './types';
 import { getAppData, saveAppData } from './storage';
 import { rankAtLeast } from './rank';
+import { isExerciseRankHigher, isExerciseRankId } from './exercise-rank';
 
 const STORAGE_KEY = 'diet-tracker-v1';
 
@@ -185,6 +186,32 @@ export async function importFromFile(file: File): Promise<ImportResult> {
       earnedTitles: Array.from(
         new Set([...(current.earnedTitles ?? []), ...(incoming.earnedTitles ?? [])]),
       ),
+      // Per-exercise ranks are a ratchet too (see lib/exercise-rank.ts) —
+      // union both sides, keeping the higher-ranked entry per exercise on
+      // conflict. `incoming` is a raw `as AppData` cast of parsed JSON (a
+      // restored backup file), so incomingState.rank/exerciseId are
+      // untrusted input, not guaranteed to match the app's types — validate
+      // before ever writing them into AppData (a malformed rank string
+      // would otherwise reach EXERCISE_RANK_TIERS[state.rank] as undefined
+      // at render time).
+      exerciseRanks: (() => {
+        const merged: AppData['exerciseRanks'] = { ...(current.exerciseRanks ?? {}) };
+        for (const [exerciseId, incomingStateUnsafe] of Object.entries(incoming.exerciseRanks ?? {}) as [string, unknown][]) {
+          const rank: unknown = (incomingStateUnsafe as { rank?: unknown } | null)?.rank;
+          const achievedAt: unknown = (incomingStateUnsafe as { achievedAt?: unknown } | null)?.achievedAt;
+          if (
+            typeof exerciseId !== 'string' || exerciseId.length === 0 ||
+            !isExerciseRankId(rank) || rank === 'unranked' ||
+            typeof achievedAt !== 'string'
+          ) continue;
+          const incomingState: ExerciseRankState = { rank, achievedAt };
+          const existing = merged[exerciseId];
+          if (!existing || isExerciseRankHigher(incomingState.rank, existing.rank)) {
+            merged[exerciseId] = incomingState;
+          }
+        }
+        return merged;
+      })(),
     };
 
     saveAppData(merged);

@@ -119,6 +119,7 @@ describe('evaluateDailyQuests', () => {
     waterByDate: {}, badges: [], personalRecords: {}, recommendationFeedback: [],
     favoriteFoods: [], mealTemplates: [], streakState: { longest: 0, repairedDates: [] },
     vitalEntries: [], symptomEntries: [], xp: 0, highestRank: 'E', earnedTitles: [],
+    exerciseRanks: {},
     ...over,
   });
 

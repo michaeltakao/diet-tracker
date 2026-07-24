@@ -1,4 +1,4 @@
-import { AppData, Badge, BadgeType, DailyGoals, FavoriteFood, FoodEntry, MealTemplate, PersonalRecord, RecommendationFeedback, SymptomEntry, VitalEntry, WeightEntry, WorkoutEntry } from './types';
+import { AppData, Badge, BadgeType, DailyGoals, ExerciseRankState, FavoriteFood, FoodEntry, MealTemplate, PersonalRecord, RecommendationFeedback, SymptomEntry, VitalEntry, WeightEntry, WorkoutEntry } from './types';
 import { activityDaysFrom, computeStreak, jstToday } from './streak';
 import type { RankId } from './rank';
 
@@ -50,6 +50,7 @@ const DEFAULT_DATA: AppData = {
   xp: 0,
   highestRank: 'E',
   earnedTitles: [],
+  exerciseRanks: {},
 };
 
 export function getAppData(): AppData {
@@ -78,6 +79,7 @@ export function getAppData(): AppData {
       xp: typeof parsed.xp === 'number' && parsed.xp >= 0 ? parsed.xp : 0,
       highestRank: isRankId(parsed.highestRank) ? parsed.highestRank : 'E',
       earnedTitles: Array.isArray(parsed.earnedTitles) ? parsed.earnedTitles : [],
+      exerciseRanks: parsed.exerciseRanks ?? {},
     };
   } catch {
     return { ...DEFAULT_DATA, goals: { ...DEFAULT_GOALS } };
@@ -361,6 +363,20 @@ export function checkAndUpdatePR(
     return true;
   }
   return false;
+}
+
+// ── Per-exercise strength rank (Liftoff-inspired, lib/exercise-rank.ts) ──
+export function getExerciseRankState(exerciseId: string): ExerciseRankState | undefined {
+  const data = getAppData();
+  return (data.exerciseRanks ?? {})[exerciseId];
+}
+
+/** Persists the given rank for `exerciseId`, stamping achievedAt now. Unconditional — callers decide whether it's actually a change worth writing. */
+export function setExerciseRankState(exerciseId: string, rank: ExerciseRankState['rank']): void {
+  const data = getAppData();
+  if (!data.exerciseRanks) data.exerciseRanks = {};
+  data.exerciseRanks[exerciseId] = { rank, achievedAt: new Date().toISOString() };
+  saveAppData(data);
 }
 
 /**
