@@ -11,6 +11,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase, createServiceSupabase } from '@/lib/supabase-server';
 
+/**
+ * Resolve a post-login `next` redirect target against `origin`, rejecting
+ * anything that would leave the app's own origin.
+ *
+ * Guards against open redirects, including protocol-relative paths like
+ * `//evil.com` — browsers treat a leading `//` as scheme-relative and will
+ * follow it off-site even though `next.startsWith('/')` is true for it.
+ *
+ * @param rawNext - The `next` query param as received (untrusted).
+ * @param origin - The app's own origin, e.g. `https://example.com`.
+ * @returns A same-origin path (+ search + hash), or `/` if `rawNext` was
+ *   unparseable, cross-origin, or protocol-relative.
+ */
+export function resolveSafeNext(rawNext: string, origin: string): string {
+  try {
+    const resolved = new URL(rawNext, origin);
+    if (resolved.origin === origin && !resolved.pathname.startsWith('//')) {
+      return resolved.pathname + resolved.search + resolved.hash;
+    }
+  } catch {
+    // Unparseable `next` — fall through to home.
+  }
+  return '/';
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
 
@@ -82,9 +107,11 @@ export async function GET(request: NextRequest) {
       }
 
       // Success — redirect to `next` (default: dashboard)
-      // Ensure `next` is a relative path to prevent open-redirect attacks
-      const safePath = next.startsWith('/') ? next : '/';
-      return NextResponse.redirect(new URL(safePath, origin));
+      // Resolve `next` against `origin` and require it to stay same-origin,
+      // rejecting protocol-relative paths (`//evil.com`) that `startsWith('/')`
+      // alone would accept — browsers treat a leading `//` as scheme-relative
+      // and follow it off-site.
+      return NextResponse.redirect(new URL(resolveSafeNext(next, origin), origin));
 
     } catch (err) {
       console.error('[auth/callback] Unexpected error:', err);
