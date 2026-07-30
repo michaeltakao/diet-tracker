@@ -45,9 +45,10 @@
   (shadow_rookie + shadow_veteran) at D-rank. 14 new tests
   (`titles.test.ts`, **416 total passing**), lint clean, build clean.
   **All 3 migrations (020/021/022) applied to prod
-  `chkkpucuiyjdeqgyyszt`.** Not yet pushed to origin (4 local commits
-  ahead of `main` — Vercel prod deploy intentionally deferred per plan,
-  pending explicit user go-ahead).
+  `chkkpucuiyjdeqgyyszt`.** Pushed to origin (2026-07-30 correction —
+  this had been stale; `main` and `origin/main` are in sync). Vercel prod
+  deploy still intentionally deferred per plan, pending explicit user
+  go-ahead.
 - **2026-07-21 Solo Leveling rank system — Phase 3/4 (daily quests), committed:**
   migration **021 applied to prod** (`user_quests`: 5 quest_type CHECK values,
   UNIQUE(user_id,quest_date,quest_type), owner-only RLS). `lib/daily-quests.ts`
