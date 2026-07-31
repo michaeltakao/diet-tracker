@@ -159,6 +159,6 @@ export const config = {
      *
      * The negative lookahead (?!...) excludes those paths.
      */
-    '/((?!_next/static|_next/image|api|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml|json)$).*)',
+    '/((?!_next/static|_next/image|api|favicon\\.ico|manifest\\.webmanifest|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml|json|webmanifest)$).*)',
   ],
 };
