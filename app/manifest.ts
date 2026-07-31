@@ -2,9 +2,9 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Diet Tracker — PFC & Calorie Log',
+    name: 'Diet Tracker — ワークアウト & 栄養プランナー',
     short_name: 'DietTracker',
-    description: '食事・体重・ワークアウトを記録してAIコーチングを受けよう',
+    description: 'ワークアウトを計画・記録し、食事・体重も一緒に管理してAIコーチングを受けよう',
     start_url: '/',
     scope: '/',
     display: 'standalone',
@@ -33,6 +33,13 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     screenshots: [],
     shortcuts: [
+      {
+        name: 'ワークアウトを記録',
+        short_name: 'ワークアウト',
+        description: '今日のトレーニングを記録する',
+        url: '/workout',
+        icons: [{ src: '/icon', sizes: '96x96' }],
+      },
       {
         name: '食事を追加',
         short_name: '追加',

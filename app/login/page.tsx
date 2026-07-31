@@ -151,7 +151,7 @@ function LoginPageInner() {
           Diet Tracker
         </h1>
         <p className="text-sm text-muted text-center max-w-xs">
-          AI-powered nutrition & fitness tracking.
+          Plan your training, track your progress — with AI-powered nutrition support.
           Sign in to sync your data across devices.
         </p>
       </div>
