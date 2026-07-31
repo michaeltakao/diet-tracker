@@ -1,6 +1,29 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-07-31 Public launch prep — deployed to prod:** repositioned
+  public-facing copy toward exercise/workout planning (`app/layout.tsx`
+  metadata incl. new `metadataBase`, `app/manifest.ts` name/description +
+  workout shortcut, `app/login/page.tsx` tagline) while keeping diet
+  tracking as a named supporting feature (`ccd6f42`). Added `app/robots.ts`
+  + `app/sitemap.ts` (neither existed before) — kept deliberately minimal
+  (`/` and `/login` only) since `proxy.ts` redirects every other route to
+  `/login` without an authenticated or guest session. **Found + fixed while
+  verifying the deploy**: `proxy.ts`'s route matcher comment claimed PWA
+  files (manifest, sw) were excluded from the auth guard, but the regex
+  never actually excluded `.webmanifest` or `sw.js` — both were
+  307-redirecting to `/login` for any unauthenticated, non-guest visitor,
+  breaking PWA install and service-worker registration for first-time
+  visitors specifically (`87e776c`). Verified via curl pre/post-fix against
+  prod. Brought `main` (previously 1 commit ahead, holding the full Solo
+  Leveling gamification round — migrations 020-022 already applied to prod
+  DB, app code just not yet deployed) up to date on Vercel prod; confirmed
+  live via curl: new `<title>`/OG tags on `/login`, `/robots.txt`,
+  `/sitemap.xml`, `/manifest.webmanifest`, `/sw.js` all 200. lint 0 errors
+  (3 pre-existing warnings), build clean, 513/513 vitest passing throughout.
+  **Public traffic still blocked** — see `[🔒user]` checklist below
+  (Supabase env/OAuth/rate-limiting) and the `APP_ACCESS_CODE` decision;
+  do not describe the app as "published" until that checklist is done.
 - **2026-07-21 Solo Leveling rank system — Phase 4/4 (rank-up celebration +
   title system), COMMITTED — all 4 phases complete:** migration **022
   applied to prod** (`user_titles`: once-earned-never-revoked, owner-only
