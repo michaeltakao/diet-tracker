@@ -30,7 +30,7 @@ export default function ConsentPage() {
       // Even if sign-out fails (e.g. network), the guest exit must not strand
       // the user on the consent page.
       document.cookie = 'dt-guest=1; path=/; max-age=31536000; samesite=lax';
-      router.replace('/');
+      router.replace('/dashboard');
     }
   };
 
@@ -48,7 +48,7 @@ export default function ConsentPage() {
     try {
       await postJson('/api/consent', {});
       setDone(true);
-      setTimeout(() => router.replace('/'), 1500);
+      setTimeout(() => router.replace('/dashboard'), 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : t.consentError);
     } finally {
@@ -195,7 +195,7 @@ export default function ConsentPage() {
         <div className="flex gap-3">
           <button
             type="button"
-            onClick={() => router.replace('/')}
+            onClick={() => router.replace('/dashboard')}
             className="flex-1 py-3 rounded-2xl text-xs font-bold text-faint bg-surface-2 hover:bg-card transition-colors"
           >
             {t.consentDeferCta}

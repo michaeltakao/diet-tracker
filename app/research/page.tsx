@@ -65,7 +65,7 @@ export default function ResearchPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-faint hover:text-muted transition-colors">
+            <Link href="/dashboard" className="text-faint hover:text-muted transition-colors">
               <ChevronLeft size={20} />
             </Link>
             <div>

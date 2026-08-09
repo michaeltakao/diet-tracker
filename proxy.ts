@@ -85,6 +85,10 @@ export async function proxy(request: NextRequest) {
   const isConsentPage    = pathname === '/consent';
   const isApiRoute       = pathname.startsWith('/api/');
   const isOnboardingPage = pathname === '/onboarding';
+  // The public marketing/landing page (app/page.tsx). Anonymous visitors
+  // render it directly instead of bouncing to /login; authenticated users
+  // and opted-in guests who land here get sent on to /dashboard below.
+  const isRootPage       = pathname === '/';
 
   // First visit → /onboarding (FTUE D4). Page routes only. For authed users
   // this fires AFTER the consent check below (consent always comes first).
@@ -92,23 +96,35 @@ export async function proxy(request: NextRequest) {
   // is re-prompted once (the wizard prefills from their profile and is
   // skippable in one tap). With placeholder Supabase env this proxy returns
   // at the top, so local guest dev stays ungated; production is configured.
+  // The public landing page (isRootPage) is exempt like /login — an
+  // un-onboarded visitor who lands on `/` sees the marketing page, not the
+  // wizard; onboarding is only forced once they're actually in the app.
   const needsOnboarding =
     !isOnboardingPage && !isConsentPage && !isApiRoute && !isAuthRoute && !isLoginPage &&
+    !isRootPage &&
     request.cookies.get('dt-onboarded')?.value !== '1';
   const onboardingRedirect = () => {
     const onboardingUrl = request.nextUrl.clone();
     onboardingUrl.pathname = '/onboarding';
     return NextResponse.redirect(onboardingUrl);
   };
+  const dashboardRedirect = () => NextResponse.redirect(new URL('/dashboard', request.url));
 
   // Unauthenticated → /login
-  // Exception: explicit guest opt-in (dt-guest cookie, set by the login page's
-  // "Continue without an account" link). Guests run localStorage-only; AI
-  // routes still enforce their own gate in lib/api-guard.ts.
+  // Exception 1: explicit guest opt-in (dt-guest cookie, set by the login
+  // page's "Continue without an account" link). Guests run localStorage-only;
+  // AI routes still enforce their own gate in lib/api-guard.ts.
+  // Exception 2: the public landing page itself — anonymous, non-guest
+  // visitors render app/page.tsx directly instead of bouncing to /login.
   const isGuest = request.cookies.get('dt-guest')?.value === '1';
   if (!user && isGuest && !isLoginPage) {
     if (needsOnboarding) return onboardingRedirect();
+    // Fully onboarded guest landing on `/` → dashboard, not the landing page.
+    if (isRootPage) return dashboardRedirect();
     return response;
+  }
+  if (!user && !isGuest && isRootPage) {
+    return response; // anonymous visitor → public landing page, no redirect
   }
   if (!user && !isLoginPage && !isAuthRoute) {
     const loginUrl = request.nextUrl.clone();
@@ -118,9 +134,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Authenticated + already on /login → dashboard
-  if (user && isLoginPage) {
-    return NextResponse.redirect(new URL('/', request.url));
+  // Authenticated + already on /login or the landing page → dashboard
+  if (user && (isLoginPage || isRootPage)) {
+    return dashboardRedirect();
   }
 
   // Authenticated but not yet consented → /consent

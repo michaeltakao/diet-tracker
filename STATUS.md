@@ -1,6 +1,88 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-08-09 Public landing page round — re-verified + committed (NOT
+  deployed/pushed):** picked up the 2026-07-31 uncommitted landing-page split
+  (below) after confirming with the user that deploy scope stays
+  **家族・知人限定** (family/known-people), not the 07-24 STATUS note's
+  general-public framing — so the research-disclosure footer
+  (`landingResearchNote`) stays correctly omitted from `app/page.tsx`, no
+  change needed. Investigated the plan's claimed gap ("`app/page.tsx`'s
+  `GuestLink` bypasses proxy's `needsOnboarding` check") by tracing
+  `proxy.ts` end to end: **not a real bug** — `/dashboard` is still fully
+  proxy-guarded (not in the matcher's exclusion list), `dt-onboarded` is only
+  ever set by `lib/data/onboarding.ts` after the wizard completes/is
+  skipped, and both `/login`'s and `/`'s guest links land on `/dashboard`
+  and hit the identical `needsOnboarding` gate — confirmed via grep that no
+  code path sets the cookie early. No code change made here; the two guest
+  links differ only in that login's honors a `?next=` query param (moot on
+  the landing page, which has no incoming deep-link context). Re-ran full
+  verification fresh (not trusting July's numbers): `npm run lint` 0 errors
+  (3 pre-existing warnings, same files as before), `npm run build` green
+  after one network-flake retry (Google Fonts fetch for M PLUS Rounded 1c
+  timed out once, unrelated to this diff — succeeded on retry), `/` and
+  `/dashboard` confirmed as separate static (`○`) routes in the route table,
+  **513/513 vitest passing** (unchanged from July). Committed the 10 already-
+  modified files as-is (`app/page.tsx` new, `proxy.ts` +
+  `app/{add,consent,login,onboarding,research}/page.tsx` +
+  `components/{BottomNav,SideNav}.tsx` + `lib/i18n.ts` review-only, no
+  further edits needed) + this STATUS.md entry. **Deliberately NOT done this
+  round**: `git push`, Vercel deploy, or any `[🔒user]` dashboard action —
+  all still gated on separate explicit go-ahead. See the consolidated
+  `[🔒user]` checklist in Next for what's still blocking real public/family
+  usage.
+- **2026-07-31 Public landing page — route split, NOT yet deployed:**
+  the dashboard moved off `/` onto `/dashboard` (`git mv app/page.tsx
+  app/dashboard/page.tsx`); `/` is now a real public marketing page a
+  stranger can land on without authenticating. All internal
+  dashboard-as-root links repointed to `/dashboard`
+  (`app/add`/`app/consent`/`app/onboarding`/`app/login`'s `nextPath`
+  default, `BottomNav`/`SideNav` Home item, `app/research`'s back-chevron).
+  `proxy.ts`: new `isRootPage` — anonymous non-guest visitors on `/` now
+  render the landing page instead of bouncing to `/login`; authenticated
+  users and opted-in guests landing on `/` redirect to `/dashboard`
+  (`dashboardRedirect()`); `needsOnboarding` exempts `isRootPage` so the
+  wizard doesn't fire on the marketing page. Matcher config unchanged
+  (`/` was already covered). New `app/page.tsx` (client component —
+  `useLanguage()` is a localStorage-backed client context, same
+  constraint as `/login`/`/consent`/`/onboarding`): hero + 4 feature
+  cards (AI workout generator, rank/XP, nutrition/PFC tracking, AI
+  coaching — all pulled from actually-shipped features, no aspirational
+  copy) + guest-mode secondary CTA (same `dt-guest` cookie pattern as
+  `/login`). **Research-disclosure footer deliberately omitted per user
+  request** — this deploy is being shared with family/people around the
+  user, not the general public, so the University of Aizu / consent-gate
+  disclosure was dropped from the page; the `landingResearchNote` i18n
+  keys remain defined-but-unused in `lib/i18n.ts` (matches the codebase's
+  existing practice of not aggressively pruning unused i18n keys).
+  `app/manifest.ts` `start_url: '/'` left unchanged, relies on the new
+  authed→`/dashboard` proxy redirect (one source of truth). Deliberately
+  NOT touched: `app/auth/callback/route.ts`'s `resolveSafeNext` `'/'`
+  default and its test suite — the extra `/`→`/dashboard` hop makes it
+  harmless and it's a security-sensitive open-redirect guard, out of this
+  round's file list. Also noted, not fixed: `SideNav` renders
+  unconditionally in `app/layout.tsx` on every route including `/` and
+  `/login` — a desktop visitor sees the full app sidebar next to the
+  marketing/login pages (pre-existing, not introduced here). Verified:
+  lint 0 errors (3 pre-existing warnings, unrelated files), build clean
+  (`/` and `/dashboard` both compile as separate static routes),
+  **513/513 vitest passing** (no test hardcoded a dashboard-at-`/`
+  assumption — `callback.test.ts`'s `resolveSafeNext` assertions test the
+  open-redirect guard itself, not routing, so left as-is). Local dev
+  verification limited by placeholder Supabase env (`proxy.ts` bypasses
+  the entire auth guard when unconfigured, confirmed via source read) —
+  traced all 4 plan verification cases against the proxy logic by hand
+  instead: `/` anon→200 landing, `/` guest-cookie→redirect `/dashboard`,
+  `/dashboard` anon→redirect `/login?next=%2Fdashboard`,
+  `/manifest.webmanifest`→200 (matcher-excluded, unaffected). Real
+  redirect-status verification needs a run against prod (or a
+  Supabase-configured preview), same as last session's precedent.
+  **NOT deployed** — pending explicit user go-ahead per plan. **This page
+  does not make the app publicly usable**: the `[🔒user]` checklist
+  (`SUPABASE_SERVICE_ROLE_KEY`, Google OAuth provider, redirect URLs,
+  rate limiting/CAPTCHA) is still the gate before real strangers can sign
+  in — this page ships "ready the moment those switches are flipped,"
+  not "public today."
 - **2026-07-31 Public launch prep — deployed to prod:** repositioned
   public-facing copy toward exercise/workout planning (`app/layout.tsx`
   metadata incl. new `metadataBase`, `app/manifest.ts` name/description +

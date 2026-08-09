@@ -57,7 +57,7 @@ function LoginPageInner() {
   const { signInWithGoogle, signInWithEmail, isAuthenticated } = useProfile();
   const searchParams = useSearchParams();
 
-  const nextPath   = searchParams.get('next') ?? '/';
+  const nextPath   = searchParams.get('next') ?? '/dashboard';
   const errorCode  = searchParams.get('error');
   const errorMsg   = searchParams.get('message');
 
@@ -253,7 +253,7 @@ function LoginPageInner() {
 
       {/* Guest mode */}
       <Link
-        href={nextPath.startsWith('/') ? nextPath : '/'}
+        href={nextPath.startsWith('/') ? nextPath : '/dashboard'}
         prefetch={false}
         onClick={() => {
           // Guest opt-in cookie: proxy.ts lets unauthenticated requests through

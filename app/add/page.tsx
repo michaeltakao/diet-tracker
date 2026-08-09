@@ -281,7 +281,7 @@ export default function AddPage() {
       setSpeedToast(true);
       setTimeout(() => setSpeedToast(false), 1500);
     } else {
-      router.push('/');
+      router.push('/dashboard');
     }
   };
 
@@ -297,7 +297,7 @@ export default function AddPage() {
     setRecentFoods(getRecentFoods(6));
     setQuickAddToast(true);
     if (!speedMode) {
-      setTimeout(() => router.push('/'), 900);
+      setTimeout(() => router.push('/dashboard'), 900);
     } else {
       setTimeout(() => setQuickAddToast(false), 1200);
     }
@@ -319,7 +319,7 @@ export default function AddPage() {
     });
     setQuickAddToast(true);
     if (!speedMode) {
-      setTimeout(() => router.push('/'), 900);
+      setTimeout(() => router.push('/dashboard'), 900);
     } else {
       setTimeout(() => setQuickAddToast(false), 1200);
     }

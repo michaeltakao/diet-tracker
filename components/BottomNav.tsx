@@ -10,7 +10,7 @@ export default function BottomNav() {
   const { t } = useLanguage();
 
   const NAV_ITEMS = [
-    { href: '/',        label: t.navHome,    icon: Home },
+    { href: '/dashboard', label: t.navHome,  icon: Home },
     { href: '/log',     label: t.navLog,     icon: BookOpen },
     { href: '/add',     label: t.navAdd,     icon: PlusCircle },
     { href: '/workout', label: t.navWorkout, icon: Dumbbell },

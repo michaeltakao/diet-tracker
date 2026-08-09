@@ -11,7 +11,7 @@ export default function SideNav() {
   const { t } = useLanguage();
 
   const NAV_ITEMS: { href: string; label: string; icon: React.ElementType; accent?: boolean }[] = [
-    { href: '/',         label: t.navHome,    icon: Home },
+    { href: '/dashboard', label: t.navHome,   icon: Home },
     { href: '/log',      label: t.navLog,     icon: BookOpen },
     { href: '/add',      label: t.navAdd,     icon: PlusCircle,  accent: true },
     { href: '/workout',  label: t.navWorkout, icon: Dumbbell },

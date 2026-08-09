@@ -257,7 +257,7 @@ export default function OnboardingPage() {
 
   const skipAll = () => {
     skipOnboarding();
-    router.replace('/');
+    router.replace('/dashboard');
   };
 
   // ── Result screen (D5) ──────────────────────────────────────────────────────
@@ -324,7 +324,7 @@ export default function OnboardingPage() {
           <ChevronRight size={16} />
         </button>
         <button
-          onClick={() => router.replace('/')}
+          onClick={() => router.replace('/dashboard')}
           className="w-full py-3 mt-2 rounded-2xl text-xs font-bold text-muted hover:bg-surface-2 transition-all"
         >
           ダッシュボードを見る
