@@ -1,3 +1,17 @@
+/**
+ * NOTE (2026-09-18, P0 #9): this route currently has NO caller.
+ * `components/SessionStart.tsx` used to be its only client and now calls
+ * `/api/generate-workout` instead, so that exercise selection comes from the
+ * deterministic engine rather than the model.
+ *
+ * Kept rather than deleted because its documented scope is a different job —
+ * "adjust today's ALREADY-scheduled session" (see lib/workout-generator.ts) —
+ * which the roadmap still wants, and because it stays behind guardAiRoute +
+ * its own rate limit and daily quota, so an unused route costs nothing. If
+ * that adjust flow is dropped, delete this route together with
+ * components/WorkoutSuggestionCard.tsx (also orphaned) and their
+ * RATE_LIMITS/DAILY_QUOTAS entries.
+ */
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type, type Schema } from '@google/genai';
 import { generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';

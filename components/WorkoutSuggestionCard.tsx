@@ -1,9 +1,13 @@
 'use client';
 
 /**
- * AI training-session suggestion card. Extracted from app/plan/page.tsx
- * (P0 #9, FTUE roadmap) so /workout's SessionStart flow can render the same
- * card without a dependency on the /plan page.
+ * AI training-session suggestion card, rendering /api/suggest-workout's
+ * free-form advice (proceed/adjustments/recovery tips).
+ *
+ * NOTE (2026-09-18, P0 #9): currently unused. SessionStart now renders
+ * GeneratedPlanCard instead, showing the deterministic engine's exercise
+ * list. Kept alongside /api/suggest-workout, whose output shape this is the
+ * only renderer for — see that route's header for the delete-together note.
  */
 
 import { Zap, RefreshCw, AlertTriangle } from 'lucide-react';

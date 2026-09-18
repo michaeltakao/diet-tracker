@@ -9,6 +9,8 @@ import {
   type FitnessGoal,
   type TimeAvailableMin,
   type GeneratedPlan,
+  type EnergyLevel,
+  type RecentMuscleUse,
 } from '@/lib/workout-generator';
 import type { Equipment } from '@/lib/exercise-db';
 import type { MusclePart } from '@/lib/types';
@@ -19,12 +21,21 @@ const VALID_GOALS = ['hypertrophy', 'strength', 'endurance', 'weight_loss'] as c
 const VALID_EQUIPMENT = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'] as const;
 const VALID_DURATIONS = [15, 30, 45, 60] as const;
 const VALID_BODY_PARTS = ['chest', 'back', 'legs', 'shoulders', 'arms', 'abs'] as const;
+const VALID_ENERGY_LEVELS = ['low', 'medium', 'high'] as const;
+
+/** Upper bound on client-supplied history entries, so a hostile body cannot
+ *  make the server sort an unbounded array. The engine only reads the most
+ *  recent day per muscle part, so 6 parts × a week is already generous. */
+const MAX_RECENT_ENTRIES = 60;
 
 interface GenerateWorkoutRequest {
   goal?: string;
   availableEquipment?: string[];
   timeAvailableMin?: number;
   targetBodyParts?: string[];
+  sorenessAreas?: string[];
+  energyLevel?: string;
+  recentMuscleParts?: Array<{ musclePart?: string; daysAgo?: number }>;
 }
 
 /**
@@ -64,6 +75,9 @@ const EQUIPMENT_LABELS: Record<string, string> = {
 const BODY_PART_LABELS: Record<string, string> = {
   chest: '胸', back: '背中', legs: '脚', shoulders: '肩', arms: '腕', abs: '腹筋',
 };
+const ENERGY_LABELS: Record<EnergyLevel, string> = {
+  low: '低め', medium: '普通', high: '高い',
+};
 
 function buildPrompt(input: GeneratePlanInput, plan: GeneratedPlan): string {
   return [
@@ -72,6 +86,15 @@ function buildPrompt(input: GeneratePlanInput, plan: GeneratedPlan): string {
     `【利用可能時間】${input.timeAvailableMin}分`,
     input.targetBodyParts && input.targetBodyParts.length > 0
       ? `【重点部位】${input.targetBodyParts.map((p) => BODY_PART_LABELS[p] ?? p).join('、')}`
+      : '',
+    // Soreness and energy already shaped the plan below; they are passed on so
+    // the narration can acknowledge them ("今日は軽めに" etc.) instead of
+    // cheerfully describing a reduced session as a full one.
+    input.sorenessAreas && input.sorenessAreas.length > 0
+      ? `【申告された筋肉痛】${input.sorenessAreas.map((p) => BODY_PART_LABELS[p] ?? p).join('、')}（これらの部位は既にプランから外す／後回しにしてあります）`
+      : '',
+    input.energyLevel
+      ? `【今日の調子】${ENERGY_LABELS[input.energyLevel]}（セット数は調整済み）`
       : '',
     '',
     '【決定済みプラン（変更不可）】',
@@ -124,7 +147,38 @@ export async function POST(request: Request): Promise<NextResponse> {
     ? body.targetBodyParts.filter((p): p is MusclePart => VALID_BODY_PARTS.includes(p as typeof VALID_BODY_PARTS[number]))
     : undefined;
 
-  const input: GeneratePlanInput = { goal, availableEquipment, timeAvailableMin, targetBodyParts };
+  // Optional session-start signals. Each is validated and silently dropped
+  // when malformed rather than 400-ing: they refine the plan but none is
+  // required to produce one, so a stale client should still get a workout.
+  const sorenessAreas = Array.isArray(body.sorenessAreas)
+    ? body.sorenessAreas.filter((p): p is MusclePart => VALID_BODY_PARTS.includes(p as typeof VALID_BODY_PARTS[number]))
+    : undefined;
+
+  const energyLevel = VALID_ENERGY_LEVELS.includes(body.energyLevel as typeof VALID_ENERGY_LEVELS[number])
+    ? (body.energyLevel as EnergyLevel)
+    : undefined;
+
+  const recentMuscleParts = Array.isArray(body.recentMuscleParts)
+    ? body.recentMuscleParts
+        .slice(0, MAX_RECENT_ENTRIES)
+        .filter((r): r is { musclePart: MusclePart; daysAgo: number } =>
+          !!r
+          && VALID_BODY_PARTS.includes(r.musclePart as typeof VALID_BODY_PARTS[number])
+          && typeof r.daysAgo === 'number'
+          && Number.isFinite(r.daysAgo)
+          && r.daysAgo >= 0)
+        .map((r): RecentMuscleUse => ({ musclePart: r.musclePart, daysAgo: r.daysAgo }))
+    : undefined;
+
+  const input: GeneratePlanInput = {
+    goal,
+    availableEquipment,
+    timeAvailableMin,
+    targetBodyParts,
+    sorenessAreas,
+    energyLevel,
+    recentMuscleParts,
+  };
 
   // ── Deterministic selection first — no AI cost if the plan is empty. ──────
   const plan = selectExercises(input);

@@ -13,9 +13,16 @@
  * On completion this saves a DailyCheckIn (energy mapped via
  * energyLevelToScale — see lib/session-start.ts for why that mapping is
  * intentionally lossy), updates WorkoutPrefs (including recordLocationChoice
- * for tomorrow's default), and fetches an AI suggestion — the same
- * fetchSuggestion logic that used to live in app/plan/page.tsx, now sending
- * location + duration alongside the existing fields.
+ * for tomorrow's default), and requests a workout plan.
+ *
+ * P0 #9 (roadmap §4): that request goes to `/api/generate-workout`, where a
+ * deterministic engine (lib/workout-generator.ts) picks the exercises, sets
+ * and reps and the LLM only narrates them. It previously went to
+ * `/api/suggest-workout`, where the model chose the exercises freely — the
+ * exact inversion this roadmap item exists to fix. The chips this flow
+ * already collects (duration, equipment, energy, soreness) are now the
+ * engine's inputs rather than prose in a prompt, and recent logged workouts
+ * are folded in as per-muscle recovery data.
  *
  * If today's check-in is already saved, renders a collapsed summary with a
  * "change" affordance that re-expands the full flow.
@@ -32,16 +39,16 @@ import {
   type WorkoutPrefs, type TrainingLocation, type SessionDuration,
 } from '@/lib/data/workout-prefs';
 import { getHealthProfile } from '@/lib/data/health-profile';
-import { getGoals } from '@/lib/data/profile';
-import { getAllPersonalRecords, getWorkoutEntriesForRange } from '@/lib/data/workout';
-import { getTodaySession } from '@/lib/data/training-plan';
+import { getWorkoutEntriesForRange } from '@/lib/data/workout';
 import {
   energyLevelToScale, pickDefaultLocation, LOCATION_EQUIPMENT_DEFAULTS,
+  profileGoalToTrainingGoal, toTimeAvailableMin, toRecentMuscleParts,
   type EnergyLevel,
 } from '@/lib/session-start';
+import { selectExercises, type GeneratePlanInput } from '@/lib/workout-generator';
 import type { Equipment } from '@/lib/exercise-db';
-import type { DailyCheckIn, WorkoutSuggestion, MusclePart } from '@/lib/types';
-import WorkoutSuggestionCard from '@/components/WorkoutSuggestionCard';
+import type { DailyCheckIn, MusclePart } from '@/lib/types';
+import GeneratedPlanCard, { type GeneratedPlanResult } from '@/components/GeneratedPlanCard';
 import { postJson, HttpError } from '@/lib/httpClient';
 
 const ALL_MUSCLES: MusclePart[] = ['chest', 'back', 'legs', 'shoulders', 'arms', 'abs'];
@@ -82,6 +89,21 @@ const ENERGY_LEVELS: Array<{ id: EnergyLevel; labelKey: 'energyLow' | 'energyMed
   { id: 'high',   labelKey: 'energyHigh' },
 ];
 
+/** Request body for /api/generate-workout, built from this flow's chips. */
+type PlanInput = Omit<GeneratePlanInput, 'targetBodyParts'> & { targetBodyParts?: MusclePart[] };
+
+/**
+ * Inverse of energyLevelToScale, for the reload path where only the stored
+ * 1–5 DailyCheckIn.energy survives. The round trip is lossy by construction
+ * (3 levels ↔ 5 points, see lib/session-start.ts), so this splits the 1–5
+ * range into thirds rather than pretending to recover the original chip.
+ */
+function scaleToEnergyLevel(energy: DailyCheckIn['energy']): EnergyLevel {
+  if (energy <= 2) return 'low';
+  if (energy >= 4) return 'high';
+  return 'medium';
+}
+
 export default function SessionStart({
   onComplete,
 }: {
@@ -103,9 +125,11 @@ export default function SessionStart({
   const [energyLevel, setEnergyLevel] = useState<EnergyLevel | undefined>(undefined);
   const [sorenessAreas, setSorenessAreas] = useState<MusclePart[]>([]);
 
-  const [suggestion, setSuggestion]           = useState<WorkoutSuggestion | null>(null);
-  const [suggestionLoading, setSuggestionLoading] = useState(false);
-  const [suggestionError, setSuggestionError]     = useState<'auth' | 'error' | null>(null);
+  const [planResult, setPlanResult]       = useState<GeneratedPlanResult | null>(null);
+  const [planLoading, setPlanLoading]     = useState(false);
+  const [planError, setPlanError]         = useState<'auth' | 'error' | null>(null);
+  /** Engine inputs from the last successful fetch, replayed by swap (no LLM). */
+  const [lastPlanInput, setLastPlanInput] = useState<PlanInput | null>(null);
 
   // Hydration-safe client-only load on mount.
   useEffect(() => {
@@ -129,82 +153,100 @@ export default function SessionStart({
     setLoaded(true);
   }, [today]);
 
-  const fetchSuggestion = useCallback(async (ci: DailyCheckIn, loc?: TrainingLocation, dur?: SessionDuration) => {
-    if (!ci.mood || !ci.energy) return;
-    setSuggestionLoading(true);
-    setSuggestion(null);
-    setSuggestionError(null);
+  /**
+   * Build the deterministic engine's inputs from what this flow knows, then
+   * ask the server for a plan. Everything here is data the chips already
+   * collected plus locally logged history — no free-text prompt.
+   */
+  const buildPlanInput = useCallback((
+    ci: DailyCheckIn,
+    dur?: SessionDuration,
+    equip?: Equipment[],
+  ): PlanInput => {
+    const profile = getHealthProfile();
+
+    // 14 days back: long enough that a weekly split shows up as recovery
+    // data, short enough that a long layoff doesn't look like recent work.
+    const start = (() => {
+      const d = new Date(`${today}T00:00:00`);
+      d.setDate(d.getDate() - 14);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    })();
+
+    return {
+      goal: profileGoalToTrainingGoal(profile.fitnessGoal),
+      availableEquipment: equip ?? [],
+      timeAvailableMin: toTimeAvailableMin(dur),
+      sorenessAreas: ci.sorenessAreas,
+      energyLevel: scaleToEnergyLevel(ci.energy),
+      recentMuscleParts: toRecentMuscleParts(getWorkoutEntriesForRange(start, today), today),
+    };
+  }, [today]);
+
+  const fetchPlan = useCallback(async (
+    ci: DailyCheckIn,
+    dur?: SessionDuration,
+    equip?: Equipment[],
+  ) => {
+    setPlanLoading(true);
+    setPlanResult(null);
+    setPlanError(null);
+    const input = buildPlanInput(ci, dur, equip);
+    setLastPlanInput(input);
     try {
-      const session = getTodaySession();
-      const profile = getHealthProfile();
-      const goals   = getGoals();
-      const prs     = getAllPersonalRecords();
-
-      const end   = today;
-      const start = (() => {
-        const d = new Date(); d.setDate(d.getDate() - 7);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      })();
-      const recentWorkouts = getWorkoutEntriesForRange(start, end).map(e => ({
-        date: e.date, name: e.name, musclePart: e.musclePart,
-      }));
-      const personalRecords = Object.values(prs).map(r => ({
-        name: r.exerciseName, weight: r.maxWeight, date: r.date,
-      }));
-
-      const body = {
-        today,
-        checkIn: {
-          mood:          ci.mood,
-          energy:        ci.energy,
-          sleepHours:    ci.sleepHours,
-          sorenessAreas: ci.sorenessAreas,
-          notes:         ci.notes,
-        },
-        plannedSession: session ? {
-          name:      session.name,
-          exercises: session.exercises.map(e => ({
-            name: e.name, musclePart: e.musclePart,
-            sets: e.sets, repsMin: e.repsMin, repsMax: e.repsMax,
-            targetWeight: e.targetWeight,
-          })),
-        } : null,
-        fitnessGoal:      profile.fitnessGoal,
-        targetWeight:     goals.goalWeight,
-        recentWorkouts,
-        personalRecords,
-        healthConditions: profile.healthConditions,
-        medications:      profile.medications ?? [],
-        location:  loc,
-        duration:  dur,
-        equipment: equipment.length > 0 ? equipment : undefined,
-      };
-
-      const data = await postJson<WorkoutSuggestion>('/api/suggest-workout', body);
-      setSuggestion({
-        ...data,
-        adjustments:  Array.isArray(data.adjustments)  ? data.adjustments  : [],
-        recoveryTips: Array.isArray(data.recoveryTips) ? data.recoveryTips : [],
-      });
+      const data = await postJson<GeneratedPlanResult>('/api/generate-workout', input);
+      setPlanResult(data);
     } catch (err) {
-      if (err instanceof HttpError && err.status === 401) {
-        setSuggestionError('auth');
-      } else {
-        setSuggestionError('error');
-      }
+      setPlanError(err instanceof HttpError && err.status === 401 ? 'auth' : 'error');
     } finally {
-      setSuggestionLoading(false);
+      setPlanLoading(false);
     }
-  }, [today, equipment]);
+  }, [buildPlanInput]);
 
-  // Auto-fetch suggestion when a check-in for today already exists (page reload mid-flow).
+  /**
+   * Swap one exercise for the next deterministic alternative (roadmap §4
+   * step 8). This re-runs selectExercises() in the browser with the swapped
+   * exercise's muscle part excluded, so it costs nothing and cannot change
+   * sets or reps. The narrative text is kept as-is: it describes the session
+   * as a whole, and re-narrating would mean another LLM call for a one-tap
+   * edit. Falls back to leaving the plan untouched when the engine has no
+   * alternative to offer.
+   */
+  const swapExercise = useCallback((exerciseId: string) => {
+    setPlanResult((prev) => {
+      if (!prev || !lastPlanInput) return prev;
+      const idx = prev.plan.exercises.findIndex((g) => g.exercise.id === exerciseId);
+      if (idx === -1) return prev;
+
+      const current = prev.plan.exercises[idx];
+      const keptIds = new Set(prev.plan.exercises.map((g) => g.exercise.id));
+
+      // Re-run the engine restricted to the same muscle part, then take the
+      // first candidate not already in the plan.
+      const candidates = selectExercises({
+        ...lastPlanInput,
+        targetBodyParts: [current.exercise.musclePart],
+        timeAvailableMin: 60,
+        sorenessAreas: [],
+      }).exercises;
+
+      const replacement = candidates.find((g) => !keptIds.has(g.exercise.id));
+      if (!replacement) return prev;
+
+      const exercises = [...prev.plan.exercises];
+      // Keep the current sets/reps/rest: volume is the goal+energy scheme's
+      // decision, not the individual exercise's.
+      exercises[idx] = { ...replacement, sets: current.sets, reps: current.reps, restSec: current.restSec };
+      return { ...prev, plan: { ...prev.plan, exercises } };
+    });
+  }, [lastPlanInput]);
+
+  // Auto-fetch the plan when a check-in for today already exists (page reload mid-flow).
   useEffect(() => {
     if (!loaded || !savedToday) return;
-    if (savedToday.mood && savedToday.energy) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot auto-fetch when a saved check-in already exists
-      fetchSuggestion(savedToday, location, duration);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot on load, not on every location/duration edit
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot auto-fetch when a saved check-in already exists
+    fetchPlan(savedToday, duration, equipment);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot on load, not on every duration/equipment edit
   }, [loaded, savedToday]);
 
   const selectLocation = (loc: TrainingLocation) => {
@@ -252,7 +294,7 @@ export default function SessionStart({
     };
     setSavedToday(ci);
     saveCheckIn(ci);
-    fetchSuggestion(ci, location, duration);
+    fetchPlan(ci, duration, equipment);
     setExpanded(false);
     onComplete({ rest: false });
   };
@@ -295,12 +337,13 @@ export default function SessionStart({
             {t.sessionStartChangeCta}
           </button>
         </div>
-        {(suggestion || suggestionLoading || suggestionError) && (
-          <WorkoutSuggestionCard
-            suggestion={suggestion}
-            loading={suggestionLoading}
-            error={suggestionError}
-            onRefresh={() => savedToday && fetchSuggestion(savedToday, location, duration)}
+        {(planResult || planLoading || planError) && (
+          <GeneratedPlanCard
+            result={planResult}
+            loading={planLoading}
+            error={planError}
+            onRefresh={() => savedToday && fetchPlan(savedToday, duration, equipment)}
+            onSwap={swapExercise}
           />
         )}
       </div>
@@ -463,13 +506,14 @@ export default function SessionStart({
         )}
       </div>
 
-      {(suggestion || suggestionLoading || suggestionError) && (
+      {(planResult || planLoading || planError) && (
         <div className="px-4 pb-4">
-          <WorkoutSuggestionCard
-            suggestion={suggestion}
-            loading={suggestionLoading}
-            error={suggestionError}
-            onRefresh={() => savedToday && fetchSuggestion(savedToday, location, duration)}
+          <GeneratedPlanCard
+            result={planResult}
+            loading={planLoading}
+            error={planError}
+            onRefresh={() => savedToday && fetchPlan(savedToday, duration, equipment)}
+            onSwap={swapExercise}
           />
         </div>
       )}

@@ -8,9 +8,14 @@
  * flow stays testable without a browser.
  */
 
-import type { DailyCheckIn } from '@/lib/types';
+import type { DailyCheckIn, FitnessGoal as ProfileFitnessGoal, MusclePart, WorkoutEntry } from '@/lib/types';
 import type { Equipment } from '@/lib/exercise-db';
 import type { TrainingLocation } from '@/lib/data/workout-prefs';
+import type {
+  FitnessGoal as TrainingGoal,
+  TimeAvailableMin,
+  RecentMuscleUse,
+} from '@/lib/workout-generator';
 
 export type EnergyLevel = 'low' | 'medium' | 'high';
 
@@ -78,4 +83,91 @@ export function pickDefaultLocation(
   if (recentLocations.length > 0) return recentLocations[0].location;
 
   return fallback;
+}
+
+/**
+ * Map the health profile's `FitnessGoal` onto the training goal the
+ * deterministic generator understands. The two vocabularies differ on
+ * purpose: the profile describes a *body composition* intent, while the
+ * generator needs a *set/rep scheme* intent.
+ *
+ * `muscle_gain` → hypertrophy and `weight_loss`/`endurance` → their
+ * namesakes are direct. `maintenance` and `flexibility` have no generator
+ * equivalent; both fall back to `hypertrophy`, the most generic
+ * moderate-volume scheme — a deliberately conservative default rather than
+ * an inferred claim about what those users want. Note the generator's
+ * `strength` is unreachable from a profile goal; it is only selectable
+ * directly in the dashboard's WorkoutGeneratorCard.
+ */
+export function profileGoalToTrainingGoal(goal: ProfileFitnessGoal | undefined): TrainingGoal {
+  switch (goal) {
+    case 'weight_loss': return 'weight_loss';
+    case 'muscle_gain': return 'hypertrophy';
+    case 'endurance':   return 'endurance';
+    case 'maintenance':
+    case 'flexibility':
+    default:            return 'hypertrophy';
+  }
+}
+
+/**
+ * Snap an arbitrary session duration onto the generator's supported budget
+ * steps, rounding DOWN so a plan never overruns the time the user said they
+ * had. Anything under the smallest step still gets the smallest step — an
+ * empty plan would be a worse answer than a short one.
+ */
+export function toTimeAvailableMin(duration: number | undefined): TimeAvailableMin {
+  if (duration === undefined) return 30;
+  const steps: TimeAvailableMin[] = [15, 30, 45, 60];
+  let best: TimeAvailableMin = steps[0];
+  for (const s of steps) if (duration >= s) best = s;
+  return best;
+}
+
+/**
+ * Collapse recent workout entries into the per-muscle-part recency the
+ * generator consumes, keeping only the most recent day per part.
+ *
+ * Parameters
+ * ----------
+ * entries : readonly WorkoutEntry[]
+ *     Recent entries; those without a `musclePart` are skipped (cardio and
+ *     similar carry no part to recover).
+ * today : string
+ *     Reference date as `YYYY-MM-DD`; `daysAgo` is measured from it.
+ *
+ * Returns
+ * -------
+ * RecentMuscleUse[]
+ *     One entry per distinct muscle part, each with the smallest `daysAgo`
+ *     seen. Order follows first appearance, so the result is stable for a
+ *     stable input — the generator is deterministic and must stay that way.
+ */
+export function toRecentMuscleParts(
+  entries: readonly WorkoutEntry[],
+  today: string,
+): RecentMuscleUse[] {
+  const todayMs = new Date(`${today}T00:00:00`).getTime();
+  if (Number.isNaN(todayMs)) return [];
+
+  const order: MusclePart[] = [];
+  const minDaysAgo = new Map<MusclePart, number>();
+
+  for (const e of entries) {
+    const part = e.musclePart;
+    if (!part) continue;
+    const ms = new Date(`${e.date}T00:00:00`).getTime();
+    if (Number.isNaN(ms)) continue;
+    const daysAgo = Math.round((todayMs - ms) / 86_400_000);
+    if (daysAgo < 0) continue; // future-dated entry: ignore rather than trust
+    const prev = minDaysAgo.get(part);
+    if (prev === undefined) {
+      order.push(part);
+      minDaysAgo.set(part, daysAgo);
+    } else if (daysAgo < prev) {
+      minDaysAgo.set(part, daysAgo);
+    }
+  }
+
+  return order.map((musclePart) => ({ musclePart, daysAgo: minDaysAgo.get(musclePart)! }));
 }

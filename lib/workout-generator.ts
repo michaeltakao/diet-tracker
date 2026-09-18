@@ -20,6 +20,14 @@ import type { MusclePart } from '@/lib/types';
 export type FitnessGoal = 'hypertrophy' | 'strength' | 'endurance' | 'weight_loss';
 export type TimeAvailableMin = 15 | 30 | 45 | 60;
 
+export type EnergyLevel = 'low' | 'medium' | 'high';
+
+/** A muscle part trained `daysAgo` days before today (0 = today). */
+export interface RecentMuscleUse {
+  musclePart: MusclePart;
+  daysAgo: number;
+}
+
 export interface GeneratePlanInput {
   goal: FitnessGoal;
   /** Equipment the user has access to. `bodyweight` is always implicitly available. */
@@ -27,6 +35,17 @@ export interface GeneratePlanInput {
   timeAvailableMin: TimeAvailableMin;
   /** Optional muscle-group focus; omitted/empty means "any muscle part". */
   targetBodyParts?: MusclePart[];
+  /**
+   * Muscle groups the user reported as sore today. Deprioritized, and dropped
+   * entirely when enough non-sore work remains — see {@link selectExercises}.
+   * Deliberately NOT a medical contraindication check: this is a scheduling
+   * preference, not clinical advice.
+   */
+  sorenessAreas?: MusclePart[];
+  /** Self-reported energy today; shifts set volume by one step. */
+  energyLevel?: EnergyLevel;
+  /** Recent training history, used for recovery-aware part ordering. */
+  recentMuscleParts?: RecentMuscleUse[];
 }
 
 export interface GeneratedExercise {
@@ -83,6 +102,36 @@ const EXERCISE_COUNT_BY_TIME: Record<TimeAvailableMin, number> = {
 const MINUTES_PER_EXERCISE = 9;
 
 /**
+ * Set-count delta applied to the goal's scheme from self-reported energy.
+ *
+ * **Opinion / conservative heuristic.** One set in either direction is a
+ * deliberately small lever: it keeps a low-energy session recognizably the
+ * same workout (autoregulation, not a different plan) while still lowering
+ * total volume, which is the variable most plausibly worth trimming on a bad
+ * day. Never drops below MIN_SETS — a 1-set "session" would be a worse
+ * experience than simply resting, and Rest Day is already an explicit choice
+ * upstream in the session-start flow.
+ */
+const ENERGY_SET_DELTA: Record<EnergyLevel, number> = {
+  low:    -1,
+  medium:  0,
+  high:   +1,
+};
+
+const MIN_SETS = 2;
+
+/**
+ * Days after which a muscle part is treated as fully recovered. Parts trained
+ * more recently than this are ordered later, so the round-robin reaches
+ * better-rested parts first.
+ *
+ * **Opinion / domain convention**: 48h is the commonly cited floor for
+ * resistance-trained muscle protein synthesis to settle, not a value measured
+ * from this project's data.
+ */
+const RECOVERY_DAYS = 2;
+
+/**
  * Select a deterministic set of exercises for the given constraints.
  *
  * Selection logic
@@ -91,19 +140,29 @@ const MINUTES_PER_EXERCISE = 9;
  *    `availableEquipment` (bodyweight is always implicitly included) and,
  *    when `targetBodyParts` is non-empty, whose `musclePart` is in that set.
  * 2. Determine the exercise count from `timeAvailableMin`.
- * 3. Fill compound (`isCompound: true`) exercises first — they recruit more
+ * 3. Split candidates into non-sore and sore halves (see `sorenessAreas`).
+ *    Sore parts are used only to top up a plan that the non-sore pool could
+ *    not fill — so soreness is a strong preference, never a hard failure.
+ * 4. Fill compound (`isCompound: true`) exercises first — they recruit more
  *    muscle mass per set, a standard strength-training prioritization for
  *    time-constrained sessions — then fill remaining slots with isolation
- *    work. Both fills round-robin across the represented muscle parts (in
- *    first-seen order) so no single part crowds out the others, whether from
- *    an explicit multi-part `targetBodyParts` request or simply from
- *    `EXERCISE_DB`'s fixed per-category array order.
- * 4. Apply the goal's set/rep/rest scheme uniformly to every selected
- *    exercise (a simple, transparent policy — no per-exercise tuning yet).
+ *    work. Both fills round-robin across the represented muscle parts so no
+ *    single part crowds out the others. Part order within the round-robin is
+ *    recovery-aware: parts not trained within `RECOVERY_DAYS` come first
+ *    (see `recentMuscleParts`). Within a part, exercises whose movement
+ *    `pattern` has been used less in this plan are preferred, so a session
+ *    spans movement patterns rather than stacking three presses.
+ * 5. Apply the goal's set/rep/rest scheme to every selected exercise, shifted
+ *    by `energyLevel` (see ENERGY_SET_DELTA).
  *
- * Determinism: `EXERCISE_DB` order is fixed, and all filtering/sorting below
- * is stable, so the same input always yields the same output — this is what
- * makes {@link selectExercises} unit-testable without mocking a clock or PRNG.
+ * Determinism: `EXERCISE_DB` order is fixed, every sort below is applied to a
+ * stable key with the original index as the final tie-break, and no clock or
+ * PRNG is read — so the same input always yields the same output. This is
+ * what makes {@link selectExercises} unit-testable without mocking anything,
+ * and it is a property the tests assert directly.
+ *
+ * Complexity: O(n log n) in `EXERCISE_DB.length` (the candidate sorts);
+ * the fill loops are bounded by `targetCount`, which is at most 6.
  *
  * Parameters
  * ----------
@@ -116,6 +175,8 @@ const MINUTES_PER_EXERCISE = 9;
  *     equipment/body-part filter — this is a real, expected outcome (e.g. a
  *     user who selects only `cable` equipment with no gym cable machine
  *     available at home), not an error condition. Callers must handle it.
+ *     Soreness alone never produces an empty plan: if every candidate part is
+ *     sore, the sore candidates are used anyway rather than returning nothing.
  */
 export function selectExercises(input: GeneratePlanInput): GeneratedPlan {
   const equipmentSet = new Set<Equipment>([...input.availableEquipment, 'bodyweight']);
@@ -132,51 +193,106 @@ export function selectExercises(input: GeneratePlanInput): GeneratedPlan {
   const targetCount = EXERCISE_COUNT_BY_TIME[input.timeAvailableMin];
   const scheme = SET_SCHEMES[input.goal];
 
-  const compounds = candidates.filter((e) => e.isCompound);
-  const isolations = candidates.filter((e) => !e.isCompound);
+  const soreSet = new Set(input.sorenessAreas ?? []);
+
+  /**
+   * Most recent training day per muscle part. A part absent from the map has
+   * no recent record and is treated as fully rested.
+   */
+  const lastTrained = new Map<MusclePart, number>();
+  for (const r of input.recentMuscleParts ?? []) {
+    const prev = lastTrained.get(r.musclePart);
+    if (prev === undefined || r.daysAgo < prev) lastTrained.set(r.musclePart, r.daysAgo);
+  }
+
+  /** Lower sorts earlier: rested parts before recently-trained ones. */
+  function recoveryRank(part: MusclePart): number {
+    const daysAgo = lastTrained.get(part);
+    if (daysAgo === undefined || daysAgo >= RECOVERY_DAYS) return 0;
+    // 1 for trained yesterday, 2 for trained today — least rested goes last.
+    return RECOVERY_DAYS - daysAgo;
+  }
 
   const selected: ExerciseDef[] = [];
   const usedIds = new Set<string>();
+  /** Movement patterns already used in this plan, for pattern diversity. */
+  const patternCounts = new Map<string, number>();
 
   /**
-   * Fills up to `remaining` slots from `pool`, round-robining across muscle
-   * parts (in first-seen order) so a single part never crowds out the
-   * others — matters both when multiple `targetBodyParts` were requested and
-   * when none were (a "full body" plan should still span muscle groups
-   * rather than exhausting EXERCISE_DB's chest-first array order).
+   * Fills remaining slots from `pool`, round-robining across muscle parts so a
+   * single part never crowds out the others — this matters both when multiple
+   * `targetBodyParts` were requested and when none were (a "full body" plan
+   * should span muscle groups rather than exhausting EXERCISE_DB's chest-first
+   * array order).
+   *
+   * Parts are visited in recovery order (best-rested first). Within a part,
+   * the next exercise is the one whose movement pattern is least represented
+   * in the plan so far, with the pool's original order as a stable tie-break.
    */
-  function roundRobinFill(pool: readonly ExerciseDef[], remaining: number): void {
-    if (remaining <= 0 || pool.length === 0) return;
+  function roundRobinFill(pool: readonly ExerciseDef[]): void {
+    if (selected.length >= targetCount || pool.length === 0) return;
+
     const byPart = new Map<MusclePart, ExerciseDef[]>();
     for (const e of pool) {
       if (!byPart.has(e.musclePart)) byPart.set(e.musclePart, []);
       byPart.get(e.musclePart)!.push(e);
     }
-    const parts = [...byPart.keys()];
+
+    // Stable sort: recovery rank first, first-seen order as the tie-break.
+    const parts = [...byPart.keys()]
+      .map((part, idx) => ({ part, idx, rank: recoveryRank(part) }))
+      .sort((a, b) => a.rank - b.rank || a.idx - b.idx)
+      .map((x) => x.part);
+
     let partIdx = 0;
     let guard = 0;
-    while (selected.length < targetCount && guard < pool.length * parts.length + 1) {
+    const guardLimit = pool.length * parts.length + 1;
+
+    while (selected.length < targetCount && guard < guardLimit) {
       guard++;
       const part = parts[partIdx % parts.length];
       partIdx++;
       const queue = byPart.get(part);
+
       if (queue && queue.length > 0) {
-        const e = queue.shift()!;
+        // Prefer the least-used movement pattern; ties keep pool order.
+        let bestIdx = 0;
+        let bestCount = Infinity;
+        for (let i = 0; i < queue.length; i++) {
+          const count = patternCounts.get(queue[i].pattern ?? 'unknown') ?? 0;
+          if (count < bestCount) { bestCount = count; bestIdx = i; }
+        }
+        const [e] = queue.splice(bestIdx, 1);
         if (!usedIds.has(e.id)) {
           selected.push(e);
           usedIds.add(e.id);
+          const key = e.pattern ?? 'unknown';
+          patternCounts.set(key, (patternCounts.get(key) ?? 0) + 1);
         }
       }
-      if (parts.every((p) => (byPart.get(p)?.length ?? 0) === 0)) break;
+
+      if (parts.every((pt) => (byPart.get(pt)?.length ?? 0) === 0)) break;
     }
   }
 
-  roundRobinFill(compounds, targetCount - selected.length);
-  roundRobinFill(isolations, targetCount - selected.length);
+  // Non-sore parts first, in the usual compound-before-isolation order. Sore
+  // parts are only reached if the non-sore pool could not fill the plan.
+  const fresh = candidates.filter((e) => !soreSet.has(e.musclePart));
+  const sore  = candidates.filter((e) => soreSet.has(e.musclePart));
+
+  roundRobinFill(fresh.filter((e) => e.isCompound));
+  roundRobinFill(fresh.filter((e) => !e.isCompound));
+  roundRobinFill(sore.filter((e) => e.isCompound));
+  roundRobinFill(sore.filter((e) => !e.isCompound));
+
+  const sets = Math.max(
+    MIN_SETS,
+    scheme.sets + (input.energyLevel ? ENERGY_SET_DELTA[input.energyLevel] : 0),
+  );
 
   const exercises: GeneratedExercise[] = selected.map((exercise) => ({
     exercise,
-    sets: scheme.sets,
+    sets,
     reps: scheme.reps,
     restSec: scheme.restSec,
   }));

@@ -891,8 +891,17 @@ anyway since it was cheap alongside the lipid/HbA1c work).
   **push sending/SW/permissions DONE 07-17** (migration 015 in prod; VAPID
   keys = [🔒user], server cron deferred by design); 8) ~~Gemini `responseSchema`
   migration ×6~~ **DONE 07-16** (`f55c00f`; live schema-mode spot-check =
-  [🔒user]); 9) session-start flow (env/time/equipment/energy; CheckInWidget
-  merged /plan → /workout); 10) ~~cohort auto-assignment + SUS surface~~
+  [🔒user]); 9) ~~session-start flow (env/time/equipment/energy; CheckInWidget
+  merged /plan → /workout)~~ **UI DONE 07-21** (`ae4696e`), **engine wired
+  2026-09-18** — `SessionStart` called the plain-LLM `/api/suggest-workout`
+  until now; it posts to `/api/generate-workout` instead, so the deterministic
+  engine picks exercises/sets/reps and the LLM only narrates. The flow's chips
+  became engine inputs (`sorenessAreas`, `energyLevel`) alongside 14 days of
+  logged workouts as per-muscle recovery data, and exercise swap re-runs the
+  engine client-side (zero LLM calls). `/api/suggest-workout` +
+  `WorkoutSuggestionCard` are now caller-less but retained and annotated —
+  their documented scope (adjust an already-scheduled session) is a separate
+  job from generation; 10) ~~cohort auto-assignment + SUS surface~~
   **DONE 07-21** (`ae4696e`) — minor spec deviation: the SUS card renders
   *adjacent to* (immediately after) `WeeklyReportCard` on `/log`, not nested
   inside it as the design sketch showed. Enablers

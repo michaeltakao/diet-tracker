@@ -5,7 +5,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   energyLevelToScale, pickDefaultLocation, LOCATION_EQUIPMENT_DEFAULTS,
+  profileGoalToTrainingGoal, toTimeAvailableMin, toRecentMuscleParts,
 } from '../session-start';
+import type { MusclePart, WorkoutEntry } from '@/lib/types';
 
 describe('energyLevelToScale', () => {
   it('maps low/medium/high onto the 1-5 DailyCheckIn.energy scale', () => {
@@ -76,5 +78,118 @@ describe('pickDefaultLocation', () => {
     // No valid same-weekday match, but the malformed entry is still the
     // "most recent choice overall" fallback path if it doesn't crash Date parsing.
     expect(() => pickDefaultLocation(history, 1, 'home')).not.toThrow();
+  });
+});
+
+// ── Engine-input adapters (P0 #9: SessionStart → deterministic generator) ───
+
+describe('profileGoalToTrainingGoal', () => {
+  it('maps the goals that have a direct generator equivalent', () => {
+    expect(profileGoalToTrainingGoal('weight_loss')).toBe('weight_loss');
+    expect(profileGoalToTrainingGoal('muscle_gain')).toBe('hypertrophy');
+    expect(profileGoalToTrainingGoal('endurance')).toBe('endurance');
+  });
+
+  it('falls back to hypertrophy for goals with no generator equivalent', () => {
+    expect(profileGoalToTrainingGoal('maintenance')).toBe('hypertrophy');
+    expect(profileGoalToTrainingGoal('flexibility')).toBe('hypertrophy');
+  });
+
+  it('falls back to hypertrophy when the profile has no goal set', () => {
+    expect(profileGoalToTrainingGoal(undefined)).toBe('hypertrophy');
+  });
+
+  it('always returns a goal the generator accepts', () => {
+    const valid = ['hypertrophy', 'strength', 'endurance', 'weight_loss'];
+    for (const g of ['weight_loss', 'muscle_gain', 'maintenance', 'endurance', 'flexibility'] as const) {
+      expect(valid).toContain(profileGoalToTrainingGoal(g));
+    }
+  });
+});
+
+describe('toTimeAvailableMin', () => {
+  it('passes the supported budget steps through unchanged', () => {
+    expect(toTimeAvailableMin(15)).toBe(15);
+    expect(toTimeAvailableMin(30)).toBe(30);
+    expect(toTimeAvailableMin(45)).toBe(45);
+    expect(toTimeAvailableMin(60)).toBe(60);
+  });
+
+  it('rounds down so a plan never overruns the stated time', () => {
+    expect(toTimeAvailableMin(44)).toBe(30);
+    expect(toTimeAvailableMin(59)).toBe(45);
+    expect(toTimeAvailableMin(90)).toBe(60);
+  });
+
+  it('clamps below-minimum durations up to the smallest step', () => {
+    expect(toTimeAvailableMin(5)).toBe(15);
+    expect(toTimeAvailableMin(0)).toBe(15);
+  });
+
+  it('defaults to 30 when no duration was chosen', () => {
+    expect(toTimeAvailableMin(undefined)).toBe(30);
+  });
+});
+
+describe('toRecentMuscleParts', () => {
+  const entry = (date: string, musclePart?: MusclePart): WorkoutEntry => ({
+    id: `${date}-${musclePart ?? 'none'}`,
+    date,
+    name: 'test',
+    category: 'strength',
+    musclePart,
+    addedAt: `${date}T00:00:00Z`,
+  });
+
+  it('computes daysAgo relative to the given today', () => {
+    const out = toRecentMuscleParts([entry('2026-09-15', 'chest')], '2026-09-18');
+    expect(out).toEqual([{ musclePart: 'chest', daysAgo: 3 }]);
+  });
+
+  it('treats a workout logged today as daysAgo 0', () => {
+    const out = toRecentMuscleParts([entry('2026-09-18', 'legs')], '2026-09-18');
+    expect(out).toEqual([{ musclePart: 'legs', daysAgo: 0 }]);
+  });
+
+  it('keeps only the most recent day per muscle part', () => {
+    const out = toRecentMuscleParts([
+      entry('2026-09-10', 'back'),
+      entry('2026-09-17', 'back'),
+      entry('2026-09-12', 'back'),
+    ], '2026-09-18');
+    expect(out).toEqual([{ musclePart: 'back', daysAgo: 1 }]);
+  });
+
+  it('skips entries with no muscle part (cardio and similar)', () => {
+    const out = toRecentMuscleParts([entry('2026-09-17'), entry('2026-09-17', 'arms')], '2026-09-18');
+    expect(out).toEqual([{ musclePart: 'arms', daysAgo: 1 }]);
+  });
+
+  it('ignores future-dated entries rather than trusting a negative daysAgo', () => {
+    const out = toRecentMuscleParts([entry('2026-09-20', 'abs')], '2026-09-18');
+    expect(out).toEqual([]);
+  });
+
+  it('returns one entry per distinct part, in first-seen order', () => {
+    const out = toRecentMuscleParts([
+      entry('2026-09-17', 'legs'),
+      entry('2026-09-16', 'chest'),
+      entry('2026-09-15', 'legs'),
+    ], '2026-09-18');
+    expect(out.map((r) => r.musclePart)).toEqual(['legs', 'chest']);
+  });
+
+  it('returns an empty array for no entries', () => {
+    expect(toRecentMuscleParts([], '2026-09-18')).toEqual([]);
+  });
+
+  it('returns an empty array when today is unparseable rather than throwing', () => {
+    expect(toRecentMuscleParts([entry('2026-09-17', 'chest')], 'not-a-date')).toEqual([]);
+  });
+
+  it('is a pure function: same input yields the same output', () => {
+    const entries = [entry('2026-09-17', 'legs'), entry('2026-09-16', 'chest')];
+    expect(toRecentMuscleParts(entries, '2026-09-18'))
+      .toEqual(toRecentMuscleParts(entries, '2026-09-18'));
   });
 });

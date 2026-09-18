@@ -333,6 +333,7 @@ export const translations = {
     // Shared
     todayShort: '今日',
     retry: '再試行',
+    swapExercise: '種目を入れ替える',
     // Muscle parts
     mpChest: '胸',
     mpBack: '背中',
@@ -1049,6 +1050,7 @@ export const translations = {
     // Shared
     todayShort: 'Today',
     retry: 'Retry',
+    swapExercise: 'Swap exercise',
     // Muscle parts
     mpChest: 'Chest',
     mpBack: 'Back',
