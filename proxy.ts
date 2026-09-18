@@ -96,12 +96,14 @@ export async function proxy(request: NextRequest) {
   // is re-prompted once (the wizard prefills from their profile and is
   // skippable in one tap). With placeholder Supabase env this proxy returns
   // at the top, so local guest dev stays ungated; production is configured.
-  // The public landing page (isRootPage) is exempt like /login — an
-  // un-onboarded visitor who lands on `/` sees the marketing page, not the
-  // wizard; onboarding is only forced once they're actually in the app.
+  // The landing page is NOT exempt here. Anonymous, non-guest visitors still
+  // reach it, but via the dedicated `!user && !isGuest && isRootPage`
+  // pass-through below, which never consults needsOnboarding. Exempting `/`
+  // from this flag instead would mean an opted-in guest (dt-guest=1) who
+  // never finished onboarding gets bounced to /dashboard on their next visit
+  // to `/`, skipping the wizard entirely.
   const needsOnboarding =
     !isOnboardingPage && !isConsentPage && !isApiRoute && !isAuthRoute && !isLoginPage &&
-    !isRootPage &&
     request.cookies.get('dt-onboarded')?.value !== '1';
   const onboardingRedirect = () => {
     const onboardingUrl = request.nextUrl.clone();
