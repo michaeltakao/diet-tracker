@@ -240,6 +240,10 @@
   387 total passing), lint clean, build clean. Next: Phase 2 (rank badge +
   XP progress bar UI, no migration).
 - **2026-07-21 BETA READINESS ROUND (6 workstreams, uncommitted):**
+  **CORRECTION (2026-09-18):** "uncommitted" was stale prose — this round
+  was in fact committed as `ae4696e` (confirmed an ancestor of `main` via
+  `git merge-base --is-ancestor`). The original wording is kept above for
+  history; treat the work below as landed, not pending.
   **WS1** Vercel env: `CRON_SECRET`/VAPID keypair generated + set (production
   + preview) + `SUPABASE_SERVICE_ROLE_KEY` (user-provided) set; prod redeployed;
   `push-send-cron` smoke-tested 503→200 live (`processed:0`, no subscribers
@@ -888,11 +892,27 @@ anyway since it was cheap alongside the lipid/HbA1c work).
   keys = [🔒user], server cron deferred by design); 8) ~~Gemini `responseSchema`
   migration ×6~~ **DONE 07-16** (`f55c00f`; live schema-mode spot-check =
   [🔒user]); 9) session-start flow (env/time/equipment/energy; CheckInWidget
-  merged /plan → /workout); 10) cohort auto-assignment + SUS surface. Enablers
+  merged /plan → /workout); 10) ~~cohort auto-assignment + SUS surface~~
+  **DONE 07-21** (`ae4696e`) — minor spec deviation: the SUS card renders
+  *adjacent to* (immediately after) `WeeklyReportCard` on `/log`, not nested
+  inside it as the design sketch showed. Enablers
   carried from the 07-13 roadmap: exercise DB seed (free-exercise-db →
   ~120–150 curated, +pattern/JP names); `workout_sessions`+`workout_sets`
   per-set schema; environment-aware deterministic generation v1; ghost-text
   set-logging ergonomics.
+- **[auto] `researcher_access_log` write errors were swallowed** —
+  `/api/research/export` and `/api/research/participants` fired the IRB audit
+  insert with a bare `.then(() => {})`, so a failed write left an invisible
+  hole in the access log (and could surface as an unhandled rejection).
+  ~~Open~~ **DONE 2026-09-18**: both sites now log `{ error }` and rejections
+  to the server console; the write stays fire-and-forget by design so it
+  never blocks the researcher's response.
+- **[🔒user] SUS Japanese translation is unvalidated** — `SusSurveyCard`'s
+  10 items are a working translation, not a back-translated or otherwise
+  psychometrically validated Japanese SUS. Scores collected with it are not
+  strictly comparable to published SUS norms. Needs advisor/expert review
+  before any score is reported as a SUS figure in the thesis; not fixable in
+  code.
 - **[auto] Health-log follow-ups (07-16 round)**: symptom↔meal correlation
   analysis; CSV import for old symptom-memo-app data; Supabase→local hydration
   for vitals/symptoms (same gap as food — second device sees empty logs).

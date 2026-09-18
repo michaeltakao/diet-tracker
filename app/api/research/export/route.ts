@@ -92,7 +92,14 @@ export async function GET(request: Request): Promise<NextResponse> {
     table_name:     tableName ?? null,
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (svc as any).from('researcher_access_log').insert(logEntry).then(() => {});
+  (svc as any).from('researcher_access_log').insert(logEntry)
+    .then(({ error }: { error: unknown }) => {
+      // Fire-and-forget by design (the audit write must not block the
+      // researcher's response), but a silent failure would leave an IRB
+      // access log with an invisible hole. Surface it in server logs.
+      if (error) console.error('[RESEARCHER_ACCESS_LOG_ERROR]', '/api/research/export', error);
+    })
+    .catch((err: unknown) => console.error('[RESEARCHER_ACCESS_LOG_ERROR]', '/api/research/export', err));
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 

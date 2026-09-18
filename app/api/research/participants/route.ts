@@ -57,7 +57,14 @@ export async function GET(): Promise<NextResponse> {
     endpoint: '/api/research/participants',
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (svc as any).from('researcher_access_log').insert(logEntry).then(() => {});
+  (svc as any).from('researcher_access_log').insert(logEntry)
+    .then(({ error }: { error: unknown }) => {
+      // Fire-and-forget by design (the audit write must not block the
+      // researcher's response), but a silent failure would leave an IRB
+      // access log with an invisible hole. Surface it in server logs.
+      if (error) console.error('[RESEARCHER_ACCESS_LOG_ERROR]', '/api/research/participants', error);
+    })
+    .catch((err: unknown) => console.error('[RESEARCHER_ACCESS_LOG_ERROR]', '/api/research/participants', err));
 
   // Fetch all consented participants
   const { data: profiles, error: pErr } = await svc
