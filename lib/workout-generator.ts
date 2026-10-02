@@ -302,3 +302,70 @@ export function selectExercises(input: GeneratePlanInput): GeneratedPlan {
     estimatedDurationMin: exercises.length * MINUTES_PER_EXERCISE,
   };
 }
+
+/**
+ * Every exercise that could stand in for `exerciseId`, best candidate first.
+ *
+ * Why this exists separately from {@link selectExercises}: the swap control in
+ * GeneratedPlanCard used to call `selectExercises({ targetBodyParts: [part],
+ * timeAvailableMin: 60 })` and pick the first result not already in the plan.
+ * That is capped at `EXERCISE_COUNT_BY_TIME[60]` = 6, so for a plan already
+ * holding 5 of those 6 the swap could only ever toggle between two exercises,
+ * and for a single-part plan it was a silent no-op — even though EXERCISE_DB
+ * holds 28-43 exercises per muscle part. A "shuffle" affordance that reaches
+ * two options is worse than none, because the user cannot tell it is stuck.
+ *
+ * This returns the *whole* eligible pool instead of a fixed-size plan, so the
+ * caller decides how many it needs.
+ *
+ * Ordering is deterministic and mirrors the plan builder's preferences:
+ * same-compoundness first (a compound is a like-for-like swap for a compound),
+ * then a differing movement pattern (swapping a bench press for an incline
+ * press is a weaker answer than swapping it for a dip), then EXERCISE_DB
+ * order as a stable final tie-break. No clock or PRNG is read.
+ *
+ * Parameters
+ * ----------
+ * input : GeneratePlanInput
+ *     The same input that produced the plan. `targetBodyParts`, `sorenessAreas`
+ *     and `timeAvailableMin` are ignored — the muscle part comes from the
+ *     exercise being replaced, and the pool is never truncated.
+ * exerciseId : string
+ *     The exercise being swapped out. Its muscle part defines the pool.
+ *
+ * Returns
+ * -------
+ * ExerciseDef[]
+ *     Eligible alternatives, best first, always excluding `exerciseId` itself.
+ *     Empty when `exerciseId` is unknown or no other exercise in that part is
+ *     reachable with the available equipment — a real outcome the caller must
+ *     handle (the swap control disables itself rather than no-op silently).
+ */
+export function alternativesFor(
+  input: GeneratePlanInput,
+  exerciseId: string,
+): ExerciseDef[] {
+  const current = EXERCISE_DB.find((e) => e.id === exerciseId);
+  if (!current) return [];
+
+  const equipmentSet = new Set<Equipment>([...input.availableEquipment, 'bodyweight']);
+
+  return EXERCISE_DB
+    .map((e, idx) => ({ e, idx }))
+    .filter(({ e }) =>
+      e.id !== current.id
+      && e.musclePart === current.musclePart
+      && equipmentSet.has(e.equipment))
+    .sort((a, b) => {
+      // Same compoundness first: a compound swaps for a compound.
+      const ac = a.e.isCompound === current.isCompound ? 0 : 1;
+      const bc = b.e.isCompound === current.isCompound ? 0 : 1;
+      if (ac !== bc) return ac - bc;
+      // Then prefer a different movement pattern over a near-duplicate.
+      const ap = a.e.pattern === current.pattern ? 1 : 0;
+      const bp = b.e.pattern === current.pattern ? 1 : 0;
+      if (ap !== bp) return ap - bp;
+      return a.idx - b.idx;
+    })
+    .map(({ e }) => e);
+}

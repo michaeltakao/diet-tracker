@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { selectExercises, type GeneratePlanInput } from '@/lib/workout-generator';
+import { selectExercises, alternativesFor, type GeneratePlanInput } from '@/lib/workout-generator';
 import { EXERCISE_DB } from '@/lib/exercise-db';
 import type { MusclePart } from '@/lib/types';
 
@@ -324,5 +324,53 @@ describe('selectExercises — determinism holds with all optional inputs set', (
     });
     const ids = plan.exercises.map((g) => g.exercise.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('alternativesFor (swap pool)', () => {
+  const allEquip: GeneratePlanInput = { ...base, availableEquipment: ['barbell', 'dumbbell', 'machine', 'cable'] };
+  const bench = EXERCISE_DB.find((e) => e.id === 'bench-press')!;
+
+  it('never includes the exercise itself', () => {
+    expect(alternativesFor(allEquip, 'bench-press').map((e) => e.id)).not.toContain('bench-press');
+  });
+
+  it('only returns exercises of the same muscle part', () => {
+    for (const e of alternativesFor(allEquip, 'bench-press')) expect(e.musclePart).toBe('chest');
+  });
+
+  it('respects available equipment (bodyweight always allowed)', () => {
+    const alts = alternativesFor({ ...base, availableEquipment: ['dumbbell'] }, 'bench-press');
+    expect(alts.length).toBeGreaterThan(0);
+    for (const e of alts) expect(['dumbbell', 'bodyweight']).toContain(e.equipment);
+    const bwOnly = alternativesFor({ ...base, availableEquipment: [] }, 'bench-press');
+    expect(bwOnly.length).toBeGreaterThan(0);
+    for (const e of bwOnly) expect(e.equipment).toBe('bodyweight');
+  });
+
+  it('orders same-compoundness first, then a differing movement pattern first', () => {
+    const alts = alternativesFor(allEquip, 'bench-press');
+    const rank = (e: (typeof alts)[number]) =>
+      (e.isCompound === bench.isCompound ? 0 : 2) + (e.pattern === bench.pattern ? 1 : 0);
+    const ranks = alts.map(rank);
+    expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+    // Within a rank, EXERCISE_DB order is the tie-break.
+    const dbIdx = (id: string) => EXERCISE_DB.findIndex((e) => e.id === id);
+    for (let i = 1; i < alts.length; i++) {
+      if (ranks[i] === ranks[i - 1]) expect(dbIdx(alts[i].id)).toBeGreaterThan(dbIdx(alts[i - 1].id));
+    }
+  });
+
+  it('is deterministic', () => {
+    expect(alternativesFor(allEquip, 'bench-press').map((e) => e.id))
+      .toEqual(alternativesFor(allEquip, 'bench-press').map((e) => e.id));
+  });
+
+  it('returns [] for an unknown id', () => {
+    expect(alternativesFor(allEquip, 'no-such-exercise')).toEqual([]);
+  });
+
+  it('is not truncated to the 6-exercise plan cap', () => {
+    expect(alternativesFor(allEquip, 'bench-press').length).toBeGreaterThan(6);
   });
 });

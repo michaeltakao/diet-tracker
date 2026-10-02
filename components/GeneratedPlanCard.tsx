@@ -32,6 +32,7 @@ export default function GeneratedPlanCard({
   error,
   onRefresh,
   onSwap,
+  canSwap,
 }: {
   result: GeneratedPlanResult | null;
   loading: boolean;
@@ -39,6 +40,8 @@ export default function GeneratedPlanCard({
   onRefresh: () => void;
   /** Swap one exercise for the next deterministic alternative (no LLM call). */
   onSwap: (exerciseId: string) => void;
+  /** False when no alternative is left to offer; the swap control is then disabled. */
+  canSwap: (exerciseId: string) => boolean;
 }) {
   const { t } = useLanguage();
 
@@ -136,7 +139,9 @@ export default function GeneratedPlanCard({
             {t.workoutGenEstDuration.replace('{n}', String(plan.estimatedDurationMin))}
           </p>
           <ol className="space-y-3">
-            {plan.exercises.map((g, i) => (
+            {plan.exercises.map((g, i) => {
+              const swappable = canSwap(g.exercise.id);
+              return (
               <li key={g.exercise.id} className="space-y-1.5">
                 <div className="flex items-start gap-2.5">
                   <span
@@ -156,16 +161,19 @@ export default function GeneratedPlanCard({
                   </div>
                   <button
                     onClick={() => onSwap(g.exercise.id)}
+                    disabled={!swappable}
+                    aria-disabled={!swappable}
                     title={t.swapExercise}
                     aria-label={`${t.swapExercise}: ${g.exercise.nameJa}`}
-                    className="shrink-0 p-1.5 rounded-lg text-brand-700 dark:text-brand-300 hover:bg-card/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                    className="shrink-0 p-1.5 rounded-lg text-brand-700 dark:text-brand-300 hover:bg-card/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                   >
                     <Shuffle size={13} aria-hidden="true" />
                   </button>
                 </div>
                 <ExerciseVideo video={g.exercise.video} exerciseName={g.exercise.nameEn} />
               </li>
-            ))}
+              );
+            })}
           </ol>
         </>
       )}

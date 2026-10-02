@@ -5,8 +5,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   energyLevelToScale, pickDefaultLocation, LOCATION_EQUIPMENT_DEFAULTS,
-  profileGoalToTrainingGoal, toTimeAvailableMin, toRecentMuscleParts,
+  profileGoalToTrainingGoal, toTimeAvailableMin, toRecentMuscleParts, nextSwapCandidate,
 } from '../session-start';
+import { alternativesFor, type GeneratePlanInput } from '@/lib/workout-generator';
 import type { MusclePart, WorkoutEntry } from '@/lib/types';
 
 describe('energyLevelToScale', () => {
@@ -191,5 +192,55 @@ describe('toRecentMuscleParts', () => {
     const entries = [entry('2026-09-17', 'legs'), entry('2026-09-16', 'chest')];
     expect(toRecentMuscleParts(entries, '2026-09-18'))
       .toEqual(toRecentMuscleParts(entries, '2026-09-18'));
+  });
+});
+
+describe('nextSwapCandidate', () => {
+  /** Swap one plan slot k times, the way SessionStart does, and return each exercise shown. */
+  function swapSlot(start: string, k: number, others: string[] = []): string[] {
+    const input: GeneratePlanInput = { goal: 'hypertrophy', availableEquipment: ['barbell', 'dumbbell', 'machine', 'cable'], timeAvailableMin: 45 };
+    let current = start;
+    let swappedOut: Set<string> = new Set();
+    const shown = [current];
+    for (let i = 0; i < k; i++) {
+      const pool = alternativesFor(input, current).map((e) => e.id);
+      const next = nextSwapCandidate(pool, new Set([current, ...others]), new Set([...swappedOut, current]));
+      if (!next) break;
+      current = next.id;
+      swappedOut = next.swappedOut;
+      shown.push(current);
+    }
+    return shown;
+  }
+
+  it('k swaps of one slot show k+1 distinct exercises (regression: A↔B toggle)', () => {
+    const shown = swapSlot('bench-press', 5);
+    expect(shown).toHaveLength(6);
+    expect(new Set(shown).size).toBe(6);
+  });
+
+  it('never offers an exercise already in the plan', () => {
+    const others = ['dumbbell-fly', 'incline-dumbbell-press'];
+    for (const id of swapSlot('bench-press', 10, others)) expect(others).not.toContain(id);
+  });
+
+  it('visits the whole pool, then wraps instead of getting stuck', () => {
+    const pool = ['a', 'b', 'c'];
+    const r1 = nextSwapCandidate(pool, new Set(['x']), new Set(['x', 'a', 'b', 'c']));
+    expect(r1?.id).toBe('a');
+    // Pool ids are forgotten on wrap; ids outside the pool (the current one) are kept.
+    expect([...r1!.swappedOut].sort()).toEqual(['x']);
+    expect(nextSwapCandidate(pool, new Set(['x']), new Set(['x', 'a']))?.id).toBe('b');
+  });
+
+  it('returns null when every alternative is already in the plan, or the pool is empty', () => {
+    expect(nextSwapCandidate(['a', 'b'], new Set(['x', 'a', 'b']), new Set(['x']))).toBeNull();
+    expect(nextSwapCandidate([], new Set(['x']), new Set(['x']))).toBeNull();
+  });
+
+  it('does not mutate the swappedOut it is given', () => {
+    const given = new Set(['x', 'a', 'b']);
+    nextSwapCandidate(['a', 'b'], new Set(['x']), given);
+    expect([...given]).toEqual(['x', 'a', 'b']);
   });
 });

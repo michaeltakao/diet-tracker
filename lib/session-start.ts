@@ -171,3 +171,45 @@ export function toRecentMuscleParts(
 
   return order.map((musclePart) => ({ musclePart, daysAgo: minDaysAgo.get(musclePart)! }));
 }
+
+/**
+ * Pick the next exercise for a swap so that repeated swaps of one slot walk
+ * the whole alternative pool instead of toggling between two exercises.
+ *
+ * The toggle happened because "first alternative not in the plan" is
+ * memoryless: after A→B, A is out of the plan and ranks near the top of B's
+ * alternatives, so the next swap returns A. Remembering what was swapped out
+ * breaks the cycle; when every alternative has been visited the pool's ids
+ * are forgotten and the walk starts over (wrap).
+ *
+ * Parameters
+ * ----------
+ * pool : readonly string[]
+ *     Alternative exercise ids, best first (see `alternativesFor`). Must not
+ *     contain the exercise being swapped out.
+ * inPlan : ReadonlySet<string>
+ *     Ids currently in the plan; never offered, so the plan stays duplicate-free.
+ * swappedOut : ReadonlySet<string>
+ *     Ids already swapped out this session, *including* the one being replaced
+ *     now. Not mutated.
+ *
+ * Returns
+ * -------
+ * { id: string; swappedOut: Set<string> } | null
+ *     The replacement id and the swapped-out set to store next (with this
+ *     pool's ids cleared if the walk wrapped). `null` when every alternative
+ *     is already in the plan — the caller should treat the swap as unavailable.
+ */
+export function nextSwapCandidate(
+  pool: readonly string[],
+  inPlan: ReadonlySet<string>,
+  swappedOut: ReadonlySet<string>,
+): { id: string; swappedOut: Set<string> } | null {
+  const fresh = pool.find((id) => !inPlan.has(id) && !swappedOut.has(id));
+  if (fresh !== undefined) return { id: fresh, swappedOut: new Set(swappedOut) };
+
+  const wrapped = pool.find((id) => !inPlan.has(id));
+  if (wrapped === undefined) return null;
+  const poolIds = new Set(pool);
+  return { id: wrapped, swappedOut: new Set([...swappedOut].filter((id) => !poolIds.has(id))) };
+}

@@ -1,6 +1,12 @@
 # STATUS — diet-tracker
 
 ## Now
+- **2026-10-02 Swap fix:** the session-start swap control toggled between two
+  exercises (memoryless "first alternative not in plan"). Now `alternativesFor()`
+  returns the full same-part pool and `nextSwapCandidate()` remembers swapped-out
+  ids (wraps after a full cycle); the button disables when nothing is left.
+  Verified: vitest 572/572, lint 0 errors (3 pre-existing warnings), build exit 0;
+  regression test fails (2 distinct vs 6) with the memory removed. Not pushed.
 - **2026-08-09 Public landing page round — re-verified + committed (NOT
   deployed/pushed):** picked up the 2026-07-31 uncommitted landing-page split
   (below) after confirming with the user that deploy scope stays

@@ -42,11 +42,11 @@ import { getHealthProfile } from '@/lib/data/health-profile';
 import { getWorkoutEntriesForRange } from '@/lib/data/workout';
 import {
   energyLevelToScale, pickDefaultLocation, LOCATION_EQUIPMENT_DEFAULTS,
-  profileGoalToTrainingGoal, toTimeAvailableMin, toRecentMuscleParts,
+  profileGoalToTrainingGoal, toTimeAvailableMin, toRecentMuscleParts, nextSwapCandidate,
   type EnergyLevel,
 } from '@/lib/session-start';
-import { selectExercises, type GeneratePlanInput } from '@/lib/workout-generator';
-import type { Equipment } from '@/lib/exercise-db';
+import { alternativesFor, type GeneratePlanInput } from '@/lib/workout-generator';
+import type { Equipment, ExerciseDef } from '@/lib/exercise-db';
 import type { DailyCheckIn, MusclePart } from '@/lib/types';
 import GeneratedPlanCard, { type GeneratedPlanResult } from '@/components/GeneratedPlanCard';
 import { postJson, HttpError } from '@/lib/httpClient';
@@ -130,6 +130,8 @@ export default function SessionStart({
   const [planError, setPlanError]         = useState<'auth' | 'error' | null>(null);
   /** Engine inputs from the last successful fetch, replayed by swap (no LLM). */
   const [lastPlanInput, setLastPlanInput] = useState<PlanInput | null>(null);
+  /** Exercises swapped out of the current plan, so repeated swaps don't toggle back. */
+  const [swappedOut, setSwappedOut]       = useState<ReadonlySet<string>>(new Set());
 
   // Hydration-safe client-only load on mount.
   useEffect(() => {
@@ -193,6 +195,7 @@ export default function SessionStart({
     setPlanError(null);
     const input = buildPlanInput(ci, dur, equip);
     setLastPlanInput(input);
+    setSwappedOut(new Set());
     try {
       const data = await postJson<GeneratedPlanResult>('/api/generate-workout', input);
       setPlanResult(data);
@@ -203,43 +206,50 @@ export default function SessionStart({
     }
   }, [buildPlanInput]);
 
+  /** Alternatives for one exercise, best first (empty before the first fetch). */
+  const swapPool = useCallback((exerciseId: string): ExerciseDef[] => {
+    if (!lastPlanInput) return [];
+    return alternativesFor({ ...lastPlanInput, targetBodyParts: [] }, exerciseId);
+  }, [lastPlanInput]);
+
+  /** Whether the swap control for `exerciseId` has anything to offer. */
+  const canSwap = useCallback((exerciseId: string): boolean => {
+    if (!planResult) return false;
+    const inPlan = new Set(planResult.plan.exercises.map((g) => g.exercise.id));
+    return swapPool(exerciseId).some((e) => !inPlan.has(e.id));
+  }, [planResult, swapPool]);
+
   /**
-   * Swap one exercise for the next deterministic alternative (roadmap §4
-   * step 8). This re-runs selectExercises() in the browser with the swapped
-   * exercise's muscle part excluded, so it costs nothing and cannot change
-   * sets or reps. The narrative text is kept as-is: it describes the session
-   * as a whole, and re-narrating would mean another LLM call for a one-tap
-   * edit. Falls back to leaving the plan untouched when the engine has no
-   * alternative to offer.
+   * Swap one exercise for the next deterministic alternative in the same
+   * muscle part (roadmap §4 step 8). alternativesFor() runs in the browser,
+   * so a swap costs nothing and cannot change sets or reps. The narrative
+   * text is kept as-is: it describes the session as a whole, and
+   * re-narrating would mean another LLM call for a one-tap edit.
+   *
+   * Exercises swapped out are remembered (nextSwapCandidate) so that
+   * repeated swaps of one slot walk the whole pool instead of toggling
+   * between two. A no-op only when canSwap() is false, in which case the
+   * control is disabled.
    */
   const swapExercise = useCallback((exerciseId: string) => {
-    setPlanResult((prev) => {
-      if (!prev || !lastPlanInput) return prev;
-      const idx = prev.plan.exercises.findIndex((g) => g.exercise.id === exerciseId);
-      if (idx === -1) return prev;
+    if (!planResult) return;
+    const idx = planResult.plan.exercises.findIndex((g) => g.exercise.id === exerciseId);
+    if (idx === -1) return;
 
-      const current = prev.plan.exercises[idx];
-      const keptIds = new Set(prev.plan.exercises.map((g) => g.exercise.id));
+    const current = planResult.plan.exercises[idx];
+    const inPlan = new Set(planResult.plan.exercises.map((g) => g.exercise.id));
+    const pool = swapPool(exerciseId);
+    const next = nextSwapCandidate(pool.map((e) => e.id), inPlan, new Set([...swappedOut, exerciseId]));
+    const replacement = next && pool.find((e) => e.id === next.id);
+    if (!next || !replacement) return;
 
-      // Re-run the engine restricted to the same muscle part, then take the
-      // first candidate not already in the plan.
-      const candidates = selectExercises({
-        ...lastPlanInput,
-        targetBodyParts: [current.exercise.musclePart],
-        timeAvailableMin: 60,
-        sorenessAreas: [],
-      }).exercises;
-
-      const replacement = candidates.find((g) => !keptIds.has(g.exercise.id));
-      if (!replacement) return prev;
-
-      const exercises = [...prev.plan.exercises];
-      // Keep the current sets/reps/rest: volume is the goal+energy scheme's
-      // decision, not the individual exercise's.
-      exercises[idx] = { ...replacement, sets: current.sets, reps: current.reps, restSec: current.restSec };
-      return { ...prev, plan: { ...prev.plan, exercises } };
-    });
-  }, [lastPlanInput]);
+    const exercises = [...planResult.plan.exercises];
+    // Keep the current sets/reps/rest: volume is the goal+energy scheme's
+    // decision, not the individual exercise's.
+    exercises[idx] = { ...current, exercise: replacement };
+    setPlanResult({ ...planResult, plan: { ...planResult.plan, exercises } });
+    setSwappedOut(next.swappedOut);
+  }, [planResult, swapPool, swappedOut]);
 
   // Auto-fetch the plan when a check-in for today already exists (page reload mid-flow).
   useEffect(() => {
@@ -344,6 +354,7 @@ export default function SessionStart({
             error={planError}
             onRefresh={() => savedToday && fetchPlan(savedToday, duration, equipment)}
             onSwap={swapExercise}
+            canSwap={canSwap}
           />
         )}
       </div>
@@ -514,6 +525,7 @@ export default function SessionStart({
             error={planError}
             onRefresh={() => savedToday && fetchPlan(savedToday, duration, equipment)}
             onSwap={swapExercise}
+            canSwap={canSwap}
           />
         </div>
       )}
