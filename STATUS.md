@@ -7,22 +7,32 @@ decisions / Last verified (latest 2) — move older entries to the archive.
 
 ## Now
 - **2026-10-13 CI, security and housekeeping round — merged + deployed
-  (`main` `5ec0b61`):**
-  - PR #14 (`20a0134`): `ci.yml` gains a 4th job (`test` → `npm test`); CI had
-    run only typecheck / build / lint, so vitest did not gate `main`.
-    `STATUS.md` trimmed 1094 → under 200 lines, the rest moved verbatim to
-    the archive.
-  - PR #15 (`c34e3de`): `next` + `eslint-config-next` 16.2.6 → **16.3.8**,
-    `vitest` + `@vitest/coverage-v8` → 4.1.11, `npm audit fix` (no `--force`).
-    `npm audit` had been red on `main` since at least 09-28 with 18 findings
+  (`main` `448aa58`):**
+  - PR #14: `ci.yml` gains a 4th job (`test` → `npm test`); CI had run only
+    typecheck / build / lint, so vitest did not gate `main`. `STATUS.md`
+    trimmed 1094 → under 200 lines, the rest moved verbatim to the archive.
+  - PR #15: `next` + `eslint-config-next` 16.2.6 → **16.3.8**, `vitest` +
+    `@vitest/coverage-v8` → 4.1.11, `npm audit fix` (no `--force`). `npm
+    audit` had been red on `main` since at least 09-28 with 18 findings
     (1 critical, 12 high); the critical was `next` itself, incl. proxy bypass
     under Turbopack (GHSA-6gpp-xcg3-4w24) and RCE in `next/og` /
     Image Optimization (GHSA-vcvr-r3jv-pc5j, GHSA-2xp9-vwfh-vxw4).
     Exploitability on this deployment was not tested. Production deps now
     audit clean.
-  - PR #16 (`5ec0b61`): `proxy.ts` matcher excludes `/icon` and `/apple-icon`
-    — both are extension-less, so anonymous visitors got 307 → `/login`
-    instead of the image linked from every page's `<head>`.
+  - PR #16: `proxy.ts` matcher excludes `/icon` and `/apple-icon` — both are
+    extension-less, so anonymous visitors got 307 → `/login` instead of the
+    image linked from every page's `<head>`.
+  - PR #18: `runtime = 'edge'` removed from `app/icon.tsx` /
+    `app/apple-icon.tsx` (deprecated in 16.3; both now prerender statically);
+    `lib/__tests__/proxy-matcher.test.ts` pins the matcher (24 cases, via
+    Next's `unstable_doesMiddlewareMatch` — experimental API).
+  - PR #19: `security.yml`'s grep-based secret check was a silent no-op
+    (`fatal: bad revision 'origin/main...HEAD'` on a shallow checkout,
+    swallowed by `|| true`). Replaced by a `gitleaks` 8.30.1 job on the PR
+    commit range: binary verified by sha256, config read from the base commit.
+  - Closed stale PRs #3 (0 commits missing from `main`), #6 (2), #7 (4 own),
+    #8 (3 own) — branches kept; whether the unmerged work was re-implemented
+    on `main` later was not checked.
 - **2026-10-02 Swap fix:** the session-start swap control toggled between two
   exercises (memoryless "first alternative not in plan"). Now `alternativesFor()`
   returns the full same-part pool and `nextSwapCandidate()` remembers swapped-out
@@ -75,8 +85,10 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   score is reported as SUS in the thesis.
 - **[🔒user] Gemini CLI ineligible** (IneligibleTierError, noted 07-05) —
   re-check; council loses its preferred cross-vendor reviewer otherwise.
-- **[🔒user] Stale open PRs #3/#6/#7/#8** predate the stack and have diverged
-  from main — close or rebase (only #8's CI hardening was salvaged, `6c476e1`).
+- **[🔒user] PR #2** (STEP 7 localStorage → Supabase migration utility,
+  last updated 06-11) is the only open PR — close or keep. Branches of the
+  closed #6/#7/#8 are kept (see Now); delete once their work is confirmed
+  superseded.
 - **[auto] Supabase → local hydration** — no read-back path exists, so a
   second device sees an empty app (biggest sign-in value gap). Food / workout /
   weight first, vitals / symptoms second. Architecture change: ADR +
@@ -90,13 +102,9 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   mirrors in-app banners.
 - **[auto] JP food text search** — MEXT 成分表, top ~500 washoku + `pg_trgm`;
   also grounds photo-AI v2 numbers.
-- **[auto] Follow-up from the 10-13 round**: 5 dev-only highs remain on
-  `braces` (GHSA-vfj7-8cjw-p6xm) via `eslint-config-next`; no patched release
-  yet. Done since: `runtime = 'edge'` removed from the icon routes;
-  `lib/__tests__/proxy-matcher.test.ts` pins the matcher (24 cases);
-  `security.yml`'s grep-based secret check — a silent no-op (`fatal: bad
-  revision 'origin/main...HEAD'` on a shallow checkout, swallowed by
-  `|| true`) — replaced by a `gitleaks` job on the PR commit range.
+- **[auto] Dev-only `npm audit` highs**: 5 remain on `braces`
+  (GHSA-vfj7-8cjw-p6xm) via `eslint-config-next`; no patched release yet.
+  When one ships, update and restore the full-tree audit gate.
 - **[auto] Health-log follow-ups**: symptom↔meal correlation analysis; CSV
   import for old symptom-memo-app data.
 - **[auto] Small fixes**: MealCard edit coerces empty fields to 0; favorites
@@ -154,17 +162,19 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   jump clear of every advisory (2026-10-13).
 
 ## Last verified state
-- 2026-10-13: `main` (`5ec0b61`) — CI green: TypeScript / Build / ESLint /
-  Vitest (**572/572**, 49 files) / npm audit. Local on Next.js 16.3.8:
-  `tsc --noEmit` exit 0, `npm run lint` 0 errors (3 pre-existing warnings),
-  `npm run build` exit 0, vitest 572/572 on Node v26.0.0 and v22.23.3;
-  `npm audit --omit=dev` 0 vulnerabilities. Prod
-  (https://diet-tracker-two-blue.vercel.app, anonymous curl after deploy):
+- 2026-10-13: `main` (`448aa58`, deployed) — CI green: TypeScript / Build /
+  ESLint / Vitest (**596/596**, 50 files) / npm audit; `gitleaks` ran on
+  PR #19 (1 commit scanned, no leaks) and is skipped on push by design. Local
+  at `99e5c8b` on Next.js 16.3.8: `tsc --noEmit` exit 0, `npm run lint`
+  0 errors (3 pre-existing warnings), clean `npm run build` exit 0, vitest
+  596/596 on Node v26.0.0 and v22.23.3. Prod
+  (https://diet-tracker-two-blue.vercel.app, anonymous curl):
   `/`, `/login`, `/manifest.webmanifest`, `/sw.js`, `/robots.txt` → 200;
-  `/icon`, `/apple-icon` → 200 `image/png`; `/dashboard` → 307
+  `/icon`, `/apple-icon` → 200 `image/png` (byte-identical to the local
+  build, both opened and checked by eye at `99e5c8b`); `/dashboard` → 307
   `/login?next=%2Fdashboard`; `dt-guest=1` on `/dashboard` → 307
   `/onboarding`; anonymous POST `/api/recommend` → 403. NOT verified: any
-  authed flow, image optimization, rendered icon pixels.
+  authed flow, image optimization, a gitleaks finding failing CI.
 - 2026-07-17 (council fixes): `npm run lint` clean, `npx vitest run`
   **252/252** (+22), `npm run build` green. Dev :3199 anon probes → 401 both
   routes; served /sw.js contains the same-origin guard. NOT empirically
