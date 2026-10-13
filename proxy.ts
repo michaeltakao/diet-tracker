@@ -174,9 +174,11 @@ export const config = {
      * - API routes: /api/* (these handle auth themselves via getServerUser())
      * - Static files with extensions: .ico, .svg, .png, .jpg, .webp, etc.
      * - PWA files: manifest, sw
+     * - Generated icons: /icon, /apple-icon (app/icon.tsx, app/apple-icon.tsx —
+     *   no file extension, so the extension rule below does not cover them)
      *
      * The negative lookahead (?!...) excludes those paths.
      */
-    '/((?!_next/static|_next/image|api|favicon\\.ico|manifest\\.webmanifest|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml|json|webmanifest)$).*)',
+    '/((?!_next/static|_next/image|api|favicon\\.ico|icon$|apple-icon$|manifest\\.webmanifest|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml|json|webmanifest)$).*)',
   ],
 };
