@@ -6,11 +6,23 @@ Keep this file under 200 lines: Now (latest 3) / Next / Blockers / Key
 decisions / Last verified (latest 2) — move older entries to the archive.
 
 ## Now
-- **2026-10-13 CI + STATUS housekeeping (branch `chore/ci-vitest-status-trim`):**
-  `ci.yml` gains a 4th job (`test` → `npm test`); until now CI ran only
-  typecheck / build / lint, so the vitest suite did not gate `main`. No other
-  workflow ran vitest (grep over `.github/workflows/`). `STATUS.md` trimmed
-  1094 → under 200 lines; everything removed was moved verbatim to the archive.
+- **2026-10-13 CI, security and housekeeping round — merged + deployed
+  (`main` `5ec0b61`):**
+  - PR #14 (`20a0134`): `ci.yml` gains a 4th job (`test` → `npm test`); CI had
+    run only typecheck / build / lint, so vitest did not gate `main`.
+    `STATUS.md` trimmed 1094 → under 200 lines, the rest moved verbatim to
+    the archive.
+  - PR #15 (`c34e3de`): `next` + `eslint-config-next` 16.2.6 → **16.3.8**,
+    `vitest` + `@vitest/coverage-v8` → 4.1.11, `npm audit fix` (no `--force`).
+    `npm audit` had been red on `main` since at least 09-28 with 18 findings
+    (1 critical, 12 high); the critical was `next` itself, incl. proxy bypass
+    under Turbopack (GHSA-6gpp-xcg3-4w24) and RCE in `next/og` /
+    Image Optimization (GHSA-vcvr-r3jv-pc5j, GHSA-2xp9-vwfh-vxw4).
+    Exploitability on this deployment was not tested. Production deps now
+    audit clean.
+  - PR #16 (`5ec0b61`): `proxy.ts` matcher excludes `/icon` and `/apple-icon`
+    — both are extension-less, so anonymous visitors got 307 → `/login`
+    instead of the image linked from every page's `<head>`.
 - **2026-10-02 Swap fix:** the session-start swap control toggled between two
   exercises (memoryless "first alternative not in plan"). Now `alternativesFor()`
   returns the full same-part pool and `nextSwapCandidate()` remembers swapped-out
@@ -78,6 +90,15 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   mirrors in-app banners.
 - **[auto] JP food text search** — MEXT 成分表, top ~500 washoku + `pg_trgm`;
   also grounds photo-AI v2 numbers.
+- **[auto] Follow-ups from the 10-13 round**: (1) `security.yml`'s "Check for
+  secrets in diff" step probably never matches — `checkout` is shallow, so
+  `origin/<base>` is likely missing and the `|| true` swallows the error
+  (unconfirmed; read a PR run's log); it also never ran while the audit step
+  before it was failing. (2) `export const runtime = 'edge'` in `app/icon.tsx`
+  / `app/apple-icon.tsx` now prints an Edge Runtime deprecation warning on
+  build. (3) The proxy matcher has no test — the `/icon` gap was found by
+  curl, not CI. (4) 5 dev-only highs remain on `braces`
+  (GHSA-vfj7-8cjw-p6xm) via `eslint-config-next`; no patched release yet.
 - **[auto] Health-log follow-ups**: symptom↔meal correlation analysis; CSV
   import for old symptom-memo-app data.
 - **[auto] Small fixes**: MealCard edit coerces empty fields to 0; favorites
@@ -128,12 +149,24 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   is a separate job from generation.
 - Age gate: 18+ attestation via `/consent`, server-enforced in
   `app/api/consent/route.ts`; under-18 steered to on-device guest mode (ADR-004).
+- **`npm audit` gate = production dependencies only** (`--omit=dev
+  --audit-level=high`, 2026-10-13). The full-tree audit still runs with
+  `continue-on-error`; revert to a full-tree gate once `braces` ships a fix.
+- `next` is pinned exactly; 16.3.8 was chosen over 16.4.0 as the smallest
+  jump clear of every advisory (2026-10-13).
 
 ## Last verified state
-- 2026-10-13 (`chore/ci-vitest-status-trim`, Node v26.0.0 local):
-  `npm run lint` 0 errors (3 pre-existing warnings), `npm test` **572/572**
-  (49 files), `npm run build` exit 0. Vitest re-run under Node v22.23.3 (CI's major):
-  572/572.
+- 2026-10-13: `main` (`5ec0b61`) — CI green: TypeScript / Build / ESLint /
+  Vitest (**572/572**, 49 files) / npm audit. Local on Next.js 16.3.8:
+  `tsc --noEmit` exit 0, `npm run lint` 0 errors (3 pre-existing warnings),
+  `npm run build` exit 0, vitest 572/572 on Node v26.0.0 and v22.23.3;
+  `npm audit --omit=dev` 0 vulnerabilities. Prod
+  (https://diet-tracker-two-blue.vercel.app, anonymous curl after deploy):
+  `/`, `/login`, `/manifest.webmanifest`, `/sw.js`, `/robots.txt` → 200;
+  `/icon`, `/apple-icon` → 200 `image/png`; `/dashboard` → 307
+  `/login?next=%2Fdashboard`; `dt-guest=1` on `/dashboard` → 307
+  `/onboarding`; anonymous POST `/api/recommend` → 403. NOT verified: any
+  authed flow, image optimization, rendered icon pixels.
 - 2026-07-17 (council fixes): `npm run lint` clean, `npx vitest run`
   **252/252** (+22), `npm run build` green. Dev :3199 anon probes → 401 both
   routes; served /sw.js contains the same-origin guard. NOT empirically
