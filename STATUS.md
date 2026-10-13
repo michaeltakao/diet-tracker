@@ -90,15 +90,13 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   mirrors in-app banners.
 - **[auto] JP food text search** — MEXT 成分表, top ~500 washoku + `pg_trgm`;
   also grounds photo-AI v2 numbers.
-- **[auto] Follow-ups from the 10-13 round**: (1) `security.yml`'s "Check for
-  secrets in diff" step probably never matches — `checkout` is shallow, so
-  `origin/<base>` is likely missing and the `|| true` swallows the error
-  (unconfirmed; read a PR run's log); it also never ran while the audit step
-  before it was failing. (2) 5 dev-only highs remain on `braces`
-  (GHSA-vfj7-8cjw-p6xm) via `eslint-config-next`; no patched release yet.
-  Done since: `runtime = 'edge'` removed from `app/icon.tsx` /
-  `app/apple-icon.tsx` (both now prerender statically), and
-  `lib/__tests__/proxy-matcher.test.ts` pins the matcher (24 cases).
+- **[auto] Follow-up from the 10-13 round**: 5 dev-only highs remain on
+  `braces` (GHSA-vfj7-8cjw-p6xm) via `eslint-config-next`; no patched release
+  yet. Done since: `runtime = 'edge'` removed from the icon routes;
+  `lib/__tests__/proxy-matcher.test.ts` pins the matcher (24 cases);
+  `security.yml`'s grep-based secret check — a silent no-op (`fatal: bad
+  revision 'origin/main...HEAD'` on a shallow checkout, swallowed by
+  `|| true`) — replaced by a `gitleaks` job on the PR commit range.
 - **[auto] Health-log follow-ups**: symptom↔meal correlation analysis; CSV
   import for old symptom-memo-app data.
 - **[auto] Small fixes**: MealCard edit coerces empty fields to 0; favorites
