@@ -94,11 +94,11 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   secrets in diff" step probably never matches — `checkout` is shallow, so
   `origin/<base>` is likely missing and the `|| true` swallows the error
   (unconfirmed; read a PR run's log); it also never ran while the audit step
-  before it was failing. (2) `export const runtime = 'edge'` in `app/icon.tsx`
-  / `app/apple-icon.tsx` now prints an Edge Runtime deprecation warning on
-  build. (3) The proxy matcher has no test — the `/icon` gap was found by
-  curl, not CI. (4) 5 dev-only highs remain on `braces`
+  before it was failing. (2) 5 dev-only highs remain on `braces`
   (GHSA-vfj7-8cjw-p6xm) via `eslint-config-next`; no patched release yet.
+  Done since: `runtime = 'edge'` removed from `app/icon.tsx` /
+  `app/apple-icon.tsx` (both now prerender statically), and
+  `lib/__tests__/proxy-matcher.test.ts` pins the matcher (24 cases).
 - **[auto] Health-log follow-ups**: symptom↔meal correlation analysis; CSV
   import for old symptom-memo-app data.
 - **[auto] Small fixes**: MealCard edit coerces empty fields to 0; favorites
