@@ -7,6 +7,11 @@
  * 2. Auth guard — redirect unauthenticated users to /login when Supabase is
  *    fully configured.
  *
+ * There is no in-app consent gate (removed 2026-10-14, vault ADR-007): study
+ * consent is a signed paper form, and profiles.consented_at is set by the
+ * researcher after checking the form. Signing in therefore does NOT imply
+ * consent — analysis and research export filter on consented_at IS NOT NULL.
+ *
  * Guest mode: if NEXT_PUBLIC_SUPABASE_URL contains "placeholder" or "xxxx"
  * (i.e., the developer hasn't set up Supabase yet), all auth checks are
  * bypassed and the app runs in localStorage-only guest mode. With Supabase
@@ -82,7 +87,6 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isLoginPage      = pathname === '/login';
   const isAuthRoute      = pathname.startsWith('/auth/');
-  const isConsentPage    = pathname === '/consent';
   const isApiRoute       = pathname.startsWith('/api/');
   const isOnboardingPage = pathname === '/onboarding';
   // The public marketing/landing page (app/page.tsx). Anonymous visitors
@@ -90,8 +94,7 @@ export async function proxy(request: NextRequest) {
   // and opted-in guests who land here get sent on to /dashboard below.
   const isRootPage       = pathname === '/';
 
-  // First visit → /onboarding (FTUE D4). Page routes only. For authed users
-  // this fires AFTER the consent check below (consent always comes first).
+  // First visit → /onboarding (FTUE D4). Page routes only.
   // The dt-onboarded cookie is per-device: a returning user on a new device
   // is re-prompted once (the wizard prefills from their profile and is
   // skippable in one tap). With placeholder Supabase env this proxy returns
@@ -103,7 +106,7 @@ export async function proxy(request: NextRequest) {
   // never finished onboarding gets bounced to /dashboard on their next visit
   // to `/`, skipping the wizard entirely.
   const needsOnboarding =
-    !isOnboardingPage && !isConsentPage && !isApiRoute && !isAuthRoute && !isLoginPage &&
+    !isOnboardingPage && !isApiRoute && !isAuthRoute && !isLoginPage &&
     request.cookies.get('dt-onboarded')?.value !== '1';
   const onboardingRedirect = () => {
     const onboardingUrl = request.nextUrl.clone();
@@ -141,24 +144,7 @@ export async function proxy(request: NextRequest) {
     return dashboardRedirect();
   }
 
-  // Authenticated but not yet consented → /consent
-  // Skip redirect for the consent page itself, API routes, and auth routes.
-  if (user && !isConsentPage && !isApiRoute && !isAuthRoute && !isLoginPage) {
-    const profile = await supabase
-      .from('profiles')
-      .select('consented_at')
-      .eq('id', user.id)
-      .maybeSingle();
-    // Fail closed: a missing row (trigger failure, pre-001 user) or a query
-    // error must land on /consent, never inside the app unconsented.
-    if (!profile.data || profile.data.consented_at === null) {
-      const consentUrl = request.nextUrl.clone();
-      consentUrl.pathname = '/consent';
-      return NextResponse.redirect(consentUrl);
-    }
-  }
-
-  // Authed onboarding gate — after consent so /consent always wins.
+  // Authed onboarding gate.
   if (user && needsOnboarding) {
     return onboardingRedirect();
   }

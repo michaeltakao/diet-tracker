@@ -350,6 +350,50 @@ export type Database = {
           },
         ]
       }
+      goal_history: {
+        Row: {
+          fitness_goal: string | null
+          goal_calories: number | null
+          goal_carbs_g: number | null
+          goal_fat_g: number | null
+          goal_protein_g: number | null
+          goal_weight_kg: number | null
+          id: string
+          recorded_at: string
+          user_id: string
+        }
+        Insert: {
+          fitness_goal?: string | null
+          goal_calories?: number | null
+          goal_carbs_g?: number | null
+          goal_fat_g?: number | null
+          goal_protein_g?: number | null
+          goal_weight_kg?: number | null
+          id?: string
+          recorded_at?: string
+          user_id: string
+        }
+        Update: {
+          fitness_goal?: string | null
+          goal_calories?: number | null
+          goal_carbs_g?: number | null
+          goal_fat_g?: number | null
+          goal_protein_g?: number | null
+          goal_weight_kg?: number | null
+          id?: string
+          recorded_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meal_templates: {
         Row: {
           created_at: string

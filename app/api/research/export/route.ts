@@ -3,8 +3,15 @@
  *
  * Researcher-only: export participant data as JSON or CSV.
  *
+ * Only rows of users whose profiles.consented_at is set are exported — i.e.
+ * the researcher has checked their signed paper consent form (vault ADR-007).
+ * Signing in no longer implies consent, so an unfiltered export would include
+ * people who never agreed to research use. Rows with no user (guest
+ * beta_feedback) are excluded for the same reason.
+ *
  * Query params:
- *   user_id  — filter to a specific participant (optional; omit for all)
+ *   user_id  — filter to a specific participant (optional; omit for all).
+ *              A user without consented_at yields an empty export.
  *   table    — 'food_logs' | 'weight_logs' | 'workout_logs' | 'recommendation_feedback'
  *              | 'sus_responses' | 'beta_feedback'
  *              (optional; omit for full export as nested JSON)
@@ -101,14 +108,26 @@ export async function GET(request: Request): Promise<NextResponse> {
     })
     .catch((err: unknown) => console.error('[RESEARCHER_ACCESS_LOG_ERROR]', '/api/research/export', err));
 
+  // Consent filter: the only users whose rows may leave this endpoint.
+  // Sized for this study (tens of participants): the id list travels in the
+  // query string and the lookup is one unpaginated page (PostgREST max-rows).
+  // Move the join into SQL (an RPC) before using this with hundreds of users.
+  const { data: consented, error: consentErr } = await svc
+    .from('profiles')
+    .select('id')
+    .not('consented_at', 'is', null);
+  if (consentErr) {
+    console.error('[RESEARCH_EXPORT_ERROR] consent lookup failed:', consentErr);
+    return NextResponse.json({ error: 'Export failed. Please try again.' }, { status: 500 });
+  }
+  const consentedIds = (consented ?? []).map((p: { id: string }) => p.id);
+  const exportIds = userId ? consentedIds.filter((id) => id === userId) : consentedIds;
+
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
   // ── Single-table export ─────────────────────────────────────────────────────
   if (tableName) {
-    let q = svc.from(tableName).select('*');
-    if (userId) q = q.eq('user_id', userId);
-
-    const { data, error } = await q;
+    const { data, error } = await svc.from(tableName).select('*').in('user_id', exportIds);
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
@@ -132,15 +151,19 @@ export async function GET(request: Request): Promise<NextResponse> {
   }
 
   // ── Full multi-table export (JSON only) ─────────────────────────────────────
-  const buildQuery = (table: SupportedTable) => {
-    let q = svc.from(table).select('*');
-    if (userId) q = q.eq('user_id', userId);
-    return q;
-  };
+  const buildQuery = (table: SupportedTable) =>
+    svc.from(table).select('*').in('user_id', exportIds);
 
   const [food, weight, workout, feedback, sus, betaFeedback] = await Promise.all(
     SUPPORTED_TABLES.map(buildQuery),
   );
+
+  const failed = [food, weight, workout, feedback, sus, betaFeedback].find((r) => r.error);
+  if (failed?.error) {
+    // An empty array must mean "no rows", never "the query failed".
+    console.error('[RESEARCH_EXPORT_ERROR]', failed.error);
+    return NextResponse.json({ error: 'Export failed. Please try again.' }, { status: 500 });
+  }
 
   const payload = {
     exported_at: new Date().toISOString(),

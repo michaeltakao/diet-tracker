@@ -60,7 +60,7 @@ export function getOnboardingRecord(): OnboardingRecord | null {
 }
 
 function setOnboardedCookie(): void {
-  // Same idiom as dt-guest (login/consent pages). Per-device by design.
+  // Same idiom as dt-guest (login page). Per-device by design.
   document.cookie = `${ONBOARDED_COOKIE}=1; path=/; max-age=31536000; samesite=lax`;
 }
 

@@ -279,18 +279,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       };
       setProfile(next);
 
-      // Dual-write to Supabase (fire-and-forget)
-      const supabase = createClient();
-      void supabase.from('profiles').update({
-        goal_calories:  goals.calories,
-        goal_protein_g: goals.protein,
-        goal_fat_g:     goals.fat,
-        goal_carbs_g:   goals.carbs,
-        goal_water_ml:  goals.water,
-        goal_weight_kg: goals.goalWeight ?? null,
-      }).eq('id', user.id).then(({ error }) => {
-        if (error) console.warn('[ProfileContext] updateGoals Supabase failed:', error.message);
-      });
+      // The Supabase write happens once, inside lib/data/profile.ts
+      // updateGoals (clamped to the column CHECKs) — do not add one here.
     }
   }, [user, profile]);
 

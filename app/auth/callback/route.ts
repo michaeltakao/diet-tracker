@@ -71,7 +71,8 @@ export async function GET(request: NextRequest) {
       // trigger normally creates it, but if it ever failed (or the user
       // predates 001) the row is missing and RLS has no INSERT policy for the
       // anon client — repair via service role. Any failure here must NOT
-      // break login: the proxy's fail-closed consent guard is the backstop.
+      // break login. A user left without a row has no consented_at, so they
+      // stay out of every analysis and export (both filter on it).
       try {
         const user = exchanged?.user;
         if (user) {
