@@ -21,7 +21,7 @@ export default function ConsentPage() {
   const [error,     setError]     = useState<string | null>(null);
   const [done,      setDone]      = useState(false);
 
-  // 研究参加に同意しない場合も、アプリ本体はゲストモード（この端末のみ保存）で
+  // データ利用に同意しない場合も、アプリ本体はゲストモード（この端末のみ保存）で
   // 全機能利用できる。サインアウト + ゲストcookie（login pageと同じ）で / へ。
   const continueAsGuest = async () => {
     try {

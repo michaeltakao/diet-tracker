@@ -6,6 +6,16 @@ Keep this file under 200 lines: Now (latest 3) / Next / Blockers / Key
 decisions / Last verified (latest 2) — move older entries to the archive.
 
 ## Now
+- **2026-10-14 Family-and-friends trial prep (branch `feat/trial-data-notice`,
+  not merged):** `/consent` copy rewritten (ja/en) from a research-consent
+  form into a data-use notice — purpose is product improvement, no research
+  use; lists every stored category; states that AI features send meal /
+  workout / weight logs and profile health conditions, medications and
+  dietary restrictions to Gemini (the old copy said only images were sent).
+  Page structure, the single checkbox and `/api/consent` behavior are
+  unchanged. New `docs/trial/`: paper agreement, one-page tester guide,
+  `cohort-queries.sql` (15 read-only SELECTs; all ran on prod without error,
+  0 consented users). No new collection code.
 - **2026-10-13 CI, security and housekeeping round — merged + deployed
   (`main` `448aa58`):**
   - PR #14: `ci.yml` gains a 4th job (`test` → `npm test`); CI had run only
@@ -40,16 +50,16 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   Verified: vitest 572/572, lint 0 errors (3 pre-existing warnings), build exit 0;
   regression test fails (2 distinct vs 6) with the memory removed. Pushed
   (`7785f98`, `main` = `origin/main` as of 10-13).
-- **2026-09-18 Engine wired into session-start (`203ef69`):** `SessionStart`
-  posts to `/api/generate-workout` instead of the plain-LLM
-  `/api/suggest-workout`, so the deterministic engine picks exercises/sets/reps
-  and the LLM only narrates. Flow chips became engine inputs (`sorenessAreas`,
-  `energyLevel`) alongside 14 days of logged workouts as per-muscle recovery
-  data; exercise swap re-runs the engine client-side (zero LLM calls). Same
-  round: `researcher_access_log` write failures are now logged instead of
-  swallowed (`4f18a02`).
 
 ## Next
+- **Trial, 10–30 family and friends (plan 2026-10-14):** wk 0 merge the
+  branch, public-login items 1–4 + 6 below, use it yourself 3 days; wk 1 five
+  people, after signed `docs/trial/data-use-agreement-ja.md`; wk 2–4 the rest,
+  run `docs/trial/cohort-queries.sql` weekly + a weekly note in `docs/trial/`;
+  wk 4 pick one fix. Kill: <5 people with 3+ active days (Q2b) after 4 weeks.
+  [🔒user] first: fill the contact line on both printouts; check whether the
+  Google OAuth consent screen is in "Testing" (then add testers' emails); set
+  a budget alert on the Gemini key.
 - **[🔒user] Public login — blocks every real user's sign-in** (do in one
   sitting; unblocks authed E2E, push and export checks at once):
   1. Vercel env (Production): add `SUPABASE_SERVICE_ROLE_KEY` (export,
@@ -153,8 +163,15 @@ decisions / Last verified (latest 2) — move older entries to the archive.
 - `/api/suggest-workout` + `WorkoutSuggestionCard` are caller-less since
   2026-09-18 but retained on purpose — adjusting an already-scheduled session
   is a separate job from generation.
-- Age gate: 18+ attestation via `/consent`, server-enforced in
-  `app/api/consent/route.ts`; under-18 steered to on-device guest mode (ADR-004).
+- **No age gate in code**: the 18+ attestation was removed 2026-07-22
+  (`5f20d39`); `app/api/consent/route.ts` checks authentication only (the
+  10-13 "server-enforced" entry here was wrong). Under-18 testers need the
+  guardian signature on the paper agreement, otherwise guest mode.
+- **Trial data = product improvement only, not research** (vault `ADR-006`):
+  `/consent` and the paper agreement say so, so it cannot go into the thesis
+  or a paper without ethics review and fresh consent. Aggregation reads food /
+  weight / workout rows and timestamps only — never vitals, symptoms,
+  conditions or medications.
 - **`npm audit` gate = production dependencies only** (`--omit=dev
   --audit-level=high`, 2026-10-13). The full-tree audit still runs with
   `continue-on-error`; revert to a full-tree gate once `braces` ships a fix.

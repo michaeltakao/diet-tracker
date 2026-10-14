@@ -1059,3 +1059,13 @@ anyway since it was cheap alongside the lipid/HbA1c work).
   (`chkkpucuiyjdeqgyyszt`) and verified; `database.types.ts` regenerated.
 - 2026-06-11: trivy (lockfile) clean · gitleaks history scan: 9 findings, all triaged
   false positives.
+
+## Moved from STATUS.md Now on 2026-10-14
+- **2026-09-18 Engine wired into session-start (`203ef69`):** `SessionStart`
+  posts to `/api/generate-workout` instead of the plain-LLM
+  `/api/suggest-workout`, so the deterministic engine picks exercises/sets/reps
+  and the LLM only narrates. Flow chips became engine inputs (`sorenessAreas`,
+  `energyLevel`) alongside 14 days of logged workouts as per-muscle recovery
+  data; exercise swap re-runs the engine client-side (zero LLM calls). Same
+  round: `researcher_access_log` write failures are now logged instead of
+  swallowed (`4f18a02`).

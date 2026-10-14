@@ -4,19 +4,24 @@
  * Records the authenticated user's consent timestamp in profiles.consented_at.
  * Called by the /consent page on submission.
  *
- * No age-eligibility gate: the study no longer restricts participation by
- * age, so profiles.adult_confirmed_at is not written by this route (the
- * column remains in the schema for historical rows only — see
- * supabase/migrations/007 and 010).
+ * What is consented to (2026-10-14): the "data-use notice" shown on /consent
+ * — product-improvement use only, NOT research. Data collected under this
+ * notice must not be used in a thesis or paper; that needs ethics review and
+ * fresh consent. The matching paper agreement is
+ * docs/trial/data-use-agreement-ja.md.
+ *
+ * No age gate in code (removed 2026-07-22, `5f20d39`):
+ * profiles.adult_confirmed_at is not written by this route (the column
+ * remains in the schema for historical rows only — see
+ * supabase/migrations/007 and 010). Under-18 testers are handled by the
+ * guardian signature on the paper agreement, not by this route.
  *
  * Also assigns profiles.study_cohort (FTUE P0 #10) atomically with consent,
  * once, on first consent only — never re-assigned (the existing 409-on-
  * already-consented path below makes this idempotent for free). The
- * assigned cohort is intentionally NOT echoed in the response: this keeps
- * the client blind to its own bucket, which matters once cohort-conditioned
- * behavior (e.g. XAI why-badges) is implemented in a future round. Behavior
- * branching on cohort is explicitly out of scope for this round — only the
- * assignment itself.
+ * assigned cohort is intentionally NOT echoed in the response. No behavior
+ * branches on cohort; the assignment is retained as-is and has no
+ * user-visible effect during the family-and-friends trial.
  *
  * Request body: (none required)
  * Response (200): { consentedAt: string }
