@@ -9,7 +9,7 @@ import { FoodEntry, DailyGoals, MealTemplate } from '@/lib/types';
 import MealCard from '@/components/MealCard';
 import CalorieBar from '@/components/CalorieBar';
 import { MonthCalendar } from '@/components/MonthCalendar';
-import { weekStartOf } from '@/lib/streak';
+import { shiftDate, weekStartOf } from '@/lib/streak';
 import type { CategoryKey } from '@/lib/dashboard-data';
 import WeeklyReportCard from '@/components/WeeklyReportCard';
 import SusSurveyCard from '@/components/SusSurveyCard';
@@ -20,20 +20,15 @@ import { Toast } from '@/components/ui/Toast';
 import { recordEvent } from '@/lib/telemetry';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-function getTodayDate(): string { return new Date().toISOString().split('T')[0]; }
+function getTodayDate(): string { return todayJst(); }
 
-function getWeekDates(anchor: Date): string[] {
-  const day = anchor.getDay();
-  const monday = new Date(anchor);
-  monday.setDate(anchor.getDate() - ((day + 6) % 7));
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return d.toISOString().split('T')[0];
-  });
+/** Monday-first JST week (YYYY-MM-DD ×7) containing `anchor`. */
+function getWeekDates(anchor: string): string[] {
+  const monday = weekStartOf(anchor);
+  return Array.from({ length: 7 }, (_, i) => shiftDate(monday, i));
 }
 
-import { fmtCalendarCell, fmtMonthDayDowLongJa, fmtLongEn } from '@/lib/format-date';
+import { fmtCalendarCell, fmtMonthDayDowLongJa, fmtLongEn, todayJst } from '@/lib/format-date';
 import { postJson, HttpError } from '@/lib/httpClient';
 import { CARD_CLASS as cardCls } from '@/components/ui/Card';
 
@@ -74,13 +69,11 @@ function buildHabitMatrix(allFood: FoodEntry[], allWorkouts: { date: string; add
   workoutDays: number;
   missedPostWorkoutDays: number;
 } {
-  const today = new Date();
+  const today = todayJst();
   const matrix: DaySummary[] = [];
 
   for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const date = d.toISOString().split('T')[0];
+    const date = shiftDate(today, -i);
 
     const meals = allFood.filter((e) => e.date === date);
     const workouts = allWorkouts.filter((w) => w.date === date);
@@ -223,9 +216,7 @@ export default function LogPage() {
     switchView('weekly');
   };
 
-  const anchorDate = new Date();
-  anchorDate.setDate(anchorDate.getDate() + weekOffset * 7);
-  const weekDates = getWeekDates(anchorDate);
+  const weekDates = getWeekDates(shiftDate(getTodayDate(), weekOffset * 7));
 
   const selectedEntries = allEntries.filter((e) => e.date === selectedDate);
 

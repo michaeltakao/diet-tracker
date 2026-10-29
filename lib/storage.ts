@@ -1,5 +1,5 @@
 import { AppData, Badge, BadgeType, DailyGoals, ExerciseRankState, FavoriteFood, FoodEntry, MealTemplate, PersonalRecord, RecommendationFeedback, SymptomEntry, VitalEntry, WeightEntry, WorkoutEntry } from './types';
-import { activityDaysFrom, computeStreak, jstToday } from './streak';
+import { activityDaysFrom, computeStreak, jstToday, shiftDate } from './streak';
 import type { RankId } from './rank';
 
 const STORAGE_KEY = 'diet-tracker-v1';
@@ -441,11 +441,10 @@ export function checkAndAwardBadges(today: string, opts?: { goalsAreReal?: boole
   }
 
   // Workout master: 5+ unique workout days in last 7 days (once ever)
-  const weekAgo = new Date(today);
-  weekAgo.setDate(weekAgo.getDate() - 6); // inclusive 7-day window: today + preceding 6 days
+  const weekAgo = shiftDate(today, -6); // inclusive 7-day window: today + preceding 6 days
   const workoutDays = new Set(
     data.workoutEntries
-      .filter((w) => w.date >= weekAgo.toISOString().split('T')[0])
+      .filter((w) => w.date >= weekAgo)
       .map((w) => w.date)
   );
   if (workoutDays.size >= 5) {
@@ -455,7 +454,7 @@ export function checkAndAwardBadges(today: string, opts?: { goalsAreReal?: boole
   // Vitals week: 5+ unique vital-log days in last 7 days (once ever)
   const vitalDays = new Set(
     data.vitalEntries
-      .filter((v) => v.date >= weekAgo.toISOString().split('T')[0])
+      .filter((v) => v.date >= weekAgo)
       .map((v) => v.date)
   );
   if (vitalDays.size >= 5) {

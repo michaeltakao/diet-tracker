@@ -40,8 +40,37 @@ export function fmtLongEn(dateStr: string): string {
   return `${DOW_LONG_EN[d.getDay()]}, ${MON_LONG_EN[d.getMonth()]} ${d.getDate()}`;
 }
 
-/** Today's YYYY-MM-DD, safe for both SSR and client */
+// ── JST clock (ADR-008 P0-1) ────────────────────────────────────────────────
+// Every stored `date` is a JST calendar day, matching the SQL side's
+// Asia/Tokyo day (lib/api-guard.ts). `toISOString().split('T')[0]` is the UTC
+// day and lags JST by one between 00:00 and 08:59 — do not use it for dates.
+
+/** Asia/Tokyo offset from UTC; Japan has no DST. */
+const JST_OFFSET_MS = 9 * 3_600_000;
+
+/** JST calendar day (YYYY-MM-DD) of an instant; defaults to now. */
+export function toJstDate(at: Date | number = Date.now()): string {
+  return new Date(+at + JST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/** Today's JST calendar day (YYYY-MM-DD). */
+export function todayJst(): string {
+  return toJstDate();
+}
+
+/** JST wall-clock time (HH:MM) of an instant; defaults to now. */
+export function nowJstTime(at: Date | number = Date.now()): string {
+  return new Date(+at + JST_OFFSET_MS).toISOString().slice(11, 16);
+}
+
+/** ISO-8601 UTC instant for a JST calendar day + HH:MM wall-clock time. */
+export function jstTimestamp(date: string, time: string): string {
+  const [h, m] = time.split(':').map(Number);
+  const jstMidnight = Date.parse(`${date}T00:00:00Z`) - JST_OFFSET_MS;
+  return new Date(jstMidnight + (h * 60 + m) * 60_000).toISOString();
+}
+
+/** Today's YYYY-MM-DD (JST), safe for both SSR and client */
 export function todayStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return todayJst();
 }

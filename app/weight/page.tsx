@@ -15,9 +15,9 @@ import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { projectGoalDate, lastNDates, WEIGHT_WINDOW_DAYS } from '@/lib/trends';
 
-function getTodayDate() { return new Date().toISOString().split('T')[0]; }
+function getTodayDate() { return todayJst(); }
 
-import { fmtShortJa } from '@/lib/format-date';
+import { fmtShortJa, todayJst } from '@/lib/format-date';
 import { CARD_CLASS as cardCls } from '@/components/ui/Card';
 import { Toast } from '@/components/ui/Toast';
 
