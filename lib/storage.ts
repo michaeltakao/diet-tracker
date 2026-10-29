@@ -53,11 +53,20 @@ const DEFAULT_DATA: AppData = {
   exerciseRanks: {},
 };
 
+/**
+ * Deep copy of DEFAULT_DATA. A shallow spread shares its arrays, so the first
+ * add*() on empty storage pushed into the module-level defaults and the rows
+ * came back on the next empty-storage read in the same session.
+ */
+function freshDefaultData(): AppData {
+  return structuredClone(DEFAULT_DATA);
+}
+
 export function getAppData(): AppData {
-  if (typeof window === 'undefined') return DEFAULT_DATA;
+  if (typeof window === 'undefined') return freshDefaultData();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_DATA, goals: { ...DEFAULT_GOALS } };
+    if (!raw) return freshDefaultData();
     const parsed = JSON.parse(raw) as Partial<AppData>;
     return {
       foodEntries: parsed.foodEntries ?? [],
@@ -82,7 +91,7 @@ export function getAppData(): AppData {
       exerciseRanks: parsed.exerciseRanks ?? {},
     };
   } catch {
-    return { ...DEFAULT_DATA, goals: { ...DEFAULT_GOALS } };
+    return freshDefaultData();
   }
 }
 
