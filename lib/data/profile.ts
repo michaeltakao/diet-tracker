@@ -1,9 +1,8 @@
 /**
  * Profile & goals data access layer.
  *
- * Currently delegates to lib/storage.ts (localStorage).
- * STEP 5: replaced with ProfileContext (Supabase Auth user + profile row).
- * STEP 6: update goals writes to Supabase profiles table.
+ * Reads come from lib/storage.ts (localStorage). updateGoals() dual-writes
+ * the goal columns to the Supabase profiles row when authenticated.
  */
 
 import {
@@ -12,6 +11,8 @@ import {
   goalsEqualDefaults,
 } from '@/lib/storage';
 import { getOnboardingRecord } from './onboarding';
+import { getWriteContext } from './_write';
+import { toGoalColumns } from './goal-history';
 import type { DailyGoals } from '@/lib/types';
 
 // ── Read ──────────────────────────────────────────────────────
@@ -41,7 +42,33 @@ export function getRealGoals(): DailyGoals | null {
 
 // ── Write ─────────────────────────────────────────────────────
 
-/** Persist updated daily goals. */
-export function updateGoals(goals: DailyGoals): void {
+/**
+ * Which goal columns of the profiles row a save may touch.
+ * - 'all'       — Settings: the user saw and saved every field.
+ * - 'nutrition' — onboarding with confirmed body data: it computes kcal/PFC
+ *                 but never asks for a goal weight, so goal_weight_kg is left
+ *                 alone (a re-run on a new device must not NULL it).
+ * - 'none'      — onboarding on default body data: the targets are
+ *                 placeholders and must not overwrite the server's goals.
+ */
+export type GoalServerScope = 'all' | 'nutrition' | 'none';
+
+/**
+ * Persist updated daily goals: localStorage first, then the profiles row
+ * (fire-and-forget, authenticated users only).
+ */
+export function updateGoals(goals: DailyGoals, server: GoalServerScope = 'all'): void {
   _updateGoals(goals);
+  if (server === 'none') return;
+
+  void (async () => {
+    const ctx = await getWriteContext();
+    if (!ctx) return;
+    const { goal_weight_kg, ...nutrition } = toGoalColumns(goals);
+    const { error } = await ctx.supabase
+      .from('profiles')
+      .update(server === 'all' ? { ...nutrition, goal_weight_kg } : nutrition)
+      .eq('id', ctx.userId);
+    if (error) console.warn('[data/profile] Supabase goals update failed:', error.message);
+  })();
 }

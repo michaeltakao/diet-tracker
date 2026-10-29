@@ -6,50 +6,49 @@ Keep this file under 200 lines: Now (latest 3) / Next / Blockers / Key
 decisions / Last verified (latest 2) — move older entries to the archive.
 
 ## Now
+- **2026-10-14 Six-month study prep (branch `feat/trial-data-notice`, local
+  commits only, not pushed):** the trial data is now meant for research
+  (vault `ADR-007`, supersedes `ADR-006`; status *proposed* until the advisor
+  answers the three questions on slide 14).
+  - In-app consent removed: `/consent`, `/api/consent`, the `proxy.ts`
+    redirect and the `consent*` i18n keys. Consent is the signed paper form;
+    `consented_at` is set by hand (`docs/trial/consent-roster.sql`).
+  - Goals reach the server: `updateGoals` dual-writes `profiles.goal_*`;
+    `goal_history` (migration `025`, **not applied to prod**) keeps the
+    starting purpose and goal weight. 025 also freezes `consented_at` for
+    user-scope writes.
+  - `/api/research/export` now exports only users with `consented_at` set
+    (it had no consent filter; the removed gate used to make that moot).
+  - Gemini quota errors return 429 with a readable ja/en message in all 9 AI
+    routes (was a generic 500).
+  - Docs: `docs/SPEC.md` (current spec), `docs/trial/` consent form,
+    participant guide, `cohort-queries.sql` rewritten to the fixed 6-month
+    definitions (S0–S5b, W1–W5).
+  - Slides for the advisor: `~/大学院/研究室/research-plan-2026-10/`
+    (`index.html`, `slides.pdf`, 14 pages, screenshots are synthetic data).
 - **2026-10-13 CI, security and housekeeping round — merged + deployed
-  (`main` `448aa58`):**
-  - PR #14: `ci.yml` gains a 4th job (`test` → `npm test`); CI had run only
-    typecheck / build / lint, so vitest did not gate `main`. `STATUS.md`
-    trimmed 1094 → under 200 lines, the rest moved verbatim to the archive.
-  - PR #15: `next` + `eslint-config-next` 16.2.6 → **16.3.8**, `vitest` +
-    `@vitest/coverage-v8` → 4.1.11, `npm audit fix` (no `--force`). `npm
-    audit` had been red on `main` since at least 09-28 with 18 findings
-    (1 critical, 12 high); the critical was `next` itself, incl. proxy bypass
-    under Turbopack (GHSA-6gpp-xcg3-4w24) and RCE in `next/og` /
-    Image Optimization (GHSA-vcvr-r3jv-pc5j, GHSA-2xp9-vwfh-vxw4).
-    Exploitability on this deployment was not tested. Production deps now
-    audit clean.
-  - PR #16: `proxy.ts` matcher excludes `/icon` and `/apple-icon` — both are
-    extension-less, so anonymous visitors got 307 → `/login` instead of the
-    image linked from every page's `<head>`.
-  - PR #18: `runtime = 'edge'` removed from `app/icon.tsx` /
-    `app/apple-icon.tsx` (deprecated in 16.3; both now prerender statically);
-    `lib/__tests__/proxy-matcher.test.ts` pins the matcher (24 cases, via
-    Next's `unstable_doesMiddlewareMatch` — experimental API).
-  - PR #19: `security.yml`'s grep-based secret check was a silent no-op
-    (`fatal: bad revision 'origin/main...HEAD'` on a shallow checkout,
-    swallowed by `|| true`). Replaced by a `gitleaks` 8.30.1 job on the PR
-    commit range: binary verified by sha256, config read from the base commit.
-  - Closed stale PRs #3 (0 commits missing from `main`), #6 (2), #7 (4 own),
-    #8 (3 own) — branches kept; whether the unmerged work was re-implemented
-    on `main` later was not checked.
-- **2026-10-02 Swap fix:** the session-start swap control toggled between two
-  exercises (memoryless "first alternative not in plan"). Now `alternativesFor()`
-  returns the full same-part pool and `nextSwapCandidate()` remembers swapped-out
-  ids (wraps after a full cycle); the button disables when nothing is left.
-  Verified: vitest 572/572, lint 0 errors (3 pre-existing warnings), build exit 0;
-  regression test fails (2 distinct vs 6) with the memory removed. Pushed
-  (`7785f98`, `main` = `origin/main` as of 10-13).
-- **2026-09-18 Engine wired into session-start (`203ef69`):** `SessionStart`
-  posts to `/api/generate-workout` instead of the plain-LLM
-  `/api/suggest-workout`, so the deterministic engine picks exercises/sets/reps
-  and the LLM only narrates. Flow chips became engine inputs (`sorenessAreas`,
-  `energyLevel`) alongside 14 days of logged workouts as per-muscle recovery
-  data; exercise swap re-runs the engine client-side (zero LLM calls). Same
-  round: `researcher_access_log` write failures are now logged instead of
-  swallowed (`4f18a02`).
+  (`main` `448aa58`):** PRs #14–#19: vitest now gates CI; `next` 16.2.6 →
+  16.3.8 (cleared 1 critical + 12 high audit findings); proxy matcher
+  excludes `/icon` and `/apple-icon`; gitleaks PR scan replaces a no-op
+  secret grep; stale PRs #3/#6/#7/#8 closed (branches kept). Full entry in
+  the archive.
 
 ## Next
+- **Six-month study, 10–30 family and acquaintances (plan 2026-10-14):**
+  1. [🔒user] Show the slides to the advisor; settle ethics review, pilot vs
+     plan revision, and the Gemini tier. **No URL goes out before that.**
+  2. [🔒user] Gemini: the free tier's terms say not to submit personal or
+     sensitive information and require users to be 18+
+     (https://ai.google.dev/gemini-api/terms, read 10-14). Decide paid tier /
+     strip conditions and medications from prompts / AI off, then update
+     section 6 of the consent form to match.
+  3. After approval to proceed: review + push + PR for this branch, apply
+     migration `025` to prod (ask first), public-login items 1–4 + 6 below.
+  4. [🔒user] Print the consent form, fill the contact lines, collect
+     signatures, hand the guide only to signers, mark `consented_at`
+     (`consent-roster.sql`), then disable new sign-ups in Supabase.
+  5. Weekly: `cohort-queries.sql` W1–W5. Kill: <5 people with 3+ active days
+     in the first 4 weeks (W1); <5 still active at month 3 (S1).
 - **[🔒user] Public login — blocks every real user's sign-in** (do in one
   sitting; unblocks authed E2E, push and export checks at once):
   1. Vercel env (Production): add `SUPABASE_SERVICE_ROLE_KEY` (export,
@@ -64,7 +63,8 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   5. Supabase dashboard → Auth → Rate Limits / Attack Protection: review
      defaults, enable CAPTCHA (Turnstile/hCaptcha). No app-code limiter exists
      for `/login`, magic-link or OAuth initiation.
-  6. Create a real account → authed E2E: consent → recommend → export →
+  6. Create a real account → authed E2E: goal save (`profiles.goal_*` +
+     one `goal_history` row) → recommend → export →
      self-delete (the `auth.admin.deleteUser` leg is untested; cascade +
      fail-safe were SQL-verified 07-05).
   7. Set researcher role for your own account (`researcher_access_log` flow).
@@ -153,8 +153,16 @@ decisions / Last verified (latest 2) — move older entries to the archive.
 - `/api/suggest-workout` + `WorkoutSuggestionCard` are caller-less since
   2026-09-18 but retained on purpose — adjusting an already-scheduled session
   is a separate job from generation.
-- Age gate: 18+ attestation via `/consent`, server-enforced in
-  `app/api/consent/route.ts`; under-18 steered to on-device guest mode (ADR-004).
+- **No age gate in code** (18+ attestation removed 2026-07-22, `5f20d39`).
+  Under-18 participation is handled on the paper form (guardian signature)
+  and is subject to the ethics review and Google's API terms.
+- **Study data is for research; consent is paper-only** (vault `ADR-007`,
+  2026-10-14, supersedes `ADR-006`). Signing in does not imply consent:
+  every analysis and export must filter on `consented_at IS NOT NULL`.
+  Study queries read food / weight / workout rows, goal history, the active
+  plan and AI call counts — never vitals, symptoms, conditions or medications.
+- **Goal baseline = earliest `goal_history` row**; a skipped onboarding goal
+  step is not recorded as a goal (it would be a fabricated default).
 - **`npm audit` gate = production dependencies only** (`--omit=dev
   --audit-level=high`, 2026-10-13). The full-tree audit still runs with
   `continue-on-error`; revert to a full-tree gate once `braces` ships a fix.
@@ -162,6 +170,22 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   jump clear of every advisory (2026-10-13).
 
 ## Last verified state
+- 2026-10-14: `feat/trial-data-notice` (local) — `npm run lint` 0 errors
+  (3 pre-existing warnings), vitest **612/612** (51 files), clean
+  `npm run build` exit 0, `tsc --noEmit` exit 0. Local prod build :3199
+  (placeholder Supabase env, so the proxy is bypassed): `/consent` → 404,
+  POST `/api/consent` → 404, `/dashboard` `/settings` `/onboarding` → 200.
+  Migrations 001–025 applied to an in-memory Postgres (pglite, stubbed
+  `auth` / `storage`): all 14 queries in `cohort-queries.sql` ran on 7
+  synthetic users and matched hand-computed values (KM 0.833 / 0.625,
+  attainment 0.67 / 1.10, unconsented user excluded); RLS: own
+  `goal_history` insert OK, other user's insert / own `consented_at` /
+  `role` change denied, update + delete of history rows affect 0 rows,
+  a backdated `recorded_at` is overwritten by the server, profile delete
+  cascades. `/code-review medium` run: 10 findings, 8 fixed, 2 documented
+  (no `goal_history` backfill; SUS day-14 counts from the signature date). NOT verified: any authed flow against real
+  Supabase (the goal dual-write, the export consent filter, the 429 message
+  as rendered in each client), 025 on prod, the queries on prod.
 - 2026-10-13: `main` (`448aa58`, deployed) — CI green: TypeScript / Build /
   ESLint / Vitest (**596/596**, 50 files) / npm audit; `gitleaks` ran on
   PR #19 (1 commit scanned, no leaks) and is skipped on push by design. Local
@@ -175,8 +199,3 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   `/login?next=%2Fdashboard`; `dt-guest=1` on `/dashboard` → 307
   `/onboarding`; anonymous POST `/api/recommend` → 403. NOT verified: any
   authed flow, image optimization, a gitleaks finding failing CI.
-- 2026-07-17 (council fixes): `npm run lint` clean, `npx vitest run`
-  **252/252** (+22), `npm run build` green. Dev :3199 anon probes → 401 both
-  routes; served /sw.js contains the same-origin guard. NOT empirically
-  exercised: the sent===0 rollback (needs live Supabase + forced send
-  failure — same [🔒user] VAPID/auth blocker).

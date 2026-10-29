@@ -18,21 +18,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /** The user getUser() should resolve to for the next proxy() call. */
 let mockUser: { id: string } | null = null;
-/** The profiles row maybeSingle() should resolve to (consent gate). */
-let mockProfile: { consented_at: string | null } | null = { consented_at: '2026-01-01T00:00:00Z' };
 
 vi.mock('@supabase/ssr', () => ({
   createServerClient: () => ({
     auth: {
       getUser: async () => ({ data: { user: mockUser } }),
     },
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          maybeSingle: async () => ({ data: mockProfile, error: null }),
-        }),
-      }),
-    }),
+    // No in-app consent gate since 2026-10-14: the proxy must not read
+    // profiles at all. Any query fails the test that triggered it.
+    from: () => {
+      throw new Error('proxy must not query the database');
+    },
   }),
 }));
 
@@ -97,7 +93,6 @@ beforeEach(() => {
   process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://abcdefghijklmnop.supabase.co';
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'sb-anon-key-for-tests';
   mockUser = null;
-  mockProfile = { consented_at: '2026-01-01T00:00:00Z' };
 });
 
 describe('proxy onboarding gate — guest on the root page', () => {
@@ -139,14 +134,21 @@ describe('proxy — authenticated users', () => {
     expect(await routeOf('/', { 'dt-onboarded': '1' })).toBe('/dashboard');
   });
 
-  it('sends an authed, consented, un-onboarded user on /dashboard to /onboarding', async () => {
+  it('sends an authed, un-onboarded user on /dashboard to /onboarding', async () => {
     mockUser = { id: 'user-1' };
     expect(await routeOf('/dashboard')).toBe('/onboarding');
   });
 
-  it('consent gate wins over the onboarding gate', async () => {
+  it('lets an authed, onboarded user into the app without a consent redirect', async () => {
+    // Paper consent only (vault ADR-007): consented_at is set by the
+    // researcher and is never a routing condition.
     mockUser = { id: 'user-1' };
-    mockProfile = { consented_at: null };
-    expect(await routeOf('/dashboard')).toBe('/consent');
+    expect(await routeOf('/dashboard', { 'dt-onboarded': '1' })).toBeNull();
+  });
+
+  it('treats /consent like any other page (the route no longer exists)', async () => {
+    mockUser = { id: 'user-1' };
+    expect(await routeOf('/consent')).toBe('/onboarding');
+    expect(await routeOf('/consent', { 'dt-onboarded': '1' })).toBeNull();
   });
 });
