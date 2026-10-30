@@ -12,9 +12,9 @@
  *
  * Persistence on finish (all through lib/data, ADR-006):
  * - fitnessGoal + experience → health profile (always)
- * - age/sex/height → health profile, weight → weight log (only when the
- *   body step was confirmed — defaults are for computation, never logged
- *   as measurements)
+ * - age/sex/height → health profile, weight → weight log — each only when
+ *   the user set it in this wizard (lib/onboarding-body.ts, ADR-008 P0-5);
+ *   untouched steppers are display defaults for computation, never logged
  * - computed targets → updateGoals (always; kills the fake dashboard
  *   defaults for this device)
  * - completion record + dt-onboarded cookie → lib/data/onboarding
@@ -43,6 +43,8 @@ import {
 import { recommendedGoals, isSenior } from '@/lib/nutrition-standards';
 import { estimateTdee } from '@/lib/tdee';
 import { todayStr } from '@/lib/format-date';
+import { resolveBody, type BodyField } from '@/lib/onboarding-body';
+import { seedPrefsFromOnboarding, type SessionDuration } from '@/lib/data/workout-prefs';
 import { CARD_CLASS as CARD } from '@/components/ui/Card';
 import { ChipGroup } from '@/components/onboarding/ChipGroup';
 import type { DailyGoals, ExperienceLevel, FitnessGoal } from '@/lib/types';
@@ -75,11 +77,12 @@ const ENVIRONMENTS: Array<{ value: TrainingEnvironment; label: string; icon: str
   { value: 'outside', label: '外',     icon: '🌤' },
 ];
 
-const MINUTES: Array<{ value: '10' | '20' | '30' | '45'; label: string }> = [
-  { value: '10', label: '10分' },
-  { value: '20', label: '20分' },
+// Same vocabulary as the workout check-in (SessionDuration; 60 = "60分以上").
+const MINUTES: Array<{ value: '15' | '30' | '45' | '60'; label: string }> = [
+  { value: '15', label: '15分' },
   { value: '30', label: '30分' },
-  { value: '45', label: '45分以上' },
+  { value: '45', label: '45分' },
+  { value: '60', label: '60分以上' },
 ];
 
 // ── Explicit body-step defaults (used for computation when skipped) ──────────
@@ -161,23 +164,33 @@ export default function OnboardingPage() {
   const [weightKg, setWeightKg] = useState(DEFAULT_WEIGHT_KG);
   const [experience, setExperience] = useState<ExperienceLevel>('beginner');
   const [environment, setEnvironment] = useState<TrainingEnvironment>('home');
-  const [minutes, setMinutes] = useState<'10' | '20' | '30' | '45'>('20');
+  const [minutes, setMinutes] = useState<'15' | '30' | '45' | '60'>('15');
   const [defaultedSteps, setDefaultedSteps] = useState<StepId[]>([]);
+  // P0-5: which body values are real — changed here, or loaded from earlier data.
+  const [touched, setTouched] = useState<ReadonlySet<BodyField>>(new Set());
+  const [prefilled, setPrefilled] = useState<ReadonlySet<BodyField>>(new Set());
+  const touch = (f: BodyField) => setTouched(prev => new Set(prev).add(f));
 
   useEffect(() => {
     const profile = getHealthProfile();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
     setGoal(profile.fitnessGoal);
-    if (profile.age) setBirthYear(CURRENT_YEAR - profile.age);
-    if (profile.sex) setSex(profile.sex);
-    if (profile.heightCm) setHeightCm(Math.round(profile.heightCm));
+    const known = new Set<BodyField>();
+    if (profile.age) { setBirthYear(CURRENT_YEAR - profile.age); known.add('birthYear'); }
+    if (profile.sex) { setSex(profile.sex); known.add('sex'); }
+    if (profile.heightCm) { setHeightCm(Math.round(profile.heightCm)); known.add('heightCm'); }
     if (profile.experience) setExperience(profile.experience);
     const latest = getLatestWeightEntry();
-    if (latest) setWeightKg(Math.round(latest.weight));
+    if (latest) { setWeightKg(Math.round(latest.weight)); known.add('weightKg'); }
+    setPrefilled(known);
   }, []);
 
   const finish = (finalDefaulted: StepId[]) => {
-    const confirmed = !finalDefaulted.includes('body');
+    const body = resolveBody(
+      { birthYear, sex, heightCm, weightKg },
+      touched, prefilled, finalDefaulted.includes('body'), CURRENT_YEAR,
+    );
+    const confirmed = body.complete;
     const age = CURRENT_YEAR - birthYear; // year-precision approximation (仮)
     const sexValue = sex === 'unset' ? null : sex;
 
@@ -188,13 +201,13 @@ export default function OnboardingPage() {
       ...profile,
       fitnessGoal: goal,
       experience,
-      ...(confirmed ? { age, sex: sexValue, heightCm } : {}),
+      ...body.profile,
     });
-    if (confirmed) {
+    if (body.weightToLog != null) {
       void addWeightEntry({
         id: crypto.randomUUID(),
         date: todayStr(),
-        weight: weightKg,
+        weight: body.weightToLog,
         addedAt: new Date().toISOString(),
       });
     }
@@ -230,16 +243,16 @@ export default function OnboardingPage() {
 
     const answers: OnboardingAnswers = {
       fitnessGoal: goal,
-      birthYear: confirmed ? birthYear : null,
-      sex: confirmed ? sexValue : null,
-      heightCm: confirmed ? heightCm : null,
-      weightKg: confirmed ? weightKg : null,
+      ...body.answers,
       experience,
       environment,
       availableMinutes: Number(minutes),
       defaultedSteps: finalDefaulted,
     };
     completeOnboarding(answers);
+    if (!finalDefaulted.includes('environment')) {
+      seedPrefsFromOnboarding(environment, Number(minutes) as SessionDuration);
+    }
     // Study baseline (goal_history): only a purpose the user actually chose,
     // and nutrition targets only when they come from confirmed body data —
     // a skipped step must not be recorded as the participant's starting goal.
@@ -292,7 +305,7 @@ export default function OnboardingPage() {
         {(result.bodyDefaulted || result.sexAveraged) && (
           <p className="text-[11px] text-faint mb-3">
             {result.bodyDefaulted
-              ? `体のデータは仮の標準値（${CURRENT_YEAR - DEFAULT_BIRTH_YEAR}歳・${DEFAULT_HEIGHT_CM}cm・${DEFAULT_WEIGHT_KG}kg）で計算しています。設定からいつでも変更できます。`
+              ? `入力されていない体のデータは仮の標準値（${CURRENT_YEAR - DEFAULT_BIRTH_YEAR}歳・${DEFAULT_HEIGHT_CM}cm・${DEFAULT_WEIGHT_KG}kg）で計算しています（記録はしません）。設定からいつでも変更できます。`
               : '性別未回答のため、男女平均の基準値で計算しています。'}
           </p>
         )}
@@ -328,7 +341,7 @@ export default function OnboardingPage() {
             hover:from-brand-600 hover:to-brand-700 transition-all active:scale-95
             flex items-center justify-center gap-2"
         >
-          {envLabel?.icon} {envLabel?.label}で{minutes === '45' ? '45分' : `${minutes}分`}のはじめてワークアウトへ
+          {envLabel?.icon} {envLabel?.label}で{minutes}分のはじめてワークアウトへ
           <ChevronRight size={16} />
         </button>
         <button
@@ -347,7 +360,7 @@ export default function OnboardingPage() {
     goal:        { title: 'いちばん近い目標は？',       skipNote: 'スキップ＝「維持」で始めます' },
     body:        { title: 'あなたの体のこと',           skipNote: `スキップ＝仮の標準値（${CURRENT_YEAR - DEFAULT_BIRTH_YEAR}歳・${DEFAULT_HEIGHT_CM}cm・${DEFAULT_WEIGHT_KG}kg）で計算` },
     experience:  { title: '運動の経験は？',             skipNote: 'スキップ＝「はじめて」向けで始めます' },
-    environment: { title: '今日はどこで動けそう？',     skipNote: 'スキップ＝「自宅で20分」で提案します' },
+    environment: { title: '今日はどこで動けそう？',     skipNote: 'スキップ＝「自宅で15分」で提案します' },
   };
 
   return (
@@ -383,13 +396,13 @@ export default function OnboardingPage() {
 
         {step === 'body' && (
           <div className="space-y-4">
-            <ChipGroup label="性別" options={SEXES} value={sex} onChange={setSex} />
+            <ChipGroup label="性別" options={SEXES} value={sex} onChange={v => { setSex(v); touch('sex'); }} />
             <Stepper label="生まれ年" value={birthYear} unit="年"
-              smallStep={1} bigStep={10} min={1930} max={CURRENT_YEAR - 12} onChange={setBirthYear} />
+              smallStep={1} bigStep={10} min={1930} max={CURRENT_YEAR - 12} onChange={v => { setBirthYear(v); touch('birthYear'); }} />
             <Stepper label="身長" value={heightCm} unit="cm"
-              smallStep={1} bigStep={5} min={120} max={220} onChange={setHeightCm} />
+              smallStep={1} bigStep={5} min={120} max={220} onChange={v => { setHeightCm(v); touch('heightCm'); }} />
             <Stepper label="体重" value={weightKg} unit="kg"
-              smallStep={1} bigStep={5} min={30} max={200} onChange={setWeightKg} />
+              smallStep={1} bigStep={5} min={30} max={200} onChange={v => { setWeightKg(v); touch('weightKg'); }} />
             <p className="text-[11px] text-faint">
               TDEE（消費カロリー）と目標値の計算に使います。12歳以上が対象です。
             </p>
