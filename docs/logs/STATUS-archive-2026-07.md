@@ -1115,3 +1115,26 @@ anyway since it was cheap alongside the lipid/HbA1c work).
   - Closed stale PRs #3 (0 commits missing from `main`), #6 (2), #7 (4 own),
     #8 (3 own) — branches kept; whether the unmerged work was re-implemented
     on `main` later was not checked.
+
+## Last verified (moved from STATUS.md 2026-10-29)
+- 2026-10-13: `main` (`448aa58`, deployed) — CI green: TypeScript / Build /
+  ESLint / Vitest (**596/596**, 50 files) / npm audit; `gitleaks` ran on
+  PR #19 (1 commit scanned, no leaks) and is skipped on push by design. Local
+  at `99e5c8b` on Next.js 16.3.8: `tsc --noEmit` exit 0, `npm run lint`
+  0 errors (3 pre-existing warnings), clean `npm run build` exit 0, vitest
+  596/596 on Node v26.0.0 and v22.23.3. Prod
+  (https://diet-tracker-two-blue.vercel.app, anonymous curl):
+  `/`, `/login`, `/manifest.webmanifest`, `/sw.js`, `/robots.txt` → 200;
+  `/icon`, `/apple-icon` → 200 `image/png` (byte-identical to the local
+  build, both opened and checked by eye at `99e5c8b`); `/dashboard` → 307
+  `/login?next=%2Fdashboard`; `dt-guest=1` on `/dashboard` → 307
+  `/onboarding`; anonymous POST `/api/recommend` → 403. NOT verified: any
+  authed flow, image optimization, a gitleaks finding failing CI.
+
+## Now (moved from STATUS.md 2026-10-29)
+- **2026-10-13 CI, security and housekeeping round — merged + deployed
+  (`main` `448aa58`):** PRs #14–#19: vitest now gates CI; `next` 16.2.6 →
+  16.3.8 (cleared 1 critical + 12 high audit findings); proxy matcher
+  excludes `/icon` and `/apple-icon`; gitleaks PR scan replaces a no-op
+  secret grep; stale PRs #3/#6/#7/#8 closed (branches kept). Full entry in
+  the archive.

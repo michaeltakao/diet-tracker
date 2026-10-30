@@ -6,8 +6,17 @@ Keep this file under 200 lines: Now (latest 3) / Next / Blockers / Key
 decisions / Last verified (latest 2) — move older entries to the archive.
 
 ## Now
-- **2026-10-14 Six-month study prep (branch `feat/trial-data-notice`, local
-  commits only, not pushed):** the trial data is now meant for research
+- **2026-10-29 Status review + ADR-008 P0 started.** Product done and live
+  (`main` `f8a3d37`); research has **no data yet** — waiting on the advisor's
+  3 answers (none at 10-29), the [🔒user] setup items, and the ADR-008 P0
+  bugs. `feat/trial-data-notice` pushed → **draft PR #21**. Branch
+  `fix/study-p0` (stacked on it): `7209390` empty-storage `getAppData()`
+  handed out shallow-copied defaults, so add*() mutated them and old rows
+  reappeared after storage was cleared (deep copy + test); `a6c43db`
+  **P0-1** — every stored `date` is the JST day, `addedAt` no longer 24 h
+  early before 09:00 (`lib/format-date.ts` JST helpers; incl. 2 server routes).
+- **2026-10-14 Six-month study prep (branch `feat/trial-data-notice`, pushed
+  10-29, draft PR #21):** the trial data is now meant for research
   (vault `ADR-007`, supersedes `ADR-006`; status *proposed* until the advisor
   answers the three questions on slide 14).
   - In-app consent removed: `/consent`, `/api/consent`, the `proxy.ts`
@@ -26,14 +35,15 @@ decisions / Last verified (latest 2) — move older entries to the archive.
     definitions (S0–S5b, W1–W5).
   - Slides for the advisor: `~/大学院/研究室/research-plan-2026-10/`
     (`index.html`, `slides.pdf`, 14 pages, screenshots are synthetic data).
-- **2026-10-13 CI, security and housekeeping round — merged + deployed
-  (`main` `448aa58`):** PRs #14–#19: vitest now gates CI; `next` 16.2.6 →
-  16.3.8 (cleared 1 critical + 12 high audit findings); proxy matcher
-  excludes `/icon` and `/apple-icon`; gitleaks PR scan replaces a no-op
-  secret grep; stale PRs #3/#6/#7/#8 closed (branches kept). Full entry in
-  the archive.
 
 ## Next
+- **[auto] ADR-008 P0, in order** (branch `fix/study-p0`, target 11-12 =
+  new verify-by): ~~P0-1 JST dates~~ → P0-5 don't save the untouched 60 kg
+  default → P0-12 ask goal weight in onboarding → P0-9 `study_start_at` →
+  P0-10 guest mode off in the study build → P0-11 `build_sha` → P0-2, P0-4,
+  P0-3, P0-8, P0-6, P0-13 (+ P0-7 alongside). Each: lint / build / vitest,
+  then re-run the 10-15 browser measurement (header date = JST, 72.4 is the
+  latest weight, FAB → /add). P1 flags wait for the advisor's Q1.
 - **Six-month study, 10–30 family and acquaintances (plan 2026-10-14):**
   1. [🔒user] Show the slides to the advisor; settle ethics review, pilot vs
      plan revision, and the Gemini tier. **No URL goes out before that.**
@@ -42,7 +52,7 @@ decisions / Last verified (latest 2) — move older entries to the archive.
      (https://ai.google.dev/gemini-api/terms, read 10-14). Decide paid tier /
      strip conditions and medications from prompts / AI off, then update
      section 6 of the consent form to match.
-  3. After approval to proceed: review + push + PR for this branch, apply
+  3. After approval to proceed: `/code-review` + merge PR #21, apply
      migration `025` to prod (ask first), public-login items 1–4 + 6 below.
   4. [🔒user] Print the consent form, fill the contact lines, collect
      signatures, hand the guide only to signers, mark `consented_at`
@@ -110,10 +120,8 @@ decisions / Last verified (latest 2) — move older entries to the archive.
 - **[auto] Small fixes**: MealCard edit coerces empty fields to 0; favorites
   quick-add ignores the servings stepper; STEP-7 bulk-migration rows leave
   `servings`/`source` NULL (backfill or accept).
-- Backlog: recipes, full micronutrient UI, weight-page SVG → recharts,
-  AccountSection full i18n retrofit.
-- P1 research features: adherence prediction, habit phenotyping,
-  TDEE-triggered goal adaptation.
+- Backlog: recipes, micronutrient UI, weight SVG → recharts, AccountSection
+  i18n; research ideas: adherence prediction, habit phenotyping, TDEE goals.
 
 ## Blockers
 - Authed E2E blocked on the [🔒user] public-login items 1–4 above.
@@ -138,15 +146,9 @@ decisions / Last verified (latest 2) — move older entries to the archive.
 - Repo is the Master's research vehicle — see vault `ADR-001`.
 - `postcss` overridden to `^8.5.10` (CVE-2026-41305, MEDIUM).
 - CI workflows hardened against script injection (`cac19bf`, 2026-06-12) — see vault `ADR-003`.
-- **Duolingo redesign phase 7 (hero-card gradient) resolved as: stay flat, no
-  code change** (2026-07-21). `StreakHeader.tsx`'s fox banner already uses a
-  flat `bg-fox` fill + hard-edge `shadow-[0_4px_0_var(--fox-dark)]`, matching
-  phase 4's flat-fill principle (`Button.tsx`/`ProgressBar.tsx`) — this is
-  intentional, not an oversight, and should not be "fixed" into a gradient by
-  a future session. The ad-hoc `bg-gradient-to-br`/`bg-gradient-to-r` usages
-  elsewhere (e.g. `app/workout/page.tsx:361` hero header, several buttons/
-  pills) predate phase 4 and are explicitly NOT retrofit targets for this
-  round — they're pre-existing style debt, not part of the phase 6/7 scope.
+- **Duolingo phase 7 (hero gradient) = stay flat, no change** (2026-07-21):
+  the `StreakHeader.tsx` flat `bg-fox` banner is intentional; older ad-hoc
+  `bg-gradient-*` uses (e.g. workout hero) are style debt, not retrofit targets.
 - **Deploy scope = 家族・知人限定** (user-confirmed 2026-08-09), superseding the
   07-24 "general public" framing; the research-disclosure footer stays off
   `app/page.tsx` for that reason. Re-decide before any wider opening.
@@ -161,6 +163,8 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   every analysis and export must filter on `consented_at IS NOT NULL`.
   Study queries read food / weight / workout rows, goal history, the active
   plan and AI call counts — never vitals, symptoms, conditions or medications.
+- **Day boundary = JST everywhere** (ADR-008 P0-1, 2026-10-29): use
+  `lib/format-date.ts` helpers, never `toISOString().split('T')[0]`.
 - **Goal baseline = earliest `goal_history` row**; a skipped onboarding goal
   step is not recorded as a goal (it would be a fabricated default).
 - **`npm audit` gate = production dependencies only** (`--omit=dev
@@ -170,6 +174,14 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   jump clear of every advisory (2026-10-13).
 
 ## Last verified state
+- 2026-10-29: `fix/study-p0` @ `a6c43db` (local) — `npm run lint` 0 errors
+  (3 pre-existing `set-state-in-effect` warnings), `tsc --noEmit` exit 0,
+  vitest **627/627** (53 files; +13 `jst-date`, +2 `storage-defaults`; the
+  defaults test fails without `7209390`), clean `npm run build`. secscan on
+  `feat/trial-data-notice` before push: gitleaks tree + history clean,
+  semgrep 11 findings all pre-existing on `main`, trivy DB download failed
+  in the sandbox (no dependency changes on the branch). NOT verified: the
+  10-15 browser re-measurement, any authed flow.
 - 2026-10-14: `feat/trial-data-notice` (local) — `npm run lint` 0 errors
   (3 pre-existing warnings), vitest **612/612** (51 files), clean
   `npm run build` exit 0, `tsc --noEmit` exit 0. Local prod build :3199
@@ -186,16 +198,3 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   (no `goal_history` backfill; SUS day-14 counts from the signature date). NOT verified: any authed flow against real
   Supabase (the goal dual-write, the export consent filter, the 429 message
   as rendered in each client), 025 on prod, the queries on prod.
-- 2026-10-13: `main` (`448aa58`, deployed) — CI green: TypeScript / Build /
-  ESLint / Vitest (**596/596**, 50 files) / npm audit; `gitleaks` ran on
-  PR #19 (1 commit scanned, no leaks) and is skipped on push by design. Local
-  at `99e5c8b` on Next.js 16.3.8: `tsc --noEmit` exit 0, `npm run lint`
-  0 errors (3 pre-existing warnings), clean `npm run build` exit 0, vitest
-  596/596 on Node v26.0.0 and v22.23.3. Prod
-  (https://diet-tracker-two-blue.vercel.app, anonymous curl):
-  `/`, `/login`, `/manifest.webmanifest`, `/sw.js`, `/robots.txt` → 200;
-  `/icon`, `/apple-icon` → 200 `image/png` (byte-identical to the local
-  build, both opened and checked by eye at `99e5c8b`); `/dashboard` → 307
-  `/login?next=%2Fdashboard`; `dt-guest=1` on `/dashboard` → 307
-  `/onboarding`; anonymous POST `/api/recommend` → 403. NOT verified: any
-  authed flow, image optimization, a gitleaks finding failing CI.
