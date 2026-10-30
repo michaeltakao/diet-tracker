@@ -41,9 +41,9 @@ function buildTimestamp(date: string, time: string): string {
   return jstTimestamp(date, time);
 }
 
-/** Guess meal type based on current hour */
+/** Guess meal type from the current JST hour (same clock as the stored time). */
 function guessMealType(): MealType {
-  const h = new Date().getHours();
+  const h = Number(nowJstTime().slice(0, 2));
   if (h < 10) return 'breakfast';
   if (h < 14) return 'lunch';
   if (h < 20) return 'dinner';

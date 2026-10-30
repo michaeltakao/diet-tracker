@@ -43,7 +43,7 @@ import {
 } from '@/lib/data/onboarding';
 import { recommendedGoals, isSenior } from '@/lib/nutrition-standards';
 import { estimateTdee } from '@/lib/tdee';
-import { todayStr } from '@/lib/format-date';
+import { todayJst, todayStr } from '@/lib/format-date';
 import { resolveBody, type BodyField } from '@/lib/onboarding-body';
 import { seedPrefsFromOnboarding, type SessionDuration } from '@/lib/data/workout-prefs';
 import { CARD_CLASS as CARD } from '@/components/ui/Card';
@@ -88,7 +88,7 @@ const MINUTES: Array<{ value: '15' | '30' | '45' | '60'; label: string }> = [
 
 // ── Explicit body-step defaults (used for computation when skipped) ──────────
 
-const CURRENT_YEAR = new Date().getFullYear();
+const CURRENT_YEAR = Number(todayJst().slice(0, 4)); // JST calendar year (P0-1)
 const DEFAULT_BIRTH_YEAR = CURRENT_YEAR - 25;
 const DEFAULT_HEIGHT_CM = 165;
 const DEFAULT_WEIGHT_KG = 60;
@@ -102,7 +102,8 @@ function Stepper({
   smallStep: number; bigStep: number; min: number; max: number;
   onChange: (v: number) => void;
 }) {
-  const clamp = (v: number) => Math.min(max, Math.max(min, v));
+  // One decimal: pre-filled values may be e.g. 72.4, and 72.4 - 1 must not drift.
+  const clamp = (v: number) => Math.min(max, Math.max(min, Math.round(v * 10) / 10));
   const btn = `
     w-9 h-9 rounded-xl bg-surface-2 text-muted hover:bg-line
     flex items-center justify-center font-bold
@@ -180,13 +181,14 @@ export default function OnboardingPage() {
     const known = new Set<BodyField>();
     if (profile.age) { setBirthYear(CURRENT_YEAR - profile.age); known.add('birthYear'); }
     if (profile.sex) { setSex(profile.sex); known.add('sex'); }
-    if (profile.heightCm) { setHeightCm(Math.round(profile.heightCm)); known.add('heightCm'); }
+    if (profile.heightCm) { setHeightCm(profile.heightCm); known.add('heightCm'); }
     if (profile.experience) setExperience(profile.experience);
     const latest = getLatestWeightEntry();
-    if (latest) { setWeightKg(Math.round(latest.weight)); known.add('weightKg'); }
+    // Pre-fills stay exact (no rounding): a provided value is stored as is.
+    if (latest) { setWeightKg(latest.weight); known.add('weightKg'); }
     const savedGoalWeight = getGoals().goalWeight;
     if (savedGoalWeight != null && savedGoalWeight > 0) {
-      setGoalWeightKg(Math.round(savedGoalWeight));
+      setGoalWeightKg(savedGoalWeight);
       known.add('goalWeightKg');
     }
     setPrefilled(known);
@@ -255,6 +257,10 @@ export default function OnboardingPage() {
         sexAveraged: sexValue == null,
         bodyDefaulted: !confirmed,
       });
+    } else if (body.goalWeightChanged) {
+      // No computed targets: still keep the goal weight the user set, so the
+      // profile and goal_history agree.
+      updateGoals({ ...getGoals(), goalWeight: body.goalWeightKg ?? undefined }, 'weight');
     }
 
     const answers: OnboardingAnswers = {
