@@ -15,6 +15,11 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   reappeared after storage was cleared (deep copy + test); `a6c43db`
   **P0-1** — every stored `date` is the JST day, `addedAt` no longer 24 h
   early before 09:00 (`lib/format-date.ts` JST helpers; incl. 2 server routes).
+  10-30: `fa76cef` **P0-5** (untouched body steppers never stored, B6;
+  onboarding place/time seed the check-in, minutes 15/30/45/60+, B6b);
+  `ba225e9` **P0-12** (目標体重 stepper, stored only when set; scope
+  `'weight'`). Browser-verified at a pinned 01:11 JST — results in
+  `~/大学院/研究室/app-analysis-2026-10/remeasure-2026-10-30/`.
 - **2026-10-14 Six-month study prep (branch `feat/trial-data-notice`, pushed
   10-29, draft PR #21):** the trial data is now meant for research
   (vault `ADR-007`, supersedes `ADR-006`; status *proposed* until the advisor
@@ -26,20 +31,14 @@ decisions / Last verified (latest 2) — move older entries to the archive.
     `goal_history` (migration `025`, **not applied to prod**) keeps the
     starting purpose and goal weight. 025 also freezes `consented_at` for
     user-scope writes.
-  - `/api/research/export` now exports only users with `consented_at` set
-    (it had no consent filter; the removed gate used to make that moot).
-  - Gemini quota errors return 429 with a readable ja/en message in all 9 AI
-    routes (was a generic 500).
-  - Docs: `docs/SPEC.md` (current spec), `docs/trial/` consent form,
-    participant guide, `cohort-queries.sql` rewritten to the fixed 6-month
-    definitions (S0–S5b, W1–W5).
-  - Slides for the advisor: `~/大学院/研究室/research-plan-2026-10/`
-    (`index.html`, `slides.pdf`, 14 pages, screenshots are synthetic data).
+  - Export only users with `consented_at` set; Gemini quota → readable 429
+    in all 9 AI routes. Docs: `docs/SPEC.md`, `docs/trial/` (consent form,
+    guide, `cohort-queries.sql` S0–S5b / W1–W5). Advisor slides:
+    `~/大学院/研究室/research-plan-2026-10/` (14 pp, synthetic screenshots).
 
 ## Next
 - **[auto] ADR-008 P0, in order** (branch `fix/study-p0`, target 11-12 =
-  new verify-by): ~~P0-1 JST dates~~ → P0-5 don't save the untouched 60 kg
-  default → P0-12 ask goal weight in onboarding → P0-9 `study_start_at` →
+  new verify-by): ~~P0-1~~ → ~~P0-5~~ → ~~P0-12~~ → P0-9 `study_start_at` →
   P0-10 guest mode off in the study build → P0-11 `build_sha` → P0-2, P0-4,
   P0-3, P0-8, P0-6, P0-13 (+ P0-7 alongside). Each: lint / build / vitest,
   then re-run the 10-15 browser measurement (header date = JST, 72.4 is the
@@ -174,14 +173,15 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   jump clear of every advisory (2026-10-13).
 
 ## Last verified state
-- 2026-10-29: `fix/study-p0` @ `a6c43db` (local) — `npm run lint` 0 errors
-  (3 pre-existing `set-state-in-effect` warnings), `tsc --noEmit` exit 0,
-  vitest **627/627** (53 files; +13 `jst-date`, +2 `storage-defaults`; the
-  defaults test fails without `7209390`), clean `npm run build`. secscan on
-  `feat/trial-data-notice` before push: gitleaks tree + history clean,
-  semgrep 11 findings all pre-existing on `main`, trivy DB download failed
-  in the sandbox (no dependency changes on the branch). NOT verified: the
-  10-15 browser re-measurement, any authed flow.
+- 2026-10-30: `fix/study-p0` (P0-12 + review fixes) — lint 0 errors (3 pre-existing
+  warnings), `tsc` 0, vitest **646/646** (55 files), clean build. Browser
+  (own headless Chrome 156 over CDP — the chrome-devtools MCP profile was
+  locked; clock pinned to 01:11 JST, 390×844): header 10月30日, water key /
+  weight / meal `date` 10-30, meal `addedAt` error 0 h (was 24 h);
+  onboarding untouched → 0 weight rows, goal weight null; 60→70 / goal 65
+  stored; ジム/30分 preselected on /workout. 10-29 secscan of #21: gitleaks
+  clean, semgrep 11 pre-existing. NOT verified: FAB overlap (B2, P0-3 still
+  open), any authed flow / server write, a real wall-clock 00–09 run.
 - 2026-10-14: `feat/trial-data-notice` (local) — `npm run lint` 0 errors
   (3 pre-existing warnings), vitest **612/612** (51 files), clean
   `npm run build` exit 0, `tsc --noEmit` exit 0. Local prod build :3199
