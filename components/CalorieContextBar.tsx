@@ -1,5 +1,6 @@
 'use client';
 
+import { todayJst } from '@/lib/format-date';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { getAppData, getRealGoals } from '@/lib/data';
@@ -22,7 +23,7 @@ const ZERO: Snapshot = { calories: 0, protein: 0, fat: 0, carbs: 0, goal: null }
 function readSnapshot(): Snapshot {
   try {
     const data = getAppData();
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayJst();
     const entries = data.foodEntries.filter((e) => e.date === today);
     const agg = entries.reduce(
       (acc, e) => ({

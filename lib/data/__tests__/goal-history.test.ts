@@ -110,3 +110,17 @@ describe('toGoalSnapshot — purpose never chosen', () => {
     expect(toGoalSnapshot(null, GOALS).goal_weight_kg).toBe(62);
   });
 });
+
+describe('toGoalSnapshot — goal weight without real targets (ADR-008 P0-12)', () => {
+  it('keeps a goal weight the user set even when nutrition targets are placeholders', () => {
+    expect(toGoalSnapshot('weight_loss', null, 65.04)).toEqual({
+      fitness_goal: 'weight_loss', goal_weight_kg: 65, goal_calories: null,
+      goal_protein_g: null, goal_fat_g: null, goal_carbs_g: null,
+    });
+  });
+
+  it('a missing or non-positive goal weight stays NULL', () => {
+    expect(toGoalSnapshot(null, null, null).goal_weight_kg).toBeNull();
+    expect(toGoalSnapshot(null, null, 0).goal_weight_kg).toBeNull();
+  });
+});

@@ -1,5 +1,6 @@
 'use client';
 
+import { todayJst } from '@/lib/format-date';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { FlaskConical, Download, Users, TrendingUp, RefreshCw, ChevronLeft } from 'lucide-react';
@@ -10,7 +11,7 @@ import { CARD_CLASS as CARD } from '@/components/ui/Card';
 
 function statusBadge(lastFoodLog: string | null): { label: string; color: string } {
   if (!lastFoodLog) return { label: '未ログ', color: 'text-faint bg-surface-2' };
-  const today    = new Date().toISOString().slice(0, 10);
+  const today    = todayJst();
   const diffDays = Math.floor(
     (new Date(today).getTime() - new Date(lastFoodLog).getTime()) / 86_400_000,
   );

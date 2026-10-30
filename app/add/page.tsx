@@ -1,5 +1,6 @@
 'use client';
 
+import { todayJst, nowJstTime, jstTimestamp } from '@/lib/format-date';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, PenLine, Clock, Zap, BookmarkPlus, Heart, ScanBarcode } from 'lucide-react';
@@ -28,25 +29,21 @@ type Tab = 'photo' | 'manual' | 'recent' | 'barcode';
 type PortionBasis = 'perServing' | 'per100g';
 
 function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0];
+  return todayJst();
 }
 
 function getCurrentTime(): string {
-  const now = new Date();
-  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  return nowJstTime();
 }
 
 function buildTimestamp(date: string, time: string): string {
-  // Combine YYYY-MM-DD + HH:MM -> ISO string
-  const [h, m] = time.split(':').map(Number);
-  const dt = new Date(`${date}T00:00:00`);
-  dt.setHours(h, m, 0, 0);
-  return dt.toISOString();
+  // JST day + JST HH:MM -> ISO instant (ADR-008 P0-1: no 24 h shift before 09:00)
+  return jstTimestamp(date, time);
 }
 
-/** Guess meal type based on current hour */
+/** Guess meal type from the current JST hour (same clock as the stored time). */
 function guessMealType(): MealType {
-  const h = new Date().getHours();
+  const h = Number(nowJstTime().slice(0, 2));
   if (h < 10) return 'breakfast';
   if (h < 14) return 'lunch';
   if (h < 20) return 'dinner';

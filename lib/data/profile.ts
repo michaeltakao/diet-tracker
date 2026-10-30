@@ -44,14 +44,17 @@ export function getRealGoals(): DailyGoals | null {
 
 /**
  * Which goal columns of the profiles row a save may touch.
- * - 'all'       — Settings: the user saw and saved every field.
- * - 'nutrition' — onboarding with confirmed body data: it computes kcal/PFC
- *                 but never asks for a goal weight, so goal_weight_kg is left
- *                 alone (a re-run on a new device must not NULL it).
- * - 'none'      — onboarding on default body data: the targets are
- *                 placeholders and must not overwrite the server's goals.
+ * - 'all'       — Settings, or onboarding with confirmed body data AND a
+ *                 goal weight the user set.
+ * - 'nutrition' — onboarding with confirmed body data but no goal weight
+ *                 set there: goal_weight_kg is left alone (a re-run on a new
+ *                 device must not NULL it).
+ * - 'weight'    — onboarding on default body data with a goal weight the
+ *                 user set: only goal_weight_kg (ADR-008 P0-12).
+ * - 'none'      — onboarding on default body data, no goal weight: the
+ *                 targets are placeholders and must not overwrite the server.
  */
-export type GoalServerScope = 'all' | 'nutrition' | 'none';
+export type GoalServerScope = 'all' | 'nutrition' | 'weight' | 'none';
 
 /**
  * Persist updated daily goals: localStorage first, then the profiles row
@@ -67,7 +70,9 @@ export function updateGoals(goals: DailyGoals, server: GoalServerScope = 'all'):
     const { goal_weight_kg, ...nutrition } = toGoalColumns(goals);
     const { error } = await ctx.supabase
       .from('profiles')
-      .update(server === 'all' ? { ...nutrition, goal_weight_kg } : nutrition)
+      .update(server === 'all' ? { ...nutrition, goal_weight_kg }
+        : server === 'weight' ? { goal_weight_kg }
+        : nutrition)
       .eq('id', ctx.userId);
     if (error) console.warn('[data/profile] Supabase goals update failed:', error.message);
   })();

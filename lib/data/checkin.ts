@@ -3,6 +3,7 @@
  * Writes to localStorage immediately; syncs to Supabase when authenticated.
  */
 
+import { todayJst } from '@/lib/format-date';
 import type { DailyCheckIn } from '@/lib/types';
 import { getWriteContext } from './_write';
 
@@ -66,6 +67,5 @@ export function getRecentCheckIns(days = 7): DailyCheckIn[] {
 }
 
 export function todayDate(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return todayJst();
 }

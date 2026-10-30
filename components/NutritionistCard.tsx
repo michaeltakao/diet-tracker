@@ -7,6 +7,7 @@
  * goals but no meals it shows an empty hint instead of the generate button.
  */
 
+import { todayJst } from '@/lib/format-date';
 import { useEffect, useState } from 'react';
 import { ChefHat, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { getFoodEntriesForDate, getRealGoals } from '@/lib/data';
@@ -15,7 +16,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import type { FoodEntry, DailyGoals } from '@/lib/types';
 
 function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0];
+  return todayJst();
 }
 
 interface Suggestion {
