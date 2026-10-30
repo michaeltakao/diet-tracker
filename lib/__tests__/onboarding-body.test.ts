@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { resolveBody, type BodyField, type BodyValues } from '../onboarding-body';
 
 const YEAR = 2026;
-const DEFAULTS: BodyValues = { birthYear: YEAR - 25, sex: 'unset', heightCm: 165, weightKg: 60 };
+const DEFAULTS: BodyValues = { birthYear: YEAR - 25, sex: 'unset', heightCm: 165, weightKg: 60, goalWeightKg: 60 };
 const set = (...f: BodyField[]) => new Set<BodyField>(f);
 
 describe('resolveBody', () => {
@@ -27,7 +27,7 @@ describe('resolveBody', () => {
   });
 
   it('all three numbers touched → complete; profile gets age/height', () => {
-    const v: BodyValues = { birthYear: 1998, sex: 'female', heightCm: 158, weightKg: 52 };
+    const v: BodyValues = { birthYear: 1998, sex: 'female', heightCm: 158, weightKg: 52, goalWeightKg: 52 };
     const r = resolveBody(v, set('birthYear', 'sex', 'heightCm', 'weightKg'), set(), false, YEAR);
     expect(r.complete).toBe(true);
     expect(r.profile).toEqual({ age: 28, sex: 'female', heightCm: 158 });
@@ -36,7 +36,7 @@ describe('resolveBody', () => {
   });
 
   it('pre-filled values count as real answers but are not re-logged as today’s weight', () => {
-    const v: BodyValues = { birthYear: 1990, sex: 'male', heightCm: 175, weightKg: 70 };
+    const v: BodyValues = { birthYear: 1990, sex: 'male', heightCm: 175, weightKg: 70, goalWeightKg: 70 };
     const r = resolveBody(v, set(), set('birthYear', 'sex', 'heightCm', 'weightKg'), false, YEAR);
     expect(r.complete).toBe(true);
     expect(r.weightToLog).toBeNull(); // the rounded latest entry is not a new measurement
@@ -56,5 +56,29 @@ describe('resolveBody', () => {
     expect(r.profile).toEqual({});
     expect(r.answers).toEqual({ birthYear: null, sex: null, heightCm: null, weightKg: null });
     expect(r.complete).toBe(false);
+  });
+
+  it('P0-12: an untouched goal stepper is missing, not the 60 kg display value', () => {
+    const r = resolveBody(DEFAULTS, set('weightKg'), set(), false, YEAR);
+    expect(r.goalWeightKg).toBeNull();
+    expect(r.goalWeightChanged).toBe(false);
+  });
+
+  it('P0-12: a goal weight the user set is stored and flagged for the server', () => {
+    const r = resolveBody({ ...DEFAULTS, goalWeightKg: 55 }, set('goalWeightKg'), set(), false, YEAR);
+    expect(r.goalWeightKg).toBe(55);
+    expect(r.goalWeightChanged).toBe(true);
+    expect(r.complete).toBe(false); // body data still defaults
+  });
+
+  it('P0-12: a pre-filled goal weight is kept but needs no server rewrite', () => {
+    const r = resolveBody({ ...DEFAULTS, goalWeightKg: 58 }, set(), set('goalWeightKg'), false, YEAR);
+    expect(r.goalWeightKg).toBe(58);
+    expect(r.goalWeightChanged).toBe(false);
+  });
+
+  it('P0-12: skipping drops the goal weight too', () => {
+    const r = resolveBody({ ...DEFAULTS, goalWeightKg: 55 }, set('goalWeightKg'), set(), true, YEAR);
+    expect(r.goalWeightKg).toBeNull();
   });
 });

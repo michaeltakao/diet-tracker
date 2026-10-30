@@ -7,18 +7,21 @@
  * *provided* only when the user changed it in this wizard (touched) or it was
  * pre-filled from data they entered before; anything else is missing (null),
  * never a number. Defaults still feed the 仮 targets, but are never stored as
- * the participant's data.
+ * the participant's data. The goal weight (P0-12, the goal-attainment
+ * outcome) follows the same rule.
  *
  * Pure module: no React, no storage.
  */
 
-export type BodyField = 'birthYear' | 'sex' | 'heightCm' | 'weightKg';
+export type BodyField = 'birthYear' | 'sex' | 'heightCm' | 'weightKg' | 'goalWeightKg';
 
 export interface BodyValues {
   birthYear: number;
   sex: 'male' | 'female' | 'unset';
   heightCm: number;
   weightKg: number;
+  /** Goal weight stepper (P0-12); starts on the current weight display. */
+  goalWeightKg: number;
 }
 
 export interface BodyResolution {
@@ -35,6 +38,10 @@ export interface BodyResolution {
   };
   /** Birth year, height and weight are all real → targets use real data. */
   complete: boolean;
+  /** Goal weight to store (ADR-008 P0-12); null = not set, never a default. */
+  goalWeightKg: number | null;
+  /** True when the goal weight was set in this wizard (needs a server write). */
+  goalWeightChanged: boolean;
 }
 
 /**
@@ -59,6 +66,8 @@ export function resolveBody(
       weightToLog: null,
       answers: { birthYear: null, sex: null, heightCm: null, weightKg: null },
       complete: false,
+      goalWeightKg: null,
+      goalWeightChanged: false,
     };
   }
   const provided = (f: BodyField) => touched.has(f) || prefilled.has(f);
@@ -79,5 +88,7 @@ export function resolveBody(
       weightKg: provided('weightKg') ? values.weightKg : null,
     },
     complete: provided('birthYear') && provided('heightCm') && provided('weightKg'),
+    goalWeightKg: provided('goalWeightKg') ? values.goalWeightKg : null,
+    goalWeightChanged: touched.has('goalWeightKg'),
   };
 }

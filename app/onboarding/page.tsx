@@ -15,6 +15,7 @@
  * - age/sex/height → health profile, weight → weight log — each only when
  *   the user set it in this wizard (lib/onboarding-body.ts, ADR-008 P0-5);
  *   untouched steppers are display defaults for computation, never logged
+ * - goal weight (P0-12, same rule) → goals.goalWeight + goal_history
  * - computed targets → updateGoals (always; kills the fake dashboard
  *   defaults for this device)
  * - completion record + dt-onboarded cookie → lib/data/onboarding
@@ -162,6 +163,7 @@ export default function OnboardingPage() {
   const [sex, setSex] = useState<'male' | 'female' | 'unset'>('unset');
   const [heightCm, setHeightCm] = useState(DEFAULT_HEIGHT_CM);
   const [weightKg, setWeightKg] = useState(DEFAULT_WEIGHT_KG);
+  const [goalWeightKg, setGoalWeightKg] = useState(DEFAULT_WEIGHT_KG);
   const [experience, setExperience] = useState<ExperienceLevel>('beginner');
   const [environment, setEnvironment] = useState<TrainingEnvironment>('home');
   const [minutes, setMinutes] = useState<'15' | '30' | '45' | '60'>('15');
@@ -182,12 +184,21 @@ export default function OnboardingPage() {
     if (profile.experience) setExperience(profile.experience);
     const latest = getLatestWeightEntry();
     if (latest) { setWeightKg(Math.round(latest.weight)); known.add('weightKg'); }
+    const savedGoalWeight = getGoals().goalWeight;
+    if (savedGoalWeight != null && savedGoalWeight > 0) {
+      setGoalWeightKg(Math.round(savedGoalWeight));
+      known.add('goalWeightKg');
+    }
     setPrefilled(known);
   }, []);
 
+  // Until touched (or pre-filled), the goal stepper mirrors the current weight.
+  const goalWeightDisplay =
+    touched.has('goalWeightKg') || prefilled.has('goalWeightKg') ? goalWeightKg : weightKg;
+
   const finish = (finalDefaulted: StepId[]) => {
     const body = resolveBody(
-      { birthYear, sex, heightCm, weightKg },
+      { birthYear, sex, heightCm, weightKg, goalWeightKg: goalWeightDisplay },
       touched, prefilled, finalDefaulted.includes('body'), CURRENT_YEAR,
     );
     const confirmed = body.complete;
@@ -227,7 +238,12 @@ export default function OnboardingPage() {
       activityLevel: 'moderately_active',
     });
     if (goals) {
-      updateGoals({ ...goals, goalWeight: getGoals().goalWeight }, confirmed ? 'nutrition' : 'none');
+      updateGoals(
+        { ...goals, goalWeight: body.goalWeightKg ?? getGoals().goalWeight },
+        confirmed
+          ? (body.goalWeightChanged ? 'all' : 'nutrition')
+          : (body.goalWeightChanged ? 'weight' : 'none'),
+      );
       const proteinRdaOnly = recommendedGoals(
         { age, sex: sexValue, activityLevel: 'moderately_active' }, null,
       );
@@ -258,7 +274,8 @@ export default function OnboardingPage() {
     // a skipped step must not be recorded as the participant's starting goal.
     void recordGoalSnapshot(
       finalDefaulted.includes('goal') ? null : goal,
-      goals && confirmed ? { ...goals, goalWeight: getGoals().goalWeight } : null,
+      goals && confirmed ? { ...goals, goalWeight: body.goalWeightKg ?? undefined } : null,
+      body.goalWeightKg,
     );
     setStepIdx(STEPS.length); // result screen
   };
@@ -403,8 +420,10 @@ export default function OnboardingPage() {
               smallStep={1} bigStep={5} min={120} max={220} onChange={v => { setHeightCm(v); touch('heightCm'); }} />
             <Stepper label="体重" value={weightKg} unit="kg"
               smallStep={1} bigStep={5} min={30} max={200} onChange={v => { setWeightKg(v); touch('weightKg'); }} />
+            <Stepper label="目標体重" value={goalWeightDisplay} unit="kg"
+              smallStep={1} bigStep={5} min={30} max={200} onChange={v => { setGoalWeightKg(v); touch('goalWeightKg'); }} />
             <p className="text-[11px] text-faint">
-              TDEE（消費カロリー）と目標値の計算に使います。12歳以上が対象です。
+              TDEE（消費カロリー）と目標値の計算に使います。目標体重が決まっていなければ触らずに進めてください（記録しません）。12歳以上が対象です。
             </p>
           </div>
         )}
