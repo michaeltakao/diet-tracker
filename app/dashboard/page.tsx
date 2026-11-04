@@ -1,5 +1,6 @@
 'use client';
 
+import { shiftDate } from '@/lib/streak';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Settings, ChevronDown, ChevronRight, Copy } from 'lucide-react';
@@ -50,10 +51,10 @@ import { getStoredEasyMode } from '@/lib/easy-mode';
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
 function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0];
+  return todayJst();
 }
 
-import { fmtMonthDayDowShortJa } from '@/lib/format-date';
+import { fmtMonthDayDowShortJa, todayJst } from '@/lib/format-date';
 
 function formatDate(dateStr: string): string {
   return fmtMonthDayDowShortJa(dateStr);
@@ -175,9 +176,7 @@ export default function HomePage() {
   };
 
   const handleCopyYesterday = async () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayStr = shiftDate(todayJst(), -1);
     const data = getAppData();
     const yesterdayEntries = data.foodEntries.filter((e) => e.date === yesterdayStr);
     if (yesterdayEntries.length === 0) {

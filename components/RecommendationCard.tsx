@@ -1,5 +1,6 @@
 'use client';
 
+import { todayJst } from '@/lib/format-date';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Sparkles, RefreshCw, AlertTriangle, ChevronDown, ChevronUp, Heart, ThumbsUp, ThumbsDown } from 'lucide-react';
@@ -13,7 +14,7 @@ import type { Recommendation, FeedbackKind, DailyGoals } from '@/lib/types';
 import { CARD_CLASS as CARD } from '@/components/ui/Card';
 
 function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0];
+  return todayJst();
 }
 
 const MACRO_ICONS: Array<[string, string]> = [

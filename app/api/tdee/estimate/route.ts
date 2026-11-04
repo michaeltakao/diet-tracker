@@ -22,6 +22,7 @@
  * 400 — missing / malformed body
  */
 
+import { todayJst } from '@/lib/format-date';
 import { NextResponse } from 'next/server';
 import { getServerUser, createServerSupabase } from '@/lib/supabase-server';
 import { estimateTdee } from '@/lib/tdee';
@@ -67,7 +68,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     sex:         (b.sex === 'male' || b.sex === 'female') ? b.sex : null,
   });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayJst();
 
   if (result.tdeeKcal != null) {
     await supabase

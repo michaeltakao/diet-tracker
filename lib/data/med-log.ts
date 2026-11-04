@@ -4,13 +4,14 @@
  * Keeps last 30 days of entries.
  */
 
+import { todayJst } from '@/lib/format-date';
 import type { MedLogEntry } from '@/lib/types';
 
 const MED_LOG_KEY = 'diet-tracker-med-log';
 const MAX_DAYS = 30;
 
 function todayStr(): string {
-  return new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD in local time
+  return todayJst();
 }
 
 function loadAll(): MedLogEntry[] {

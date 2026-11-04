@@ -19,8 +19,8 @@
  */
 
 import type { AppData, StreakState } from './types';
+import { todayJst } from './format-date';
 
-const JST_OFFSET_MS = 9 * 3_600_000;
 const DAY_MS = 86_400_000;
 
 /** Walk/prune horizon in days: streaks and repair memory beyond this are dropped. */
@@ -28,7 +28,7 @@ export const MAX_WALK_DAYS = 400;
 
 /** Today's date in JST as YYYY-MM-DD — mirrors lib/api-guard.ts jstDateString(). */
 export function jstToday(): string {
-  return new Date(Date.now() + JST_OFFSET_MS).toISOString().slice(0, 10);
+  return todayJst();
 }
 
 /** Calendar-day arithmetic on YYYY-MM-DD strings (handles month/year/leap). */

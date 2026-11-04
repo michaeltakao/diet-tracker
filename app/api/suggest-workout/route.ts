@@ -12,6 +12,8 @@
  * components/WorkoutSuggestionCard.tsx (also orphaned) and their
  * RATE_LIMITS/DAILY_QUOTAS entries.
  */
+import { shiftDate } from '@/lib/streak';
+import { todayJst } from '@/lib/format-date';
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type, type Schema } from '@google/genai';
 import { aiQuotaResponse, generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
@@ -207,9 +209,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (latestWeight) currentWeight = (latestWeight as { weight_kg: number }).weight_kg;
 
     // Recent 14 days of workouts (more context than guest mode)
-    const fourteenDaysAgo = new Date();
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-    const startDate = fourteenDaysAgo.toISOString().split('T')[0];
+    const startDate = shiftDate(todayJst(), -14);
 
     const { data: workouts } = await supabase
       .from('workout_logs')

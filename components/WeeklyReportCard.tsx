@@ -1,5 +1,7 @@
 'use client';
 
+import { shiftDate } from '@/lib/streak';
+import { todayJst } from '@/lib/format-date';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CalendarDays, RefreshCw, Trophy, TrendingDown, TrendingUp } from 'lucide-react';
@@ -25,13 +27,9 @@ interface WeeklyReport {
 }
 
 function get7Days(): { startDate: string; endDate: string; dates: string[] } {
-  const today = new Date();
+  const today = todayJst();
   const dates: string[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    dates.push(d.toISOString().split('T')[0]);
-  }
+  for (let i = 6; i >= 0; i--) dates.push(shiftDate(today, -i));
   return { startDate: dates[0], endDate: dates[6], dates };
 }
 

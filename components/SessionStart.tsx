@@ -28,6 +28,7 @@
  * "change" affordance that re-expands the full flow.
  */
 
+import { shiftDate } from '@/lib/streak';
 import { useEffect, useState, useCallback } from 'react';
 import {
   Brain, Flame, Dumbbell, ChevronUp, Wind,
@@ -169,11 +170,7 @@ export default function SessionStart({
 
     // 14 days back: long enough that a weekly split shows up as recovery
     // data, short enough that a long layoff doesn't look like recent work.
-    const start = (() => {
-      const d = new Date(`${today}T00:00:00`);
-      d.setDate(d.getDate() - 14);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    })();
+    const start = shiftDate(today, -14);
 
     return {
       goal: profileGoalToTrainingGoal(profile.fitnessGoal),

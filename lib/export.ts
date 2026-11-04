@@ -6,6 +6,7 @@
  * acting as a manual sync mechanism until Supabase is integrated.
  */
 
+import { todayJst } from '@/lib/format-date';
 import { AppData, ExerciseRankState } from './types';
 import { getAppData, saveAppData } from './storage';
 import { rankAtLeast } from './rank';
@@ -71,7 +72,7 @@ export function exportDataAsJSON(): void {
   const blob = new Blob([json], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
 
-  const dateStr = new Date().toISOString().split('T')[0];
+  const dateStr = todayJst();
   const a = document.createElement('a');
   a.href = url;
   a.download = `diet-tracker-backup-${dateStr}.json`;
@@ -106,7 +107,7 @@ export function exportDataAsCSV(): void {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
 
-  const dateStr = new Date().toISOString().split('T')[0];
+  const dateStr = todayJst();
   const a = document.createElement('a');
   a.href = url;
   a.download = `diet-tracker-export-${dateStr}.csv`;

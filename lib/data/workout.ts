@@ -17,6 +17,7 @@ import {
   getPersonalRecord  as _getPR,
 } from '@/lib/storage';
 import { getWriteContext } from './_write';
+import { writeStamped } from '@/lib/build-stamp';
 import type { WorkoutEntry, PersonalRecord } from '@/lib/types';
 import type { MusclePartEnum, WorkoutCatEnum } from '@/lib/database.types';
 
@@ -59,7 +60,7 @@ export async function addWorkoutEntry(entry: WorkoutEntry): Promise<void> {
   const ctx = await getWriteContext();
   if (!ctx) return;
 
-  const { error } = await ctx.supabase.from('workout_logs').upsert({
+  const { error } = await writeStamped((stamp) => ctx.supabase.from('workout_logs').upsert({
     id:           entry.id,
     user_id:      ctx.userId,
     logged_date:  entry.date,
@@ -74,7 +75,8 @@ export async function addWorkoutEntry(entry: WorkoutEntry): Promise<void> {
     // Anonymous literals get the implicit index signature the Json type needs.
     set_details:  entry.setDetails?.map((s) => ({ weight: s.weight, reps: s.reps })) ?? null,
     logged_at:    entry.addedAt,
-  }, { onConflict: 'id' });
+    ...stamp,
+  }, { onConflict: 'id' }));
 
   if (error) {
     console.warn('[data/workout] Supabase addWorkoutEntry failed:', error.message);

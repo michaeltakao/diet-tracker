@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
-  getWorkoutPrefs, saveWorkoutPrefs, recordLocationChoice,
+  getWorkoutPrefs, saveWorkoutPrefs, recordLocationChoice, seedPrefsFromOnboarding,
 } from '../data/workout-prefs';
 
 function makeLocalStorage() {
@@ -127,5 +127,27 @@ describe('getWorkoutPrefs — malformed input fallback', () => {
     vi.unstubAllGlobals();
     const prefs = getWorkoutPrefs();
     expect(prefs).toEqual({ equipmentByLocation: {}, recentLocations: [] });
+  });
+});
+
+describe('seedPrefsFromOnboarding (ADR-008 P0-5, B6b)', () => {
+  it('fresh device: onboarding ジム / 30分 becomes the check-in preselection', () => {
+    seedPrefsFromOnboarding('gym', 30);
+    const prefs = getWorkoutPrefs();
+    expect(prefs.lastLocation).toBe('gym');
+    expect(prefs.lastDuration).toBe(30);
+  });
+
+  it('maps 外 → outdoor', () => {
+    seedPrefsFromOnboarding('outside', 15);
+    expect(getWorkoutPrefs().lastLocation).toBe('outdoor');
+  });
+
+  it("never overrides the user's own earlier choices, fills only what is unset", () => {
+    saveWorkoutPrefs({ lastLocation: 'home', equipmentByLocation: {}, recentLocations: [] });
+    seedPrefsFromOnboarding('gym', 45);
+    const prefs = getWorkoutPrefs();
+    expect(prefs.lastLocation).toBe('home');
+    expect(prefs.lastDuration).toBe(45);
   });
 });

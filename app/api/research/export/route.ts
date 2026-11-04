@@ -9,6 +9,14 @@
  * people who never agreed to research use. Rows with no user (guest
  * beta_feedback) are excluded for the same reason.
  *
+ * Rows dated before a participant's study day 0 (profiles.study_start_at,
+ * migration 026 — e.g. family-trial rows of a carried-over participant) are
+ * exported too: the default analysis drops them (vault ADR-008), but the
+ * sensitivity analysis needs them. The full JSON export therefore carries
+ * `participants` (user_id, consented_at, study_start_at) so the day-0 rule
+ * can be applied to the exported rows; day 0 = the Asia/Tokyo date of
+ * study_start_at, as in docs/trial/cohort-queries.sql.
+ *
  * Query params:
  *   user_id  — filter to a specific participant (optional; omit for all).
  *              A user without consented_at yields an empty export.
@@ -114,14 +122,16 @@ export async function GET(request: Request): Promise<NextResponse> {
   // Move the join into SQL (an RPC) before using this with hundreds of users.
   const { data: consented, error: consentErr } = await svc
     .from('profiles')
-    .select('id')
+    .select('id, consented_at, study_start_at')
     .not('consented_at', 'is', null);
   if (consentErr) {
     console.error('[RESEARCH_EXPORT_ERROR] consent lookup failed:', consentErr);
     return NextResponse.json({ error: 'Export failed. Please try again.' }, { status: 500 });
   }
-  const consentedIds = (consented ?? []).map((p: { id: string }) => p.id);
-  const exportIds = userId ? consentedIds.filter((id) => id === userId) : consentedIds;
+  type ConsentedRow = { id: string; consented_at: string | null; study_start_at: string | null };
+  const consentedRows = (consented ?? []) as ConsentedRow[];
+  const exportRows = userId ? consentedRows.filter((p) => p.id === userId) : consentedRows;
+  const exportIds = exportRows.map((p) => p.id);
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
@@ -168,6 +178,11 @@ export async function GET(request: Request): Promise<NextResponse> {
   const payload = {
     exported_at: new Date().toISOString(),
     filter_user_id: userId ?? null,
+    participants: exportRows.map((p) => ({
+      user_id:        p.id,
+      consented_at:   p.consented_at,
+      study_start_at: p.study_start_at,
+    })),
     food_logs:                (food.data         ?? []) as Record<string, unknown>[],
     weight_logs:              (weight.data        ?? []) as Record<string, unknown>[],
     workout_logs:             (workout.data       ?? []) as Record<string, unknown>[],

@@ -19,6 +19,8 @@ export interface ParticipantSummary {
   id:                string;
   display_name:      string | null;
   consented_at:      string | null;
+  /** Study day 0 (migration 026). NULL = not yet set → excluded from every cohort query. */
+  study_start_at:    string | null;
   study_cohort:      string | null;
   last_food_log:     string | null;   // YYYY-MM-DD
   food_log_count:    number;
@@ -69,7 +71,7 @@ export async function GET(): Promise<NextResponse> {
   // Fetch all consented participants
   const { data: profiles, error: pErr } = await svc
     .from('profiles')
-    .select('id, display_name, consented_at, study_cohort, role')
+    .select('id, display_name, consented_at, study_start_at, study_cohort, role')
     .eq('role', 'participant')
     .not('consented_at', 'is', null)
     .order('consented_at', { ascending: false });
@@ -134,6 +136,7 @@ export async function GET(): Promise<NextResponse> {
       id:               p.id,
       display_name:     p.display_name,
       consented_at:     p.consented_at,
+      study_start_at:   p.study_start_at,
       study_cohort:     p.study_cohort,
       last_food_log:    food?.latest ?? null,
       food_log_count:   food?.count  ?? 0,

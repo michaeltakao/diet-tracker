@@ -45,7 +45,7 @@ export const DEFAULT_ANSWERS: OnboardingAnswers = {
   weightKg:         null,
   experience:       'beginner',
   environment:      'home',
-  availableMinutes: 20,
+  availableMinutes: 15,
   defaultedSteps:   ['goal', 'body', 'experience', 'environment'],
 };
 

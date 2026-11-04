@@ -1115,3 +1115,61 @@ anyway since it was cheap alongside the lipid/HbA1c work).
   - Closed stale PRs #3 (0 commits missing from `main`), #6 (2), #7 (4 own),
     #8 (3 own) — branches kept; whether the unmerged work was re-implemented
     on `main` later was not checked.
+
+## Last verified (moved from STATUS.md 2026-10-29)
+- 2026-10-13: `main` (`448aa58`, deployed) — CI green: TypeScript / Build /
+  ESLint / Vitest (**596/596**, 50 files) / npm audit; `gitleaks` ran on
+  PR #19 (1 commit scanned, no leaks) and is skipped on push by design. Local
+  at `99e5c8b` on Next.js 16.3.8: `tsc --noEmit` exit 0, `npm run lint`
+  0 errors (3 pre-existing warnings), clean `npm run build` exit 0, vitest
+  596/596 on Node v26.0.0 and v22.23.3. Prod
+  (https://diet-tracker-two-blue.vercel.app, anonymous curl):
+  `/`, `/login`, `/manifest.webmanifest`, `/sw.js`, `/robots.txt` → 200;
+  `/icon`, `/apple-icon` → 200 `image/png` (byte-identical to the local
+  build, both opened and checked by eye at `99e5c8b`); `/dashboard` → 307
+  `/login?next=%2Fdashboard`; `dt-guest=1` on `/dashboard` → 307
+  `/onboarding`; anonymous POST `/api/recommend` → 403. NOT verified: any
+  authed flow, image optimization, a gitleaks finding failing CI.
+
+## Now (moved from STATUS.md 2026-10-29)
+- **2026-10-13 CI, security and housekeeping round — merged + deployed
+  (`main` `448aa58`):** PRs #14–#19: vitest now gates CI; `next` 16.2.6 →
+  16.3.8 (cleared 1 critical + 12 high audit findings); proxy matcher
+  excludes `/icon` and `/apple-icon`; gitleaks PR scan replaces a no-op
+  secret grep; stale PRs #3/#6/#7/#8 closed (branches kept). Full entry in
+  the archive.
+
+## Last verified (moved from STATUS.md 2026-11-04)
+- 2026-10-14: `feat/trial-data-notice` (local) — `npm run lint` 0 errors
+  (3 pre-existing warnings), vitest **612/612** (51 files), clean
+  `npm run build` exit 0, `tsc --noEmit` exit 0. Local prod build :3199
+  (placeholder Supabase env, so the proxy is bypassed): `/consent` → 404,
+  POST `/api/consent` → 404, `/dashboard` `/settings` `/onboarding` → 200.
+  Migrations 001–025 applied to an in-memory Postgres (pglite, stubbed
+  `auth` / `storage`): all 14 queries in `cohort-queries.sql` ran on 7
+  synthetic users and matched hand-computed values (KM 0.833 / 0.625,
+  attainment 0.67 / 1.10, unconsented user excluded); RLS: own
+  `goal_history` insert OK, other user's insert / own `consented_at` /
+  `role` change denied, update + delete of history rows affect 0 rows,
+  a backdated `recorded_at` is overwritten by the server, profile delete
+  cascades. `/code-review medium` run: 10 findings, 8 fixed, 2 documented
+  (no `goal_history` backfill; SUS day-14 counts from the signature date). NOT verified: any authed flow against real
+  Supabase (the goal dual-write, the export consent filter, the 429 message
+  as rendered in each client), 025 on prod, the queries on prod.
+
+## Now (moved from STATUS.md 2026-11-04)
+- **2026-10-14 Six-month study prep (branch `feat/trial-data-notice`, pushed
+  10-29, draft PR #21):** the trial data is now meant for research
+  (vault `ADR-007`, supersedes `ADR-006`; status *proposed* until the advisor
+  answers the three questions on slide 14).
+  - In-app consent removed: `/consent`, `/api/consent`, the `proxy.ts`
+    redirect and the `consent*` i18n keys. Consent is the signed paper form;
+    `consented_at` is set by hand (`docs/trial/consent-roster.sql`).
+  - Goals reach the server: `updateGoals` dual-writes `profiles.goal_*`;
+    `goal_history` (migration `025`, **not applied to prod**) keeps the
+    starting purpose and goal weight. 025 also freezes `consented_at` for
+    user-scope writes.
+  - Export only users with `consented_at` set; Gemini quota → readable 429
+    in all 9 AI routes. Docs: `docs/SPEC.md`, `docs/trial/` (consent form,
+    guide, `cohort-queries.sql` S0–S5b / W1–W5). Advisor slides:
+    `~/大学院/研究室/research-plan-2026-10/` (14 pp, synthetic screenshots).
