@@ -1138,3 +1138,38 @@ anyway since it was cheap alongside the lipid/HbA1c work).
   excludes `/icon` and `/apple-icon`; gitleaks PR scan replaces a no-op
   secret grep; stale PRs #3/#6/#7/#8 closed (branches kept). Full entry in
   the archive.
+
+## Last verified (moved from STATUS.md 2026-11-04)
+- 2026-10-14: `feat/trial-data-notice` (local) — `npm run lint` 0 errors
+  (3 pre-existing warnings), vitest **612/612** (51 files), clean
+  `npm run build` exit 0, `tsc --noEmit` exit 0. Local prod build :3199
+  (placeholder Supabase env, so the proxy is bypassed): `/consent` → 404,
+  POST `/api/consent` → 404, `/dashboard` `/settings` `/onboarding` → 200.
+  Migrations 001–025 applied to an in-memory Postgres (pglite, stubbed
+  `auth` / `storage`): all 14 queries in `cohort-queries.sql` ran on 7
+  synthetic users and matched hand-computed values (KM 0.833 / 0.625,
+  attainment 0.67 / 1.10, unconsented user excluded); RLS: own
+  `goal_history` insert OK, other user's insert / own `consented_at` /
+  `role` change denied, update + delete of history rows affect 0 rows,
+  a backdated `recorded_at` is overwritten by the server, profile delete
+  cascades. `/code-review medium` run: 10 findings, 8 fixed, 2 documented
+  (no `goal_history` backfill; SUS day-14 counts from the signature date). NOT verified: any authed flow against real
+  Supabase (the goal dual-write, the export consent filter, the 429 message
+  as rendered in each client), 025 on prod, the queries on prod.
+
+## Now (moved from STATUS.md 2026-11-04)
+- **2026-10-14 Six-month study prep (branch `feat/trial-data-notice`, pushed
+  10-29, draft PR #21):** the trial data is now meant for research
+  (vault `ADR-007`, supersedes `ADR-006`; status *proposed* until the advisor
+  answers the three questions on slide 14).
+  - In-app consent removed: `/consent`, `/api/consent`, the `proxy.ts`
+    redirect and the `consent*` i18n keys. Consent is the signed paper form;
+    `consented_at` is set by hand (`docs/trial/consent-roster.sql`).
+  - Goals reach the server: `updateGoals` dual-writes `profiles.goal_*`;
+    `goal_history` (migration `025`, **not applied to prod**) keeps the
+    starting purpose and goal weight. 025 also freezes `consented_at` for
+    user-scope writes.
+  - Export only users with `consented_at` set; Gemini quota → readable 429
+    in all 9 AI routes. Docs: `docs/SPEC.md`, `docs/trial/` (consent form,
+    guide, `cohort-queries.sql` S0–S5b / W1–W5). Advisor slides:
+    `~/大学院/研究室/research-plan-2026-10/` (14 pp, synthetic screenshots).

@@ -6,6 +6,17 @@ Keep this file under 200 lines: Now (latest 3) / Next / Blockers / Key
 decisions / Last verified (latest 2) — move older entries to the archive.
 
 ## Now
+- **2026-11-04 ADR-008 P0-9 / P0-10 / P0-11** (`fix/study-p0`, draft PR #22).
+  **P0-9**: migration `026` adds `profiles.study_start_at` (researcher-only,
+  frozen like `consented_at`); `cohort-queries.sql` day 0 = its JST date,
+  participants need both columns, purpose / goal weight = value in effect
+  at day 0; `consent-roster.sql` R2 sets both (R2b moves day 0). **P0-10**:
+  `NEXT_PUBLIC_STUDY_BUILD=1` hides the guest links and `proxy.ts` ignores
+  `dt-guest`. **P0-11**: migration `027` stamps food/weight/workout rows
+  with `build_sha` + `study_build` (unstamped retry if 027 is missing);
+  `/api/build-info`; `scripts/check-study-freeze.mjs` + weekly procedure
+  `docs/trial/freeze-check.md`; Vercel production build fails without the
+  flag. **026 / 027 not applied to prod.**
 - **2026-10-29 Status review + ADR-008 P0 started.** Product done and live
   (`main` `f8a3d37`); research has **no data yet** — waiting on the advisor's
   3 answers (none at 10-29), the [🔒user] setup items, and the ADR-008 P0
@@ -20,27 +31,16 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   `ba225e9` **P0-12** (目標体重 stepper, stored only when set; scope
   `'weight'`). Browser-verified at a pinned 01:11 JST — results in
   `~/大学院/研究室/app-analysis-2026-10/remeasure-2026-10-30/`.
-- **2026-10-14 Six-month study prep (branch `feat/trial-data-notice`, pushed
-  10-29, draft PR #21):** the trial data is now meant for research
-  (vault `ADR-007`, supersedes `ADR-006`; status *proposed* until the advisor
-  answers the three questions on slide 14).
-  - In-app consent removed: `/consent`, `/api/consent`, the `proxy.ts`
-    redirect and the `consent*` i18n keys. Consent is the signed paper form;
-    `consented_at` is set by hand (`docs/trial/consent-roster.sql`).
-  - Goals reach the server: `updateGoals` dual-writes `profiles.goal_*`;
-    `goal_history` (migration `025`, **not applied to prod**) keeps the
-    starting purpose and goal weight. 025 also freezes `consented_at` for
-    user-scope writes.
-  - Export only users with `consented_at` set; Gemini quota → readable 429
-    in all 9 AI routes. Docs: `docs/SPEC.md`, `docs/trial/` (consent form,
-    guide, `cohort-queries.sql` S0–S5b / W1–W5). Advisor slides:
-    `~/大学院/研究室/research-plan-2026-10/` (14 pp, synthetic screenshots).
+- 2026-10-14 study prep (PR #21, ADR-007, `025`): see the archive (11-04).
 
 ## Next
 - **[auto] ADR-008 P0, in order** (branch `fix/study-p0`, target 11-12 =
-  new verify-by): ~~P0-1~~ → ~~P0-5~~ → ~~P0-12~~ → P0-9 `study_start_at` →
-  P0-10 guest mode off in the study build → P0-11 `build_sha` → P0-2, P0-4,
-  P0-3, P0-8, P0-6, P0-13 (+ P0-7 alongside). Each: lint / build / vitest,
+  new verify-by): ~~P0-1~~ → ~~P0-5~~ → ~~P0-12~~ → ~~P0-9~~ → ~~P0-10~~ →
+  ~~P0-11~~ → P0-2, P0-4, P0-3, P0-8, P0-6, P0-13 (+ P0-7 alongside).
+  Before merging #22: [🔒user] Vercel Production env
+  `NEXT_PUBLIC_STUDY_BUILD=1` (else prod builds fail), apply 026 + 027
+  (ask first), then the freeze setup in `docs/trial/freeze-check.md`.
+  Follow-up: AI routes still take anonymous callers (`lib/api-guard.ts`). Each: lint / build / vitest,
   then re-run the 10-15 browser measurement (header date = JST, 72.4 is the
   latest weight, FAB → /add). P1 flags wait for the advisor's Q1.
 - **Six-month study, 10–30 family and acquaintances (plan 2026-10-14):**
@@ -164,8 +164,14 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   plan and AI call counts — never vitals, symptoms, conditions or medications.
 - **Day boundary = JST everywhere** (ADR-008 P0-1, 2026-10-29): use
   `lib/format-date.ts` helpers, never `toISOString().split('T')[0]`.
-- **Goal baseline = earliest `goal_history` row**; a skipped onboarding goal
-  step is not recorded as a goal (it would be a fabricated default).
+- **Study day 0 = `profiles.study_start_at`** (ADR-008 P0-9, 2026-11-04), set
+  by hand with `consented_at`; analysis uses log rows dated on/after it.
+  **Goal baseline = the `goal_history` row in effect at day 0** (latest
+  on/before day 0, else first after; goal weight only up to day 13); a
+  skipped onboarding goal step is not recorded as a goal.
+- **Study build = `NEXT_PUBLIC_STUDY_BUILD=1`** (ADR-008 P0-10/11): no guest
+  mode, rows stamped; production builds without it fail. Freeze = git tag
+  `study-v1` + weekly `scripts/check-study-freeze.mjs`.
 - **`npm audit` gate = production dependencies only** (`--omit=dev
   --audit-level=high`, 2026-10-13). The full-tree audit still runs with
   `continue-on-error`; revert to a full-tree gate once `braces` ships a fix.
@@ -173,6 +179,16 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   jump clear of every advisory (2026-10-13).
 
 ## Last verified state
+- 2026-11-04: `fix/study-p0` (P0-9/10/11) — lint 0 errors (3 pre-existing
+  warnings), `tsc` 0, vitest **666/666** (58 files). Study build: `next build`
+  OK; production without the flag → build error; headless Chrome: no guest
+  links on `/` `/login` (normal build shows them); `/api/build-info` returns
+  the sha. Freeze script vs stub: exit codes 0/1/1/2/2/2 as specified. pglite
+  001–027, 6 synthetic users: own `study_start_at` change denied; carry-over
+  w0 = 78 (not trial 80), trial goal weight kept; pre-day-0 rows excluded;
+  unset day 0 flagged by R3/W5; 14/14 queries run. `/code-review medium` 9
+  findings (6 fixed, 3 deferred); `/sec` OK. NOT verified: authed flows /
+  real Supabase writes, 026/027 on prod, Vercel settings.
 - 2026-10-30: `fix/study-p0` (P0-12 + review fixes) — lint 0 errors (3 pre-existing
   warnings), `tsc` 0, vitest **646/646** (55 files), clean build. Browser
   (own headless Chrome 156 over CDP — the chrome-devtools MCP profile was
@@ -182,19 +198,3 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   stored; ジム/30分 preselected on /workout. 10-29 secscan of #21: gitleaks
   clean, semgrep 11 pre-existing. NOT verified: FAB overlap (B2, P0-3 still
   open), any authed flow / server write, a real wall-clock 00–09 run.
-- 2026-10-14: `feat/trial-data-notice` (local) — `npm run lint` 0 errors
-  (3 pre-existing warnings), vitest **612/612** (51 files), clean
-  `npm run build` exit 0, `tsc --noEmit` exit 0. Local prod build :3199
-  (placeholder Supabase env, so the proxy is bypassed): `/consent` → 404,
-  POST `/api/consent` → 404, `/dashboard` `/settings` `/onboarding` → 200.
-  Migrations 001–025 applied to an in-memory Postgres (pglite, stubbed
-  `auth` / `storage`): all 14 queries in `cohort-queries.sql` ran on 7
-  synthetic users and matched hand-computed values (KM 0.833 / 0.625,
-  attainment 0.67 / 1.10, unconsented user excluded); RLS: own
-  `goal_history` insert OK, other user's insert / own `consented_at` /
-  `role` change denied, update + delete of history rows affect 0 rows,
-  a backdated `recorded_at` is overwritten by the server, profile delete
-  cascades. `/code-review medium` run: 10 findings, 8 fixed, 2 documented
-  (no `goal_history` backfill; SUS day-14 counts from the signature date). NOT verified: any authed flow against real
-  Supabase (the goal dual-write, the export consent filter, the 429 message
-  as rendered in each client), 025 on prod, the queries on prod.
