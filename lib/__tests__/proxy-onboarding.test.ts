@@ -14,7 +14,7 @@
  * with minimal fakes that record what the proxy decided (redirect target, or
  * "pass through"), which is exactly the observable this suite asserts on.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 /** The user getUser() should resolve to for the next proxy() call. */
 let mockUser: { id: string } | null = null;
@@ -150,5 +150,33 @@ describe('proxy — authenticated users', () => {
     mockUser = { id: 'user-1' };
     expect(await routeOf('/consent')).toBe('/onboarding');
     expect(await routeOf('/consent', { 'dt-onboarded': '1' })).toBeNull();
+  });
+});
+
+describe('proxy — study build (NEXT_PUBLIC_STUDY_BUILD=1, ADR-008 P0-10)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('ignores dt-guest: an old guest cookie on a protected page goes to /login', async () => {
+    vi.stubEnv('NEXT_PUBLIC_STUDY_BUILD', '1');
+    expect(await routeOf('/dashboard', { 'dt-guest': '1', 'dt-onboarded': '1' })).toBe('/login');
+    expect(await routeOf('/onboarding', { 'dt-guest': '1' })).toBe('/login');
+  });
+
+  it('shows the landing page to a dt-guest visitor instead of entering guest mode', async () => {
+    vi.stubEnv('NEXT_PUBLIC_STUDY_BUILD', '1');
+    expect(await routeOf('/', { 'dt-guest': '1', 'dt-onboarded': '1' })).toBeNull();
+  });
+
+  it('leaves signed-in users alone', async () => {
+    vi.stubEnv('NEXT_PUBLIC_STUDY_BUILD', '1');
+    mockUser = { id: 'user-1' };
+    expect(await routeOf('/dashboard', { 'dt-guest': '1', 'dt-onboarded': '1' })).toBeNull();
+  });
+
+  it('a normal build still honours dt-guest', async () => {
+    vi.stubEnv('NEXT_PUBLIC_STUDY_BUILD', '');
+    expect(await routeOf('/dashboard', { 'dt-guest': '1', 'dt-onboarded': '1' })).toBeNull();
   });
 });

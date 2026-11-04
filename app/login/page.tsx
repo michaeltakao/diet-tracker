@@ -25,6 +25,7 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { Loader2, Mail, LogIn, Leaf } from 'lucide-react';
 import { useProfile } from '@/contexts/ProfileContext';
+import { STUDY_BUILD } from '@/lib/study-build';
 
 // ── Google icon (inline SVG — avoids next/image in auth context) ──────────────
 
@@ -251,25 +252,27 @@ function LoginPageInner() {
         </form>
       </div>
 
-      {/* Guest mode */}
-      <Link
-        href={nextPath.startsWith('/') ? nextPath : '/dashboard'}
-        prefetch={false}
-        onClick={() => {
-          // Guest opt-in cookie: proxy.ts lets unauthenticated requests through
-          // when present. prefetch={false} so the RSC payload is never fetched
-          // (and cached as a /login redirect) before the cookie exists.
-          document.cookie = 'dt-guest=1; path=/; max-age=31536000; samesite=lax';
-        }}
-        className="text-sm text-faint hover:text-fg transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-      >
-        Continue without an account →
-      </Link>
+      {/* Guest mode — not offered in the study build (ADR-008 P0-10) */}
+      {!STUDY_BUILD && (
+        <Link
+          href={nextPath.startsWith('/') ? nextPath : '/dashboard'}
+          prefetch={false}
+          onClick={() => {
+            // Guest opt-in cookie: proxy.ts lets unauthenticated requests through
+            // when present. prefetch={false} so the RSC payload is never fetched
+            // (and cached as a /login redirect) before the cookie exists.
+            document.cookie = 'dt-guest=1; path=/; max-age=31536000; samesite=lax';
+          }}
+          className="text-sm text-faint hover:text-fg transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        >
+          Continue without an account →
+        </Link>
+      )}
 
       {/* Privacy note */}
       <p className="text-xs text-faint text-center max-w-xs">
         By signing in, you agree to store your health data in Supabase.
-        Guest mode keeps all data on this device only.
+        {!STUDY_BUILD && ' Guest mode keeps all data on this device only.'}
       </p>
     </div>
   );
