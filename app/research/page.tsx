@@ -148,7 +148,7 @@ export default function ResearchPage() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-line">
-                      {['表示名', 'コホート', '登録日', '最終ログ', '食事', '体重', '採用/拒否', '状態'].map(h => (
+                      {['表示名', 'コホート', '登録日', '0日目', '最終ログ', '食事', '体重', '採用/拒否', '状態'].map(h => (
                         <th key={h} className="px-3 py-2 text-left text-[10px] font-black text-faint uppercase tracking-wide whitespace-nowrap">
                           {h}
                         </th>
@@ -166,6 +166,12 @@ export default function ResearchPage() {
                           </td>
                           <td className="px-3 py-2 text-faint">{p.study_cohort ?? '—'}</td>
                           <td className="px-3 py-2 text-faint whitespace-nowrap">{fmt(p.consented_at)}</td>
+                          {/* Unset day 0 = silently excluded from cohort-queries.sql (consent-roster.sql R2). */}
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            {p.study_start_at
+                              ? <span className="text-faint">{fmt(p.study_start_at)}</span>
+                              : <span className="text-red-500 font-bold">未設定</span>}
+                          </td>
                           <td className="px-3 py-2 text-faint whitespace-nowrap">{fmt(p.last_food_log)}</td>
                           <td className="px-3 py-2 tabular-nums text-center">{p.food_log_count}</td>
                           <td className="px-3 py-2 tabular-nums text-center">{p.weight_log_count}</td>
