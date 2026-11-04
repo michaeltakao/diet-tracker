@@ -20,6 +20,7 @@ import {
   getAppData        as _getAll,
 } from '@/lib/storage';
 import { getWriteContext } from './_write';
+import { writeStamped } from '@/lib/build-stamp';
 import type { FoodEntry } from '@/lib/types';
 import type { MealTypeEnum } from '@/lib/database.types';
 
@@ -64,7 +65,7 @@ export async function addFoodEntry(entry: FoodEntry): Promise<void> {
   const ctx = await getWriteContext();
   if (!ctx) return;
 
-  const { error } = await ctx.supabase.from('food_logs').upsert({
+  const { error } = await writeStamped((stamp) => ctx.supabase.from('food_logs').upsert({
     id:          entry.id,
     user_id:     ctx.userId,
     logged_date: entry.date,
@@ -83,7 +84,8 @@ export async function addFoodEntry(entry: FoodEntry): Promise<void> {
     source_id:    entry.sourceId ?? null,
     sodium_mg:    entry.sodiumMg ?? null,
     fiber_g:      entry.fiberG ?? null,
-  }, { onConflict: 'id' });
+    ...stamp,
+  }, { onConflict: 'id' }));
 
   if (error) {
     console.warn('[data/food] Supabase addFoodEntry failed:', error.message);
@@ -100,7 +102,7 @@ export async function updateFoodEntry(entry: FoodEntry): Promise<void> {
   const ctx = await getWriteContext();
   if (!ctx) return;
 
-  const { error } = await ctx.supabase.from('food_logs').upsert({
+  const { error } = await writeStamped((stamp) => ctx.supabase.from('food_logs').upsert({
     id:          entry.id,
     user_id:     ctx.userId,
     logged_date: entry.date,
@@ -119,7 +121,8 @@ export async function updateFoodEntry(entry: FoodEntry): Promise<void> {
     source_id:    entry.sourceId ?? null,
     sodium_mg:    entry.sodiumMg ?? null,
     fiber_g:      entry.fiberG ?? null,
-  }, { onConflict: 'id' });
+    ...stamp,
+  }, { onConflict: 'id' }));
 
   if (error) {
     console.warn('[data/food] Supabase updateFoodEntry failed:', error.message);

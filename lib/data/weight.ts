@@ -16,6 +16,7 @@ import {
   getAppData        as _getAll,
 } from '@/lib/storage';
 import { getWriteContext } from './_write';
+import { writeStamped } from '@/lib/build-stamp';
 import type { WeightEntry } from '@/lib/types';
 
 // ── Read (localStorage, synchronous) ──────────────────────────────────────────
@@ -53,13 +54,14 @@ export async function addWeightEntry(entry: WeightEntry): Promise<void> {
   const ctx = await getWriteContext();
   if (!ctx) return;
 
-  const { error } = await ctx.supabase.from('weight_logs').upsert({
+  const { error } = await writeStamped((stamp) => ctx.supabase.from('weight_logs').upsert({
     id:          entry.id,
     user_id:     ctx.userId,
     logged_date: entry.date,
     weight_kg:   entry.weight,
     logged_at:   entry.addedAt,
-  }, { onConflict: 'user_id,logged_date' });
+    ...stamp,
+  }, { onConflict: 'user_id,logged_date' }));
 
   if (error) {
     console.warn('[data/weight] Supabase addWeightEntry failed:', error.message);
