@@ -6,6 +6,7 @@ Keep this file under 200 lines: Now (latest 3) / Next / Blockers / Key
 decisions / Last verified (latest 2) — move older entries to the archive.
 
 ## Now
+- **2026-11-08 security: Next 16.3.8 → 16.4.1** (GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr, GHSA-p3m5-59mp-jv5r) on branch `sec/next-16.4.1`; lint 0 errors, 596 tests, build OK, `npm audit --omit=dev` 0. Merging deploys to prod. After merge: merge `main` into `fix/study-p0`.
 - **2026-10-13 CI, security and housekeeping round — merged + deployed
   (`main` `448aa58`):**
   - PR #14: `ci.yml` gains a 4th job (`test` → `npm test`); CI had run only
