@@ -448,6 +448,7 @@ export const translations = {
     nutritionistEmpty: '今日の食事を記録するとアドバイスが受けられます',
     // AI Personal Trainer (workout plan generator)
     workoutGenTitle: 'AIパーソナルトレーナー',
+    planDefaultName: '今日のメニュー',
     workoutGenIntro: '目標・器具・時間を選ぶと、あなた専用のプランを作成します',
     workoutGenOpenButton: 'プランを作成する',
     workoutGenGoalLabel: '目標',
@@ -1138,6 +1139,7 @@ export const translations = {
     nutritionistEmpty: 'Log a meal today to get personalized advice',
     // AI Personal Trainer (workout plan generator)
     workoutGenTitle: 'AI Personal Trainer',
+    planDefaultName: "Today's workout",
     workoutGenIntro: 'Pick a goal, equipment, and time, and we\'ll build a plan just for you',
     workoutGenOpenButton: 'Generate a plan',
     workoutGenGoalLabel: 'Goal',

@@ -27,7 +27,8 @@ import ExerciseVideo from '@/components/ExerciseVideo';
 
 interface GenerateWorkoutResponse {
   plan: GeneratedPlan;
-  narrative: { sessionName: string; notes: string; motivationMessage: string };
+  /** null when the AI narration was unavailable (ADR-008 P0-4). */
+  narrative: { sessionName: string; notes: string; motivationMessage: string } | null;
 }
 
 const GOALS: FitnessGoal[] = ['hypertrophy', 'strength', 'endurance', 'weight_loss'];
@@ -233,8 +234,8 @@ export default function WorkoutGeneratorCard() {
       {result && (
         <div className="space-y-3">
           <div>
-            <p className="text-sm font-bold text-fg">{result.narrative.sessionName}</p>
-            {result.narrative.notes && (
+            <p className="text-sm font-bold text-fg">{result.narrative?.sessionName || t.planDefaultName}</p>
+            {result.narrative?.notes && (
               <p className="text-xs text-muted mt-1">{result.narrative.notes}</p>
             )}
           </div>
@@ -273,7 +274,7 @@ export default function WorkoutGeneratorCard() {
             </>
           )}
 
-          {result.narrative.motivationMessage && (
+          {result.narrative?.motivationMessage && (
             <p className="text-xs text-brand-700 dark:text-brand-400 font-semibold pt-1">
               {result.narrative.motivationMessage}
             </p>
