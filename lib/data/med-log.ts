@@ -6,6 +6,7 @@
 
 import { todayJst } from '@/lib/format-date';
 import type { MedLogEntry } from '@/lib/types';
+import { safeSetItem } from '@/lib/storage';
 
 const MED_LOG_KEY = 'diet-tracker-med-log';
 const MAX_DAYS = 30;
@@ -28,7 +29,7 @@ function saveAll(entries: MedLogEntry[]): void {
   if (typeof window === 'undefined') return;
   // Keep only the most recent MAX_DAYS entries
   const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date)).slice(0, MAX_DAYS);
-  localStorage.setItem(MED_LOG_KEY, JSON.stringify(sorted));
+  safeSetItem(MED_LOG_KEY, JSON.stringify(sorted));
 }
 
 export function getTodayMedLog(): MedLogEntry {

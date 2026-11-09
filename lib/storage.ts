@@ -95,9 +95,45 @@ export function getAppData(): AppData {
   }
 }
 
-export function saveAppData(data: AppData): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+/** Window event fired when a localStorage write fails (quota, private mode). */
+export const STORAGE_ERROR_EVENT = 'dt:storage-error';
+
+export interface StorageErrorDetail {
+  key: string;
+  error: string;
+}
+
+/**
+ * `localStorage.setItem` that never throws (ADR-008 P0-2). On failure it
+ * fires {@link STORAGE_ERROR_EVENT} so the UI can tell the user the record
+ * was not saved, instead of the write vanishing silently (B3: a full
+ * storage used to drop records with no sign).
+ *
+ * @returns true when the value was stored.
+ */
+export function safeSetItem(key: string, value: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (e) {
+    const detail: StorageErrorDetail = {
+      key,
+      error: e instanceof Error ? e.name || e.message : String(e),
+    };
+    try {
+      window.dispatchEvent(new CustomEvent(STORAGE_ERROR_EVENT, { detail }));
+    } catch {
+      // No event support (tests / very old engines): the false return still reports it.
+    }
+    return false;
+  }
+}
+
+/** Persist the app blob. Returns false (and fires the notice) on failure. */
+export function saveAppData(data: AppData): boolean {
+  if (typeof window === 'undefined') return false;
+  return safeSetItem(STORAGE_KEY, JSON.stringify(data));
 }
 
 // ── Recommendation feedback (Phase B: preference signals) ──

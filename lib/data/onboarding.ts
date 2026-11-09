@@ -11,6 +11,7 @@
  */
 
 import type { ExperienceLevel, FitnessGoal } from '@/lib/types';
+import { safeSetItem } from '@/lib/storage';
 
 export type TrainingEnvironment = 'home' | 'gym' | 'outside';
 
@@ -66,7 +67,7 @@ function setOnboardedCookie(): void {
 
 function saveRecord(record: OnboardingRecord): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(ONBOARDING_KEY, JSON.stringify(record));
+  safeSetItem(ONBOARDING_KEY, JSON.stringify(record));
   setOnboardedCookie();
 }
 

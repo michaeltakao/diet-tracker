@@ -9,6 +9,7 @@
 
 import { getWriteContext } from './_write';
 import { clampSteps } from '../steps-goal';
+import { safeSetItem } from '@/lib/storage';
 
 const KEY = 'diet-tracker-steps';
 
@@ -25,7 +26,7 @@ function readAll(): StepsBySource {
 }
 
 function writeAll(data: StepsBySource): void {
-  localStorage.setItem(KEY, JSON.stringify(data));
+  safeSetItem(KEY, JSON.stringify(data));
 }
 
 // ── Read (localStorage, synchronous) ──────────────────────────────────────────

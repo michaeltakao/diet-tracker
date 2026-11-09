@@ -68,7 +68,6 @@ export default function AddPage() {
   const { t } = useLanguage();
   const [tab, setTab]                       = useState<Tab>('photo');
   const [form, setForm]                     = useState<FormData>(EMPTY_FORM);
-  const [photoDataUrl, setPhotoDataUrl]     = useState<string | undefined>(undefined);
   const [errors, setErrors]                 = useState<Partial<FormData>>({});
   const [logTime, setLogTime]               = useState(getCurrentTime());
   const [quickAddToast, setQuickAddToast]   = useState(false);
@@ -143,9 +142,7 @@ export default function AddPage() {
 
   const handleAnalysisComplete = (
     result: { name: string; calories: number; protein: number; fat: number; carbs: number },
-    photo: string
   ) => {
-    setPhotoDataUrl(photo);
     applyBaseNutrition(result.name, {
       calories: result.calories,
       protein: result.protein,
@@ -254,7 +251,8 @@ export default function AddPage() {
       protein:  Math.round(Number(form.protein) * 10) / 10,
       fat:      Math.round(Number(form.fat)     * 10) / 10,
       carbs:    Math.round(Number(form.carbs)   * 10) / 10,
-      photoDataUrl,
+      // No photoDataUrl: the photo is preview-only and never persisted
+      // (ADR-008 P0-2 — base64 photos filled the localStorage quota).
       addedAt: buildTimestamp(getTodayDate(), logTime),
       servings,
       ...(basis === 'per100g' ? { servingUnit: '100g' } : {}),
@@ -267,7 +265,6 @@ export default function AddPage() {
     void addFoodEntry(entry);
     if (speedMode) {
       setForm({ ...EMPTY_FORM, mealType: form.mealType });
-      setPhotoDataUrl(undefined);
       setServings(1);
       baseNutritionRef.current = null;
       setPrefilled(false);

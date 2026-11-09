@@ -6,6 +6,7 @@
 import { todayJst } from '@/lib/format-date';
 import type { DailyCheckIn } from '@/lib/types';
 import { getWriteContext } from './_write';
+import { safeSetItem } from '@/lib/storage';
 
 const KEY = 'diet-tracker-checkins';
 
@@ -20,7 +21,7 @@ function getAll(): Record<string, DailyCheckIn> {
 }
 
 function saveAll(data: Record<string, DailyCheckIn>): void {
-  localStorage.setItem(KEY, JSON.stringify(data));
+  safeSetItem(KEY, JSON.stringify(data));
 }
 
 export function getCheckIn(date: string): DailyCheckIn | null {

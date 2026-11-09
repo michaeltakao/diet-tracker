@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Upload, Camera, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { postJson } from '@/lib/httpClient';
+import { resizeImageFile } from '@/lib/image-resize';
 
 interface AnalysisResult {
   name: string;
@@ -53,12 +54,14 @@ export default function PhotoUpload({ onAnalysisComplete, mode = 'analyze-food',
     setResult(null);
     setLabelResult(null);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setPreview(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-  }, []);
+    // Downscale before preview/upload (ADR-008 P0-2): a full-size phone photo
+    // is several MB of base64.
+    try {
+      setPreview(await resizeImageFile(file));
+    } catch {
+      setError(t.photoReadFailed);
+    }
+  }, [t.photoReadFailed]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
