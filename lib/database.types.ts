@@ -194,6 +194,56 @@ export type Database = {
           },
         ]
       }
+      client_sync_health: {
+        Row: {
+          build_sha: string | null
+          dropped_count: number
+          failed_count: number
+          id: string
+          oldest_queued_at: string | null
+          queued_count: number
+          reported_at: string
+          study_build: boolean | null
+          superseded_count: number
+          synced_count: number
+          user_id: string
+        }
+        Insert: {
+          build_sha?: string | null
+          dropped_count?: number
+          failed_count?: number
+          id?: string
+          oldest_queued_at?: string | null
+          queued_count?: number
+          reported_at?: string
+          study_build?: boolean | null
+          superseded_count?: number
+          synced_count?: number
+          user_id: string
+        }
+        Update: {
+          build_sha?: string | null
+          dropped_count?: number
+          failed_count?: number
+          id?: string
+          oldest_queued_at?: string | null
+          queued_count?: number
+          reported_at?: string
+          study_build?: boolean | null
+          superseded_count?: number
+          synced_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_sync_health_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exercise_ranks: {
         Row: {
           achieved_at: string

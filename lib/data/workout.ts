@@ -17,7 +17,7 @@ import {
   getPersonalRecord  as _getPR,
 } from '@/lib/storage';
 import { getWriteContext } from './_write';
-import { writeStamped } from '@/lib/build-stamp';
+import { write as outboxWrite, type RowFor } from './outbox';
 import type { WorkoutEntry, PersonalRecord } from '@/lib/types';
 import type { MusclePartEnum, WorkoutCatEnum } from '@/lib/database.types';
 
@@ -52,17 +52,10 @@ export function getAllPersonalRecords(): Record<string, PersonalRecord> {
 
 // ── Write (localStorage + Supabase dual-write) ────────────────────────────────
 
-export async function addWorkoutEntry(entry: WorkoutEntry): Promise<void> {
-  // Step 1: localStorage
-  _add(entry);
-
-  // Step 2: Supabase
-  const ctx = await getWriteContext();
-  if (!ctx) return;
-
-  const { error } = await writeStamped((stamp) => ctx.supabase.from('workout_logs').upsert({
+/** Supabase row for a workout entry (user_id and build stamp added by the outbox). */
+export function workoutRow(entry: WorkoutEntry): RowFor<'workout_logs'> {
+  return {
     id:           entry.id,
-    user_id:      ctx.userId,
     logged_date:  entry.date,
     name:         entry.name,
     category:     entry.category as WorkoutCatEnum,
@@ -72,34 +65,23 @@ export async function addWorkoutEntry(entry: WorkoutEntry): Promise<void> {
     weight_kg:    entry.weight ?? null,
     duration_min: entry.duration ?? null,
     notes:        entry.notes ?? null,
-    // Anonymous literals get the implicit index signature the Json type needs.
     set_details:  entry.setDetails?.map((s) => ({ weight: s.weight, reps: s.reps })) ?? null,
     logged_at:    entry.addedAt,
-    ...stamp,
-  }, { onConflict: 'id' }));
+  };
+}
 
-  if (error) {
-    console.warn('[data/workout] Supabase addWorkoutEntry failed:', error.message);
-  }
+export async function addWorkoutEntry(entry: WorkoutEntry): Promise<void> {
+  // Step 1: localStorage
+  _add(entry);
+  // Step 2: outbox → Supabase (ADR-008 P0-6)
+  await outboxWrite({ kind: 'upsert', table: 'workout_logs', row: workoutRow(entry), onConflict: 'id' });
 }
 
 export async function removeWorkoutEntry(id: string): Promise<void> {
   // Step 1: localStorage
   _remove(id);
-
-  // Step 2: Supabase
-  const ctx = await getWriteContext();
-  if (!ctx) return;
-
-  const { error } = await ctx.supabase
-    .from('workout_logs')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', ctx.userId);
-
-  if (error) {
-    console.warn('[data/workout] Supabase removeWorkoutEntry failed:', error.message);
-  }
+  // Step 2: queued delete (cancels a still-queued upsert of the same row)
+  await outboxWrite({ kind: 'delete', table: 'workout_logs', id });
 }
 
 /**

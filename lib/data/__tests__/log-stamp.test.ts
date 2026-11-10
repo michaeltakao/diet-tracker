@@ -14,6 +14,11 @@ vi.mock('../_write', () => ({
           upserts.push({ table, row });
           return { error: null };
         },
+        // Weight's last-write-wins read (lib/data/outbox.ts): no server row yet.
+        select: () => {
+          const q = { eq: () => q, maybeSingle: async () => ({ data: null, error: null }) };
+          return q;
+        },
       }),
     },
   }),
