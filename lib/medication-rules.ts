@@ -250,12 +250,15 @@ export function getConditionRules(healthConditions: string[]): ConditionRule[] {
 
 /** Returns medication rules matching any of the user's medications. */
 export function getMedicationRules(medications: string[]): MedicationRule[] {
-  if (!medications.length) return [];
+  // Blank entries are ignored: '' is a substring of every keyword, so one
+  // empty medication used to match (and warn about) every rule.
+  const meds = medications.map(m => m.trim().toLowerCase()).filter(m => m.length > 0);
+  if (!meds.length) return [];
   return MEDICATION_RULES.filter(rule =>
     rule.keywords.some(kw =>
-      medications.some(med =>
-        med.toLowerCase().includes(kw.toLowerCase()) ||
-        kw.toLowerCase().includes(med.toLowerCase()),
+      meds.some(med =>
+        med.includes(kw.toLowerCase()) ||
+        kw.toLowerCase().includes(med),
       ),
     ),
   );
