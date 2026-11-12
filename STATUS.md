@@ -6,6 +6,11 @@ Keep this file under 200 lines: Now (latest 3) / Next / Blockers / Key
 decisions / Last verified (latest 2) — move older entries to the archive.
 
 ## Now
+- **2026-11-13 security: Next 16.3.8 → 16.4.1 merged** (PR #23, `main`
+  `20c1275`; GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr, GHSA-p3m5-59mp-jv5r).
+  Production `/` and `/login` return 200 after the deploy. `main` merged
+  into `feat/trial-data-notice` (`559e8f5`, PR #21) and from there into
+  `fix/study-p0` (PR #22) the same day.
 - **2026-11-12 ADR-008 P0 code complete** (`fix/study-p0`, draft PR #22,
   pushed): P0-2 `0f8fbe6`, P0-4 `cc1baa1`, P0-3 `d809549` + `5100946`
   (install banner also covered the FAB — found in the browser check), P0-8
@@ -21,9 +26,6 @@ decisions / Last verified (latest 2) — move older entries to the archive.
 - **2026-11-04 ADR-008 P0-9 / P0-10 / P0-11** (`fix/study-p0`): `026`
   `study_start_at` = day 0; study flag hides guest mode; `027` build stamp
   + `/api/build-info` + freeze script. Full entry in the archive (11-12).
-- **2026-10-29** Status review; ADR-008 P0 started (P0-1 JST dates `a6c43db`,
-  P0-5 `fa76cef`, P0-12 `ba225e9`, storage deep-copy `7209390`; draft PR
-  #21). Full entry in the archive (moved 11-12).
 
 ## Next
 - **ADR-008 P0: all done in code** (P0-13 = draft only). Before merging
