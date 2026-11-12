@@ -6,6 +6,7 @@ Keep this file under 200 lines: Now (latest 3) / Next / Blockers / Key
 decisions / Last verified (latest 2) — move older entries to the archive.
 
 ## Now
+- **2026-11-13 security: Next 16.3.8 → 16.4.1 merged** (PR #23, `main` `20c1275`; GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr, GHSA-p3m5-59mp-jv5r). Production `/` and `/login` return 200 after the deploy. `main` merged into this branch the same day.
 - **2026-10-14 Six-month study prep (branch `feat/trial-data-notice`, local
   commits only, not pushed):** the trial data is now meant for research
   (vault `ADR-007`, supersedes `ADR-006`; status *proposed* until the advisor
