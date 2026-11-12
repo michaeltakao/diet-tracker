@@ -48,4 +48,41 @@ describe('resizeImageFile', () => {
     expect(close).toHaveBeenCalled();
     expect(MAX_EDGE_PX).toBe(1280);
   });
+
+  /** Canvas + FileReader + <img> stubs; returns what each path produced. */
+  function stubBrowser(img: { naturalWidth: number; naturalHeight: number }) {
+    const drawImage = vi.fn();
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({ fillStyle: '', fillRect: vi.fn(), drawImage }),
+      toDataURL: vi.fn(() => 'data:image/jpeg;base64,RESIZED'),
+    };
+    vi.stubGlobal('document', { createElement: () => canvas });
+    vi.stubGlobal('URL', { createObjectURL: () => 'blob:x', revokeObjectURL: vi.fn() });
+    vi.stubGlobal('Image', class { src = ''; naturalWidth = img.naturalWidth; naturalHeight = img.naturalHeight; decode = async () => {}; });
+    vi.stubGlobal('FileReader', class {
+      result: string | null = null;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      readAsDataURL() { this.result = 'data:image/png;base64,ORIGINAL'; queueMicrotask(() => this.onload?.()); }
+    });
+    return { canvas, drawImage };
+  }
+
+  it('createImageBitmap rejecting falls back to <img> decode, still resized', async () => {
+    vi.stubGlobal('createImageBitmap', vi.fn(async () => { throw new TypeError('options not supported'); }));
+    const { canvas } = stubBrowser({ naturalWidth: 4000, naturalHeight: 3000 });
+    const out = await resizeImageFile(new Blob(['x']));
+    expect(out).toBe('data:image/jpeg;base64,RESIZED');
+    expect([canvas.width, canvas.height]).toEqual([1280, 960]);
+  });
+
+  it('no intrinsic size → original bytes, never the empty "data:,"', async () => {
+    vi.stubGlobal('createImageBitmap', undefined);
+    const { drawImage } = stubBrowser({ naturalWidth: 0, naturalHeight: 0 });
+    const out = await resizeImageFile(new Blob(['x']));
+    expect(out).toBe('data:image/png;base64,ORIGINAL');
+    expect(drawImage).not.toHaveBeenCalled();
+  });
 });

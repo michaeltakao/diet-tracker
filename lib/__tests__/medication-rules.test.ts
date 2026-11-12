@@ -22,6 +22,13 @@ describe('getMedicationRules', () => {
     expect(getMedicationRules(['  '])).toEqual([]);
     expect(names(['', 'ロキソニン'])).toHaveLength(1);
   });
+  it('1–2 character entries are not treated as partial names', () => {
+    expect(getMedicationRules(['in'])).toEqual([]);   // inside insulin / warfarin / …
+    expect(getMedicationRules(['a'])).toEqual([]);
+    expect(getMedicationRules(['ン'])).toEqual([]);
+    expect(names(['ARB'])).toHaveLength(1);           // exact short keyword still matches
+    expect(names(['ロキソ'])).toHaveLength(1);         // 3-char partial still matches
+  });
   it('several medications → each matching rule once', () => {
     const r = getMedicationRules(['ロキソニン', 'アスピリン', 'メトホルミン']);
     expect(r).toHaveLength(2);

@@ -43,9 +43,13 @@ function readAsDataUrl(file: Blob): Promise<string> {
 
 async function decode(file: Blob): Promise<{ source: CanvasImageSource; size: Size; close: () => void }> {
   if (typeof createImageBitmap === 'function') {
-    // imageOrientation 'from-image' applies EXIF rotation (phone portraits).
-    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-    return { source: bmp, size: { width: bmp.width, height: bmp.height }, close: () => bmp.close() };
+    try {
+      // imageOrientation 'from-image' applies EXIF rotation (phone portraits).
+      const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      return { source: bmp, size: { width: bmp.width, height: bmp.height }, close: () => bmp.close() };
+    } catch {
+      // Some engines reject the options object or the format: try <img>.
+    }
   }
   const url = URL.createObjectURL(file);
   try {
@@ -83,6 +87,8 @@ export async function resizeImageFile(
   }
   try {
     const target = fitWithin(decoded.size.width, decoded.size.height, maxEdge);
+    // No intrinsic size (e.g. some SVGs): a 0×0 canvas encodes as 'data:,'.
+    if (target.width === 0 || target.height === 0) return readAsDataUrl(file);
     const canvas = document.createElement('canvas');
     canvas.width = target.width;
     canvas.height = target.height;

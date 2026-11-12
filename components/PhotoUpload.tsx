@@ -48,18 +48,24 @@ export default function PhotoUpload({ onAnalysisComplete, mode = 'analyze-food',
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [labelResult, setLabelResult] = useState<LabelAnalysisResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /** Bumped per picked file: a slow resize of an earlier pick must not win. */
+  const pickSeq = useRef(0);
 
   const processFile = useCallback(async (file: File) => {
+    const seq = ++pickSeq.current;
     setError(null);
     setResult(null);
     setLabelResult(null);
+    // Clear the old preview so it cannot be analysed while this one resizes.
+    setPreview(null);
 
     // Downscale before preview/upload (ADR-008 P0-2): a full-size phone photo
     // is several MB of base64.
     try {
-      setPreview(await resizeImageFile(file));
+      const dataUrl = await resizeImageFile(file);
+      if (seq === pickSeq.current) setPreview(dataUrl);
     } catch {
-      setError(t.photoReadFailed);
+      if (seq === pickSeq.current) setError(t.photoReadFailed);
     }
   }, [t.photoReadFailed]);
 

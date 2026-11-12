@@ -248,6 +248,13 @@ export function getConditionRules(healthConditions: string[]): ConditionRule[] {
   return CONDITION_RULES.filter(r => healthConditions.includes(r.condition));
 }
 
+/**
+ * Shortest entry accepted as a partial name (entry inside a keyword, e.g.
+ * 'ワーファ' → ワーファリン). Shorter entries over-matched: 'in' is inside
+ * insulin, warfarin and atorvastatin. Exact and longer names still match.
+ */
+export const MIN_PARTIAL_MED_CHARS = 3;
+
 /** Returns medication rules matching any of the user's medications. */
 export function getMedicationRules(medications: string[]): MedicationRule[] {
   // Blank entries are ignored: '' is a substring of every keyword, so one
@@ -258,7 +265,7 @@ export function getMedicationRules(medications: string[]): MedicationRule[] {
     rule.keywords.some(kw =>
       meds.some(med =>
         med.includes(kw.toLowerCase()) ||
-        kw.toLowerCase().includes(med),
+        (med.length >= MIN_PARTIAL_MED_CHARS && kw.toLowerCase().includes(med)),
       ),
     ),
   );
