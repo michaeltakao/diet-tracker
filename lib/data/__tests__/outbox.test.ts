@@ -21,6 +21,10 @@ const server = {
   log: [] as string[],
   online: true,
   sessionUser: 'u1' as string | null,
+  /** getWriteContext() calls (each is a getUser() round-trip in the app). */
+  ctxCalls: 0,
+  /** While set, every upsert waits for this promise (a slow network). */
+  hold: null as Promise<void> | null,
 };
 
 function rows(t: string): Row[] {
@@ -46,6 +50,7 @@ const supabase = {
   from(t: string) {
     return {
       upsert: async (row: Row, opts: { onConflict: string }) => {
+        if (server.hold) await server.hold;
         const err = server.fail ?? server.failIds.get(String(row.id));
         if (err) return { error: err };
         const keys = opts.onConflict.split(',');
@@ -58,7 +63,8 @@ const supabase = {
       delete: () => query(t, (f) => {
         if (server.fail) return { error: server.fail };
         server.tables.set(t, rows(t).filter((r) => !match(r, f)));
-        server.log.push(`delete ${t} ${f.find(([c]) => c === 'id')?.[1]}`);
+        const by = f.find(([c]) => c === 'id') ?? f.find(([c]) => c === 'logged_date');
+        server.log.push(`delete ${t} ${by?.[1]}`);
         return { error: null };
       }),
       select: () => query(t, (f) => rows(t).filter((r) => match(r, f))),
@@ -78,8 +84,10 @@ const supabase = {
 
 vi.mock('../_write', () => ({
   // Offline: getUser() cannot reach the server → no write context.
-  getWriteContext: async () =>
-    server.online && server.sessionUser ? { userId: server.sessionUser, supabase } : null,
+  getWriteContext: async () => {
+    server.ctxCalls++;
+    return server.online && server.sessionUser ? { userId: server.sessionUser, supabase } : null;
+  },
 }));
 vi.mock('@/lib/supabase', () => ({
   isSupabaseConfigured: () => true,
@@ -87,9 +95,15 @@ vi.mock('@/lib/supabase', () => ({
 }));
 
 import {
-  write, flush, listQueued, getCounters, reportHealth, coalesceKey,
+  write as writeQueued, flush, idle, listQueued, getCounters, reportHealth, coalesceKey,
   isPermanentError, __resetOutboxForTests, type OutboxOp,
 } from '../outbox';
+
+/** write() returns once queued; most tests check the state after the send. */
+async function write(op: OutboxOp): Promise<void> {
+  await writeQueued(op);
+  await idle();
+}
 
 const NETWORK: Err = { message: 'TypeError: Failed to fetch', code: '' };
 
@@ -113,6 +127,8 @@ beforeEach(() => {
   server.log.length = 0;
   server.online = true;
   server.sessionUser = 'u1';
+  server.ctxCalls = 0;
+  server.hold = null;
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 afterEach(() => {
@@ -131,8 +147,14 @@ describe('coalesceKey / isPermanentError', () => {
   });
   it('classifies errors', () => {
     expect(isPermanentError({ code: '23502' })).toBe(true);   // not-null violation
-    expect(isPermanentError({ code: '42703' })).toBe(true);   // undefined column
-    expect(isPermanentError({ code: 'PGRST204' })).toBe(true);
+    expect(isPermanentError({ code: '22P02' })).toBe(true);   // invalid text representation
+    expect(isPermanentError({ code: '42501' })).toBe(true);   // RLS / privilege
+    expect(isPermanentError({ code: 'PGRST100' })).toBe(true); // bad request
+    // Schema not migrated yet: retry, never drop (review 11-12).
+    expect(isPermanentError({ code: '42703' })).toBe(false);  // undefined column
+    expect(isPermanentError({ code: '42P01' })).toBe(false);  // undefined table
+    expect(isPermanentError({ code: 'PGRST204' })).toBe(false);
+    expect(isPermanentError({ code: 'PGRST205' })).toBe(false);
     expect(isPermanentError({ code: 'PGRST301' })).toBe(false); // JWT expired
     expect(isPermanentError({ code: '' })).toBe(false);         // network
     expect(isPermanentError(null)).toBe(false);
@@ -285,6 +307,58 @@ describe('outbox', () => {
     expect(rows('food_logs')[0]).toMatchObject({ build_sha: 'sha-at-write', study_build: true });
   });
 
+  it('a weight delete removes the day’s server row even if it carries an older entry’s id', async () => {
+    // A synced, then (offline) B logged for the same day and deleted before
+    // B's upsert was ever sent: the server row still has id A.
+    await write(weight('A', 70.0, '2026-11-09T08:00:00.000Z'));
+    expect(rows('weight_logs').map((r) => r.id)).toEqual(['A']);
+    server.fail = NETWORK;
+    await write(weight('B', 71.0, '2026-11-09T09:00:00.000Z'));
+    await write({ kind: 'delete', table: 'weight_logs', id: 'B', loggedDate: '2026-11-09' });
+    server.fail = null;
+    await flush();
+    expect(rows('weight_logs')).toHaveLength(0);
+    expect(await listQueued()).toHaveLength(0);
+  });
+
+  it('a weight delete does not remove a newer row written by another device', async () => {
+    server.online = false; // queued, not sent
+    await write({ kind: 'delete', table: 'weight_logs', id: 'A', loggedDate: '2026-11-09' });
+    // Another device writes the day after the delete was queued.
+    rows('weight_logs').push({ id: 'C', user_id: 'u1', logged_date: '2026-11-09', weight_kg: 72, logged_at: '2999-01-01T00:00:00.000Z' });
+    server.online = true;
+    await flush();
+    expect(rows('weight_logs').map((r) => r.id)).toEqual(['C']);
+    expect((await getCounters()).superseded).toBe(1);
+  });
+
+  it('a schema error (migration not applied yet) keeps the item for retry', async () => {
+    server.fail = { code: 'PGRST204', message: "Could not find the 'macros_entered' column" };
+    await write(food('f1'));
+    expect(await listQueued()).toHaveLength(1);
+    expect((await getCounters()).dropped).toBe(0);
+    server.fail = null; // migration applied
+    await flush();
+    expect(rows('food_logs').map((r) => r.id)).toEqual(['f1']);
+  });
+
+  it('write() resolves once queued, without waiting for a slow send', async () => {
+    let release!: () => void;
+    server.hold = new Promise<void>((r) => { release = r; });
+    await writeQueued(food('f1'));
+    expect(await listQueued()).toHaveLength(1);   // stored before the send ends
+    expect(rows('food_logs')).toHaveLength(0);
+    release();
+    await idle();
+    expect(rows('food_logs')).toHaveLength(1);
+    expect(await listQueued()).toHaveLength(0);
+  });
+
+  it('one getWriteContext() (getUser) per online write', async () => {
+    await write(food('f1'));
+    expect(server.ctxCalls).toBe(1);
+  });
+
   it('concurrent flushes do not double-send', async () => {
     server.fail = NETWORK;
     await write(food('f1'));
@@ -334,9 +408,10 @@ describe('data-layer wiring (weight.ts / food.ts)', () => {
   it('removeWeightEntry finds the date so its delete replaces the queued upsert', async () => {
     stubStorage();
     const { addWeightEntry, removeWeightEntry } = await import('../weight');
-    server.fail = NETWORK;
+    server.online = false;
     await addWeightEntry({ id: 'w1', date: '2026-11-09', weight: 72.4, addedAt: '2026-11-09T00:00:00.000Z' });
     await removeWeightEntry('w1');
+    await idle();
     const q = await listQueued();
     expect(q).toHaveLength(1);
     expect(q[0].op).toMatchObject({ kind: 'delete', table: 'weight_logs', id: 'w1', loggedDate: '2026-11-09' });
@@ -349,6 +424,7 @@ describe('data-layer wiring (weight.ts / food.ts)', () => {
       id: 'f9', date: '2026-11-09', mealType: 'lunch', name: 'rice', calories: 250,
       protein: 4, fat: 0.5, carbs: 55, addedAt: '2026-11-09T03:00:00.000Z', servings: 1.5,
     });
+    await idle();
     expect(rows('food_logs')[0]).toMatchObject({
       id: 'f9', user_id: 'u1', logged_date: '2026-11-09', meal_type: 'lunch', calories: 250,
       protein_g: 4, fat_g: 0.5, carbs_g: 55, servings: 1.5, logged_at: '2026-11-09T03:00:00.000Z',

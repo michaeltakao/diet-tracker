@@ -22,10 +22,17 @@
  * - Last-write-wins across devices for weight: before sending an upsert, the
  *   existing row's logged_at is read; a newer server row wins and the queued
  *   item is dropped as superseded.
+ * - A weight delete is sent by (user_id, logged_date), not by id: the queued
+ *   upsert it replaced may never have reached the server, so the server row
+ *   for that day can still carry an older entry's id. Same last-write-wins
+ *   guard: a server row written after the delete was queued is kept.
+ * - write() resolves once the item is in IndexedDB; the send runs in the
+ *   background, so the UI never waits on the network.
  * - flush() is serialised (one promise chain per tab) and sends items in seq
- *   order. A transient error (network, auth refresh, 5xx) stops the flush and
- *   keeps the item; a permanent one (constraint / type / schema error) drops
- *   it so one bad row cannot block the queue — and is counted.
+ *   order. A transient error (network, auth refresh, 5xx, schema not yet
+ *   migrated) stops the flush and keeps the item; a permanent one (data /
+ *   constraint / privilege error) drops it so one bad row cannot block the
+ *   queue — and is counted.
  * - Counters (synced / failed attempts / dropped / superseded) are kept in
  *   IndexedDB and reported once per app open as one client_sync_health row
  *   (migration 028), so silent loss is visible per participant.
@@ -128,7 +135,10 @@ function openDb(): Promise<IDBDatabase> {
       resolve(db);
     };
     req.onerror = () => reject(req.error ?? new Error('IndexedDB open failed'));
-    req.onblocked = () => reject(new Error('IndexedDB open blocked'));
+    // Blocked = another tab holds an older version open. Not fatal: that tab
+    // closes on onversionchange and this open then succeeds. Rejecting here
+    // would orphan the connection the request still opens.
+    req.onblocked = () => console.warn('[outbox] IndexedDB open blocked by another tab; waiting');
   });
   dbPromise.catch(() => { dbPromise = null; });
   return dbPromise;
@@ -220,19 +230,45 @@ async function bumpCounters(delta: Partial<OutboxCounters>): Promise<void> {
 type SendResult = 'ok' | 'superseded' | { error: PostgrestError | Error; permanent: boolean };
 
 /**
- * Errors that will fail the same way on every retry: Postgres data /
- * integrity / syntax-or-schema classes (22, 23, 42) and PostgREST request
- * errors (PGRST1xx / PGRST2xx). JWT problems (PGRST3xx), network failures
- * (no code) and 5xx are transient.
+ * Errors that will fail the same way on every retry: Postgres data and
+ * integrity classes (22, 23), insufficient privilege / RLS (42501) and
+ * PostgREST request errors (PGRST1xx / PGRST2xx).
+ *
+ * Schema errors are NOT permanent: undefined column / table (42703, 42P01,
+ * other 42xxx) and PostgREST's schema-cache misses (PGRST204 column,
+ * PGRST205 table) are what a client deployed before its migration gets, and
+ * the same row succeeds once the migration is applied. Dropping them would
+ * lose study data silently; keeping them stalls the queue visibly
+ * (client_sync_health.queued_count / oldest_queued_at). JWT problems
+ * (PGRST3xx), network failures (no code) and 5xx are transient too.
  */
 export function isPermanentError(error: { code?: string | null } | null | undefined): boolean {
   const code = error?.code ?? '';
-  return /^(22|23|42)/.test(code) || /^PGRST[12]\d\d$/.test(code);
+  if (code === 'PGRST204' || code === 'PGRST205') return false;
+  return /^(22|23)/.test(code) || code === '42501' || /^PGRST[12]\d\d$/.test(code);
 }
 
 async function sendItem(ctx: WriteContext, item: OutboxItem): Promise<SendResult> {
   const { op, stamp } = item;
   try {
+    if (op.kind === 'delete' && op.table === 'weight_logs' && op.loggedDate) {
+      // By (user_id, logged_date): see the header. A row written after this
+      // delete was queued (another device) wins.
+      const { data, error: readError } = await ctx.supabase
+        .from('weight_logs')
+        .select('logged_at')
+        .eq('user_id', ctx.userId)
+        .eq('logged_date', op.loggedDate)
+        .maybeSingle();
+      if (readError) return { error: readError, permanent: isPermanentError(readError) };
+      const existing = (data as { logged_at?: string | null } | null)?.logged_at;
+      if (!data) return 'ok';
+      if (existing && Date.parse(existing) > Date.parse(item.queuedAt)) return 'superseded';
+      const { error } = await ctx.supabase
+        .from('weight_logs').delete().eq('user_id', ctx.userId).eq('logged_date', op.loggedDate);
+      return error ? { error, permanent: isPermanentError(error) } : 'ok';
+    }
+
     if (op.kind === 'delete') {
       const { error } = await ctx.supabase.from(op.table).delete().eq('id', op.id).eq('user_id', ctx.userId);
       return error ? { error, permanent: isPermanentError(error) } : 'ok';
@@ -279,18 +315,24 @@ export interface FlushResult {
  * calls queue behind each other within a tab, and across tabs through a Web
  * Lock where the browser has them. Never throws.
  */
-export function flush(): Promise<FlushResult> {
-  flushChain = flushChain.then(flushLocked, flushLocked);
+export function flush(ctx?: WriteContext): Promise<FlushResult> {
+  const run = () => flushLocked(ctx);
+  flushChain = flushChain.then(run, run);
   return flushChain;
 }
 
-async function flushLocked(): Promise<FlushResult> {
+/** Resolves when every flush started so far has finished (tests, page exit). */
+export function idle(): Promise<FlushResult> {
+  return flushChain;
+}
+
+async function flushLocked(ctx?: WriteContext): Promise<FlushResult> {
   const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
-  if (!locks) return flushOnce();
+  if (!locks) return flushOnce(ctx);
   try {
-    return await locks.request('dt-outbox-flush', () => flushOnce());
+    return await locks.request('dt-outbox-flush', () => flushOnce(ctx));
   } catch {
-    return flushOnce(); // lock manager unavailable (e.g. opaque origin)
+    return flushOnce(ctx); // lock manager unavailable (e.g. opaque origin)
   }
 }
 
@@ -300,10 +342,11 @@ async function stillQueued(seq: number): Promise<boolean> {
   return (await reqP(tx.objectStore(ITEMS).count(seq))) > 0;
 }
 
-async function flushOnce(): Promise<FlushResult> {
+/** `given`: a context write() already validated, saving a getUser() round-trip. */
+async function flushOnce(given?: WriteContext): Promise<FlushResult> {
   try {
     if (!idb()) return { sent: 0, remaining: 0 };
-    const ctx = await getWriteContext();
+    const ctx = given ?? await getWriteContext();
     if (!ctx) return { sent: 0, remaining: (await listQueued()).length };
     const items = await listQueued(ctx.userId);
     let sent = 0;
@@ -341,14 +384,12 @@ async function flushOnce(): Promise<FlushResult> {
 // ── Public write entry point ─────────────────────────────────────────────────
 
 /**
- * User id for queueing. getWriteContext() validates the session with the
- * server (getUser), which fails offline — exactly when queueing matters. So
- * fall back to the locally stored session; flush() only sends items whose
- * userId matches the server-validated user, and RLS enforces it again.
+ * Locally stored session's user id. getWriteContext() validates the session
+ * with the server (getUser), which fails offline — exactly when queueing
+ * matters. flush() only sends items whose userId matches the
+ * server-validated user, and RLS enforces it again.
  */
-async function queueUserId(): Promise<string | null> {
-  const ctx = await getWriteContext();
-  if (ctx) return ctx.userId;
+async function storedSessionUserId(): Promise<string | null> {
   if (!isSupabaseConfigured()) return null;
   try {
     const { data } = await createClient().auth.getSession();
@@ -359,11 +400,14 @@ async function queueUserId(): Promise<string | null> {
 }
 
 /**
- * Queue one analysed write and try to send it. Resolves once the send
- * attempt is over (callers already treat these writes as fire-and-forget).
+ * Queue one analysed write and start sending it in the background.
+ * Resolves once the item is stored in IndexedDB — not after the send — so
+ * a slow or offline network never holds up the UI. One getUser() per write:
+ * the validated context is handed to the flush.
  */
 export async function write(op: OutboxOp): Promise<void> {
-  const userId = await queueUserId();
+  const ctx = await getWriteContext();
+  const userId = ctx?.userId ?? await storedSessionUserId();
   if (!userId) return; // guest: local-only by design
 
   const item: Omit<OutboxItem, 'seq'> = {
@@ -380,15 +424,15 @@ export async function write(op: OutboxOp): Promise<void> {
   } catch (e) {
     // No IndexedDB: old behaviour (direct send, loss only logged).
     console.warn('[outbox] IndexedDB unavailable, sending directly:', e);
-    const ctx = await getWriteContext();
     if (!ctx) return;
-    const res = await sendItem(ctx, { ...item, seq: -1 });
-    if (res !== 'ok' && res !== 'superseded') {
-      console.warn('[outbox] direct write failed:', op.table, res.error.message);
-    }
+    void sendItem(ctx, { ...item, seq: -1 }).then((res) => {
+      if (res !== 'ok' && res !== 'superseded') {
+        console.warn('[outbox] direct write failed:', op.table, res.error.message);
+      }
+    });
     return;
   }
-  await flush();
+  void flush(ctx ?? undefined);
 }
 
 // ── Health report (migration 028) ────────────────────────────────────────────

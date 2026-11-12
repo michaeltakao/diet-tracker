@@ -61,7 +61,8 @@ export async function addWeightEntry(entry: WeightEntry): Promise<void> {
 }
 
 export async function removeWeightEntry(id: string): Promise<void> {
-  // The date lets the queued delete replace a still-queued upsert of that day.
+  // The date lets the queued delete replace a still-queued upsert of that day,
+  // and the outbox deletes the server row by (user_id, logged_date).
   const loggedDate = _getAll().weightEntries.find((e) => e.id === id)?.date;
   // Step 1: localStorage
   _remove(id);
