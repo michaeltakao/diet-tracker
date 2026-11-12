@@ -22,6 +22,7 @@
 
 import { getAppData } from '@/lib/storage';
 import { createClient } from '@/lib/supabase';
+import { toGoalColumns } from '@/lib/data/goal-history';
 import type {
   FoodLogInsert,
   WorkoutLogInsert,
@@ -701,16 +702,7 @@ export async function executeMigration(
     if (goals) {
       const { error } = await supabase
         .from('profiles')
-        .update({
-          goal_calories:  Math.max(1, Math.round(Number(goals.calories) || 2000)),
-          goal_protein_g: Math.max(0, Number(Number(goals.protein || 150).toFixed(1))),
-          goal_fat_g:     Math.max(0, Number(Number(goals.fat     || 60 ).toFixed(1))),
-          goal_carbs_g:   Math.max(0, Number(Number(goals.carbs   || 200).toFixed(1))),
-          goal_water_ml:  Math.max(1, Math.round(Number(goals.water || 2000))),
-          goal_weight_kg: goals.goalWeight != null
-            ? Math.max(0, Number(Number(goals.goalWeight).toFixed(1)))
-            : null,
-        })
+        .update(toGoalColumns(goals))
         .eq('id', userId);
       if (error) {
         console.warn('[MIGRATION_ERROR] goals update failed:', error.message);

@@ -14,7 +14,7 @@
  */
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type, type Schema } from '@google/genai';
-import { generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
+import { aiQuotaResponse, generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
@@ -348,6 +348,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (err) {
     // Generic message only — never echo raw model output or error internals.
     console.error('[SUGGEST_WORKOUT_ERROR]', err);
+    const quota = aiQuotaResponse(err);
+    if (quota) return quota;
     return NextResponse.json({ error: 'Suggestion request failed. Please try again.' }, { status: 500 });
   }
 }

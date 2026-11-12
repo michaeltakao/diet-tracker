@@ -5,11 +5,12 @@
  * are deterministic. Assignment itself is a coin flip — no stratification,
  * no balancing — the roadmap explicitly scopes bucket-balance verification
  * to manual SQL for this round (see supabase/migrations/019_sus_responses.sql
- * comment + app/api/consent/route.ts).
+ * comment).
  *
- * Cohort is assigned once, at first consent, and never re-assigned
- * (app/api/consent/route.ts's existing 409-on-already-consented path already
- * makes consent idempotent; cohort assignment piggybacks on that guarantee).
+ * NOT CALLED since 2026-10-14: the only caller was POST /api/consent, removed
+ * with the in-app consent screen (vault ADR-007). profiles.study_cohort stays
+ * NULL for users who join after that date; the 6-month study has no arms.
+ * Kept (with its tests) for a later controlled study.
  *
  * Behavioral branching on the assigned cohort (e.g. XAI why-badges for
  * xai_treatment) is explicitly OUT of scope for this round — this module

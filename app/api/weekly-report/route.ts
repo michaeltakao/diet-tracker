@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type, type Schema } from '@google/genai';
-import { generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
+import {
+  AI_QUOTA_MESSAGE, aiQuotaResponse, isQuotaError, generateWithRetry, jsonConfig, parseGeminiJson,
+} from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildHealthContextPrompt } from '@/lib/medication-rules';
@@ -140,6 +142,13 @@ ${weightChange != null
       },
     ]);
 
+    // runParallelAgents reports failures in the result instead of throwing,
+    // so the catch block below never sees them. If every specialist was
+    // refused for quota, stop here rather than build a report from nothing.
+    if (agentResults.every(r => r.error) && agentResults.some(r => isQuotaError(r.error))) {
+      return NextResponse.json({ error: AI_QUOTA_MESSAGE }, { status: 429 });
+    }
+
     const resultMap = Object.fromEntries(agentResults.map(r => [r.id, r.text]));
 
     // Orchestrator: combine specialist outputs into final JSON
@@ -204,6 +213,8 @@ ${resultMap['goal'] ?? '（提案なし）'}
   } catch (error) {
     // Generic message only — never echo raw model output or error internals.
     console.error('[WEEKLY_REPORT_ERROR]', error);
+    const quota = aiQuotaResponse(error);
+    if (quota) return quota;
     return NextResponse.json({ error: 'Weekly report failed. Please try again.' }, { status: 500 });
   }
 }

@@ -17,7 +17,7 @@
  *
  * 'use client' (not a server component) because copy goes through
  * useLanguage(), which is a localStorage-backed client context — the same
- * reason /login, /consent, and /onboarding are all client components.
+ * reason /login and /onboarding are all client components.
  */
 
 import Link from 'next/link';

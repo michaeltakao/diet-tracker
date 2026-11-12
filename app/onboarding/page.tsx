@@ -32,6 +32,7 @@ import {
   addWeightEntry,
   getGoals,
   updateGoals,
+  recordGoalSnapshot,
 } from '@/lib/data';
 import {
   completeOnboarding,
@@ -213,7 +214,7 @@ export default function OnboardingPage() {
       activityLevel: 'moderately_active',
     });
     if (goals) {
-      updateGoals({ ...goals, goalWeight: getGoals().goalWeight });
+      updateGoals({ ...goals, goalWeight: getGoals().goalWeight }, confirmed ? 'nutrition' : 'none');
       const proteinRdaOnly = recommendedGoals(
         { age, sex: sexValue, activityLevel: 'moderately_active' }, null,
       );
@@ -239,6 +240,13 @@ export default function OnboardingPage() {
       defaultedSteps: finalDefaulted,
     };
     completeOnboarding(answers);
+    // Study baseline (goal_history): only a purpose the user actually chose,
+    // and nutrition targets only when they come from confirmed body data —
+    // a skipped step must not be recorded as the participant's starting goal.
+    void recordGoalSnapshot(
+      finalDefaulted.includes('goal') ? null : goal,
+      goals && confirmed ? { ...goals, goalWeight: getGoals().goalWeight } : null,
+    );
     setStepIdx(STEPS.length); // result screen
   };
 

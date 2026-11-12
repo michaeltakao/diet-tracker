@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type, type Schema } from '@google/genai';
-import { generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
+import { aiQuotaResponse, generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
@@ -164,6 +164,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (error) {
     // Generic message only — never echo raw model output or error internals.
     console.error('Error generating nutritionist suggestions:', error);
+    const quota = aiQuotaResponse(error);
+    if (quota) return quota;
     return NextResponse.json(
       { error: 'Suggestion generation failed. Please try again.' },
       { status: 500 }

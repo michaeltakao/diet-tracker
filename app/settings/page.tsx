@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Save, Check, Upload, Trash2, Database, FileJson, FileSpreadsheet, User, Pill, Plus, X, Sparkles } from 'lucide-react';
-import { getAppData, updateGoals, getHealthProfile, updateHealthProfile, getLatestWeightEntry, getStreakState } from '@/lib/data';
+import { getAppData, updateGoals, recordGoalSnapshot, isPurposeChosen, markPurposeChosen, getHealthProfile, updateHealthProfile, getLatestWeightEntry, getStreakState } from '@/lib/data';
 import { getEarnedTitleKeys } from '@/lib/data/titles';
 import { evaluateTitles, awardTitle, type TitleKey } from '@/lib/titles';
 import TitleDisplay from '@/components/TitleDisplay';
@@ -95,6 +95,7 @@ export default function SettingsPage() {
   });
   const [medInput, setMedInput] = useState('');
   const [textScale, setTextScaleState] = useState<TextScale>('standard');
+  const [purposeTouched, setPurposeTouched] = useState(false);
   const [easyMode, setEasyModeState] = useState(false);
   const [earnedTitles, setEarnedTitles] = useState<Set<TitleKey>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -173,6 +174,10 @@ export default function SettingsPage() {
     };
     updateGoals(goals);
     updateHealthProfile(healthProfile);
+    // goal_history: the purpose counts only if the user actively chose it —
+    // the stored default ('maintenance') is not a choice.
+    if (purposeTouched) markPurposeChosen();
+    void recordGoalSnapshot(isPurposeChosen() ? healthProfile.fitnessGoal : null, goals);
     setSaved(true);
     setTimeout(() => setSaved(false), 2400);
   };
@@ -591,7 +596,7 @@ export default function SettingsPage() {
             {getFitnessGoals(t).map(({ value, label, icon }) => (
               <button
                 key={value}
-                onClick={() => { setHealthProfile(prev => ({ ...prev, fitnessGoal: value })); setSaved(false); }}
+                onClick={() => { setHealthProfile(prev => ({ ...prev, fitnessGoal: value })); setPurposeTouched(true); setSaved(false); }}
                 className={`
                   py-2.5 rounded-2xl text-xs font-bold
                   flex flex-col items-center gap-1

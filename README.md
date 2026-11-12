@@ -26,17 +26,18 @@ Three paths, chosen on `/login`:
 - **Magic link (email)** — passwordless; no password-based signup exists in
   this app.
 - **Guest mode** — no signup, no server account. Data stays in
-  `localStorage` on-device only. Default path for anyone who declines
-  research participation or is under 18 (see Consent below).
+  `localStorage` on-device only. Not part of the study (see Consent below).
 
 ## Research Consent
 
-This app doubles as a research-participation vehicle. Adults (18+) who sign
-in are shown `/consent` and must explicitly attest their age and agree
-before any personal data is collected server-side (`app/api/consent/route.ts`
-enforces this server-side, not just in the UI). Users under 18, or anyone who
-declines, are steered to guest mode, where nothing leaves the device. See
-`ADR-004` in the research vault for the full design rationale.
+Study consent is a signed paper form (`docs/trial/data-use-agreement-ja.md`);
+the app has no consent screen. `profiles.consented_at` is set by the
+researcher after checking the form (`docs/trial/consent-roster.sql`) and
+cannot be changed by the user once migration 025 is applied. Signing in does
+not imply consent: analysis (`docs/trial/cohort-queries.sql`) and research
+export read only accounts with `consented_at` set. There is no age gate in
+code — under-18 participation needs a guardian signature on the form. See
+`ADR-007` in the research vault.
 
 ## Setup
 
@@ -116,5 +117,5 @@ npx vitest run   # unit tests
 - **Goals Settings** — configurable daily calorie and macro targets
 - **Web Push** — daily reminders via a service worker + VAPID, sent by a
   Vercel Cron job
-- **Research tools** — consent flow, CSV/JSON data export, self-delete
+- **Research tools** — CSV/JSON data export, self-delete (consent is a paper form)
   (APPI-style right to erasure)

@@ -1059,3 +1059,59 @@ anyway since it was cheap alongside the lipid/HbA1c work).
   (`chkkpucuiyjdeqgyyszt`) and verified; `database.types.ts` regenerated.
 - 2026-06-11: trivy (lockfile) clean · gitleaks history scan: 9 findings, all triaged
   false positives.
+
+## Moved from STATUS.md Now on 2026-10-14
+- **2026-09-18 Engine wired into session-start (`203ef69`):** `SessionStart`
+  posts to `/api/generate-workout` instead of the plain-LLM
+  `/api/suggest-workout`, so the deterministic engine picks exercises/sets/reps
+  and the LLM only narrates. Flow chips became engine inputs (`sorenessAreas`,
+  `energyLevel`) alongside 14 days of logged workouts as per-muscle recovery
+  data; exercise swap re-runs the engine client-side (zero LLM calls). Same
+  round: `researcher_access_log` write failures are now logged instead of
+  swallowed (`4f18a02`).
+
+## Moved from STATUS.md on 2026-10-14 (Last verified state)
+
+- 2026-07-17 (council fixes): `npm run lint` clean, `npx vitest run`
+  **252/252** (+22), `npm run build` green. Dev :3199 anon probes → 401 both
+  routes; served /sw.js contains the same-origin guard. NOT empirically
+  exercised: the sent===0 rollback (needs live Supabase + forced send
+  failure — same [🔒user] VAPID/auth blocker).
+
+## Moved from STATUS.md on 2026-10-14 (Now)
+
+- **2026-10-02 Swap fix:** the session-start swap control toggled between two
+  exercises (memoryless "first alternative not in plan"). Now `alternativesFor()`
+  returns the full same-part pool and `nextSwapCandidate()` remembers swapped-out
+  ids (wraps after a full cycle); the button disables when nothing is left.
+  Verified: vitest 572/572, lint 0 errors (3 pre-existing warnings), build exit 0;
+  regression test fails (2 distinct vs 6) with the memory removed. Pushed
+  (`7785f98`, `main` = `origin/main` as of 10-13).
+
+- **2026-10-13 CI, security and housekeeping round — merged + deployed
+  (`main` `448aa58`):**
+  - PR #14: `ci.yml` gains a 4th job (`test` → `npm test`); CI had run only
+    typecheck / build / lint, so vitest did not gate `main`. `STATUS.md`
+    trimmed 1094 → under 200 lines, the rest moved verbatim to the archive.
+  - PR #15: `next` + `eslint-config-next` 16.2.6 → **16.3.8**, `vitest` +
+    `@vitest/coverage-v8` → 4.1.11, `npm audit fix` (no `--force`). `npm
+    audit` had been red on `main` since at least 09-28 with 18 findings
+    (1 critical, 12 high); the critical was `next` itself, incl. proxy bypass
+    under Turbopack (GHSA-6gpp-xcg3-4w24) and RCE in `next/og` /
+    Image Optimization (GHSA-vcvr-r3jv-pc5j, GHSA-2xp9-vwfh-vxw4).
+    Exploitability on this deployment was not tested. Production deps now
+    audit clean.
+  - PR #16: `proxy.ts` matcher excludes `/icon` and `/apple-icon` — both are
+    extension-less, so anonymous visitors got 307 → `/login` instead of the
+    image linked from every page's `<head>`.
+  - PR #18: `runtime = 'edge'` removed from `app/icon.tsx` /
+    `app/apple-icon.tsx` (deprecated in 16.3; both now prerender statically);
+    `lib/__tests__/proxy-matcher.test.ts` pins the matcher (24 cases, via
+    Next's `unstable_doesMiddlewareMatch` — experimental API).
+  - PR #19: `security.yml`'s grep-based secret check was a silent no-op
+    (`fatal: bad revision 'origin/main...HEAD'` on a shallow checkout,
+    swallowed by `|| true`). Replaced by a `gitleaks` 8.30.1 job on the PR
+    commit range: binary verified by sha256, config read from the base commit.
+  - Closed stale PRs #3 (0 commits missing from `main`), #6 (2), #7 (4 own),
+    #8 (3 own) — branches kept; whether the unmerged work was re-implemented
+    on `main` later was not checked.

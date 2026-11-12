@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Type } from '@google/genai';
-import { withRetry, jsonConfig, parseGeminiJson, GeminiParseError } from '../gemini';
+import {
+  withRetry, jsonConfig, parseGeminiJson, GeminiParseError,
+  isQuotaError, aiQuotaResponse, AI_QUOTA_MESSAGE,
+} from '../gemini';
 
 const transient = (status: number, msg = 'UNAVAILABLE') =>
   Object.assign(new Error(msg), { status });
@@ -73,5 +76,29 @@ describe('jsonConfig', () => {
       responseMimeType: 'application/json',
       responseSchema: schema,
     });
+  });
+});
+
+describe('quota errors (free-tier limit reached)', () => {
+  it('recognises a 429 by status and by message', () => {
+    expect(isQuotaError(Object.assign(new Error('x'), { status: 429 }))).toBe(true);
+    expect(isQuotaError(new Error('{"error":{"code":429,"status":"RESOURCE_EXHAUSTED"}}'))).toBe(true);
+  });
+
+  it('does not treat overload or bad requests as quota errors', () => {
+    expect(isQuotaError(Object.assign(new Error('UNAVAILABLE'), { status: 503 }))).toBe(false);
+    expect(isQuotaError(Object.assign(new Error('bad request'), { status: 400 }))).toBe(false);
+    expect(isQuotaError(new GeminiParseError('not json'))).toBe(false);
+  });
+
+  it('answers a quota error with 429 and the user-facing message', async () => {
+    const res = aiQuotaResponse(Object.assign(new Error('quota'), { status: 429 }));
+    expect(res?.status).toBe(429);
+    expect(res?.headers.get('Retry-After')).toBeNull();
+    expect(await res?.json()).toEqual({ error: AI_QUOTA_MESSAGE });
+  });
+
+  it('returns null for other errors so the route keeps its generic 500', () => {
+    expect(aiQuotaResponse(new Error('boom'))).toBeNull();
   });
 });

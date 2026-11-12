@@ -8,6 +8,7 @@
  * are re-thrown immediately so they surface fast.
  */
 
+import { NextResponse } from 'next/server';
 import type { GoogleGenAI, Schema } from '@google/genai';
 
 type GenerateRequest = Parameters<GoogleGenAI['models']['generateContent']>[0];
@@ -27,6 +28,37 @@ function isTransient(err: unknown): boolean {
   }
   const msg = (err instanceof Error ? err.message : String(err)).toUpperCase();
   return /UNAVAILABLE|OVERLOAD|HIGH DEMAND|RESOURCE_EXHAUSTED|INTERNAL|\b50\d\b|\b429\b/.test(msg);
+}
+
+/** True when Gemini refused the call for quota / rate reasons (HTTP 429). */
+export function isQuotaError(err: unknown): boolean {
+  if ((err as { status?: number })?.status === 429) return true;
+  const msg = (err instanceof Error ? err.message : String(err)).toUpperCase();
+  return /RESOURCE_EXHAUSTED|\b429\b/.test(msg);
+}
+
+/**
+ * Shown to the user as-is (clients display the `error` string). Bilingual
+ * because route handlers do not know the UI language. The free tier's limits
+ * are shared by every user of the key, so this is an expected state during
+ * the study, not a fault — a generic "failed, try again" would invite retries
+ * that cannot succeed.
+ */
+export const AI_QUOTA_MESSAGE =
+  'AI機能が混み合っているか、本日の利用上限に達しました。時間をおいて(上限の場合は明日)もう一度お試しください。記録はAIなしでも続けられます。 / '
+  + 'The AI features are busy or have reached today\'s limit. Please try again later (tomorrow if the daily limit was hit). You can keep logging without AI.';
+
+/**
+ * 429 response for a Gemini quota error, or null for any other error (the
+ * caller then returns its own generic 500). Call from an AI route's catch
+ * block, after withRetry has already given up.
+ *
+ * No Retry-After header: a per-minute throttle and an exhausted daily quota
+ * arrive as the same 429, so any fixed value would be wrong for one of them.
+ */
+export function aiQuotaResponse(err: unknown): NextResponse | null {
+  if (!isQuotaError(err)) return null;
+  return NextResponse.json({ error: AI_QUOTA_MESSAGE }, { status: 429 });
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
