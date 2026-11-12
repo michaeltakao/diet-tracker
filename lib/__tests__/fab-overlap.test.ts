@@ -54,3 +54,23 @@ describe('feedback button vs dashboard FAB (390×844)', () => {
     expect(intersects(fab, feedback)).toBe(false);
   });
 });
+
+describe('PWA install banner vs FAB + feedback button (390×844)', () => {
+  // The banner spans the full width (left-4 right-4) and its height depends
+  // on its text, so the only safe placement is entirely above the stack:
+  // its bottom edge must sit higher than both buttons' top edges.
+  const banner = classBlock('components/PwaInstallBanner.tsx', /aria-label="ホーム画面に追加"\s*className="\s*(fixed[^"]+)"/);
+  const mobileBottomPx = (classes: string): number => {
+    const t = classes.split(/\s+/).find((x) => x.startsWith('bottom-'));
+    if (!t) throw new Error(`no mobile bottom- class: ${classes}`);
+    return Number(t.slice('bottom-'.length)) * 4;
+  };
+  const fab = mobileBox(classBlock('app/dashboard/page.tsx', /href="\/add"\s*className="\s*(fixed[^"]+)"/));
+  const feedback = mobileBox(classBlock('components/FeedbackButton.tsx', /className="\s*(fixed[^"]+)"/));
+
+  it('banner bottom edge is above both buttons', () => {
+    const bannerBottom = VH - mobileBottomPx(banner);
+    expect(bannerBottom).toBeLessThanOrEqual(fab.top);
+    expect(bannerBottom).toBeLessThanOrEqual(feedback.top);
+  });
+});

@@ -83,12 +83,15 @@ export default function PwaInstallBanner() {
 
   return (
     <>
-      {/* Main banner */}
+      {/* Main banner. ADR-008 P0-3: on mobile it sits above the dashboard
+          FAB (bottom-20) and the feedback button (bottom-36, 48 px → top
+          edge at 192 px); at bottom-20 it covered the FAB, so "add a meal"
+          could not be tapped until the banner was dismissed. */}
       <div
         role="dialog"
         aria-label="ホーム画面に追加"
         className="
-          fixed bottom-20 left-4 right-4 z-40 max-w-md mx-auto
+          fixed bottom-52 lg:bottom-20 left-4 right-4 z-40 max-w-md mx-auto
           bg-card/90
           backdrop-blur-md
           border border-line
