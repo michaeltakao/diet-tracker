@@ -3,13 +3,13 @@
 vault ADR-008「Analysis-plan items」: 配布(URL を渡す)前に、分析に使う
 クエリをコミットハッシュで固定し、日付を残す。結果を見てから定義を変えない。
 
-## 現在の候補(2026-11-10 記録 — まだ固定していない)
+## 現在の候補(2026-11-12 記録 — まだ固定していない)
 
 | 対象 | 値 |
 |---|---|
 | ファイル | `docs/trial/cohort-queries.sql` |
-| 最後に変更したコミット | `dd63cdc17c0eaf89f29019f71afd252572285e12`(2026-11-04、ADR-008 P0-9: day 0 = `study_start_at`) |
-| ファイルの git blob | `6a1acf750c3efab28f93eb7ab31a6a9e7e0e2248` |
+| 最後に変更したコミット | `b9470ac8391e3200e9abdedf531a93548ec75dbf`(2026-11-12、W6 送信状況 + 時刻帯・送信状況のルール) |
+| ファイルの git blob | `9dff1e283d209d19e08fb41ea9f2b64c1bb1faac` |
 | 補足資料 | `docs/trial/data-dictionary.md`(列の出所・タイムゾーン・欠測の表し方、クリーニング規則) |
 
 確認方法: `git rev-parse <固定コミット>:docs/trial/cohort-queries.sql` が上の
@@ -21,9 +21,18 @@ blob と一致すれば、クエリは 1 文字も変わっていない。
 - P/F/C を任意にするか(P1、Q1)。任意にするなら migration 029
   (`supabase/drafts/029_food_macros_entered.sql`)を入れ、食事の分析で
   `macros_entered = false` の行の P/F/C を欠測として扱う文をクエリに足してから固定する。
-- 時刻帯のルール: 国外で記録した参加者を除くか(端末のタイムゾーンは記録していない)。
-- `client_sync_health`(migration 028)の扱い: `dropped_count > 0` の参加者を
-  どう報告するか。
+
+## 決まったこと(2026-11-12)
+
+文面は `cohort-queries.sql` の冒頭と `data-dictionary.md` にある。
+
+- **時刻帯のルール**: 日付はすべて JST。端末のタイムゾーンは記録していないので、データからは
+  誰も除かない。国外に出た期間は参加者に申告してもらい、主分析はそのまま出し、申告された日を
+  除いた感度分析を並べて報告する。
+- **`client_sync_health`(migration 028)の扱い**: W6 で `incomplete = true` の参加者
+  (`dropped > 0`、または最新の報告で未送信が残っている)も主分析に入れる。その人の記録のない日は
+  「未使用」ではなく「不明」と書く。該当人数を報告し、その人を除いた感度分析を並べて報告する。
+  報告が 1 行もない参加者の人数は別に書く。
 
 ## 固定するときの手順
 

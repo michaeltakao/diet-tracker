@@ -1200,3 +1200,28 @@ anyway since it was cheap alongside the lipid/HbA1c work).
   `ba225e9` **P0-12** (目標体重 stepper, stored only when set; scope
   `'weight'`). Browser-verified at a pinned 01:11 JST — results in
   `~/大学院/研究室/app-analysis-2026-10/remeasure-2026-10-30/`.
+
+## Last verified — moved from STATUS.md 2026-11-12
+- 2026-11-04: `fix/study-p0` (P0-9/10/11) — lint 0 errors (3 pre-existing
+  warnings), `tsc` 0, vitest **666/666** (58 files). Study build: `next build`
+  OK; production without the flag → build error; headless Chrome: no guest
+  links on `/` `/login` (normal build shows them); `/api/build-info` returns
+  the sha. Freeze script vs stub: exit codes 0/1/1/2/2/2 as specified. pglite
+  001–027, 6 synthetic users: own `study_start_at` change denied; carry-over
+  w0 = 78 (not trial 80), trial goal weight kept; pre-day-0 rows excluded;
+  unset day 0 flagged by R3/W5; 14/14 queries run. `/code-review medium` 9
+  findings (6 fixed, 3 deferred); `/sec` OK. NOT verified: authed flows /
+  real Supabase writes, 026/027 on prod, Vercel settings.
+
+## Now — moved from STATUS.md 2026-11-12
+- **2026-11-04 ADR-008 P0-9 / P0-10 / P0-11** (`fix/study-p0`, draft PR #22).
+  **P0-9**: migration `026` adds `profiles.study_start_at` (researcher-only,
+  frozen like `consented_at`); `cohort-queries.sql` day 0 = its JST date,
+  participants need both columns, purpose / goal weight = value in effect
+  at day 0; `consent-roster.sql` R2 sets both (R2b moves day 0). **P0-10**:
+  `NEXT_PUBLIC_STUDY_BUILD=1` hides the guest links and `proxy.ts` ignores
+  `dt-guest`. **P0-11**: migration `027` stamps food/weight/workout rows
+  with `build_sha` + `study_build` (unstamped retry if 027 is missing);
+  `/api/build-info`; `scripts/check-study-freeze.mjs` + weekly procedure
+  `docs/trial/freeze-check.md`; Vercel production build fails without the
+  flag. **026 / 027 not applied to prod.**

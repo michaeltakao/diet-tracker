@@ -15,11 +15,22 @@
    `git branch study study-v1 && git push origin study`（Production Branch = `study`）。
    調査期間中は `study` に push しない。`main` への push はプレビューになるだけで、本番は変わらない。
    切り替えたあとに走る `study` の本番デプロイの sha が `study-v1` と同じことを、下の「毎週」で確かめる。
-4. 本番に Supabase の migration 026・027 が適用済みであることを確かめる
-   （027 が無いと刻印なしで書き込まれる。`lib/build-stamp.ts`）。
+4. 本番に Supabase の migration 025〜028 が適用済みであることを確かめる
+   （027 が無いと刻印なしで書き込まれる。`lib/build-stamp.ts`。028 が無いと送信状況の報告が
+   届かない。`lib/data/outbox.ts`）。
+   2026-11-12 時点: **027・028 は適用済み。025・026 は未適用** — `main` の同意画面
+   （`app/api/consent/route.ts`）が利用者の権限で `consented_at` を書くので、025 を先に入れると
+   本番で同意が 500 になり、誰もアプリに入れなくなる。同意画面をなくす PR #21 を本番に出した
+   **直後に** 025 → 026 の順で入れる。
 5. 下の「毎週」を 1 回実行し、最初の行として記録する。Vercel の deployment id も書く。
 
 ## 毎週
+
+GitHub Actions の `.github/workflows/freeze-check.yml` が毎週月曜 9:00 (JST) に下と同じスクリプトを
+本番に対して実行する（`main` にマージされてから動く。手動実行は Actions → Study freeze check →
+Run workflow）。`study-v1` タグができるまでは何も確かめずに成功で終わる。失敗（終了コード 1 と 2）は
+GitHub からメールが届く。**記録表は自動では埋まらない**: 実行結果の Summary に出る 4 行を見て、
+下の表に手で 1 行足す。手元で実行する場合:
 
 ```bash
 cd ~/diet-tracker && git fetch --tags

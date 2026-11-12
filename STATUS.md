@@ -13,18 +13,14 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   draft `30e9dd8`; review fixes `7d686f4` (outbox) + `c38166d`. Commit-level
   detail: vault ADR-008 Progress. Evidence:
   `~/大学院/研究室/app-analysis-2026-10/remeasure-2026-11-12/`.
-  **026 / 027 / 028 not applied to prod; outbox not run against a server.**
-- **2026-11-04 ADR-008 P0-9 / P0-10 / P0-11** (`fix/study-p0`, draft PR #22).
-  **P0-9**: migration `026` adds `profiles.study_start_at` (researcher-only,
-  frozen like `consented_at`); `cohort-queries.sql` day 0 = its JST date,
-  participants need both columns, purpose / goal weight = value in effect
-  at day 0; `consent-roster.sql` R2 sets both (R2b moves day 0). **P0-10**:
-  `NEXT_PUBLIC_STUDY_BUILD=1` hides the guest links and `proxy.ts` ignores
-  `dt-guest`. **P0-11**: migration `027` stamps food/weight/workout rows
-  with `build_sha` + `study_build` (unstamped retry if 027 is missing);
-  `/api/build-info`; `scripts/check-study-freeze.mjs` + weekly procedure
-  `docs/trial/freeze-check.md`; Vercel production build fails without the
-  flag. **026 / 027 not applied to prod.**
+  **11-12 later: `027` + `028` applied to prod (rows unchanged, no new
+  advisor finding). `025` + `026` held — see Blockers.** Also: W6 query +
+  time-zone / sync-health rules decided,
+  weekly `.github/workflows/freeze-check.yml`. Outbox still not run
+  against a server (needs the magic-link sign-in).
+- **2026-11-04 ADR-008 P0-9 / P0-10 / P0-11** (`fix/study-p0`): `026`
+  `study_start_at` = day 0; study flag hides guest mode; `027` build stamp
+  + `/api/build-info` + freeze script. Full entry in the archive (11-12).
 - **2026-10-29** Status review; ADR-008 P0 started (P0-1 JST dates `a6c43db`,
   P0-5 `fa76cef`, P0-12 `ba225e9`, storage deep-copy `7209390`; draft PR
   #21). Full entry in the archive (moved 11-12).
@@ -32,11 +28,12 @@ decisions / Last verified (latest 2) — move older entries to the archive.
 ## Next
 - **ADR-008 P0: all done in code** (P0-13 = draft only). Before merging
   #22: [🔒user] Vercel Production env `NEXT_PUBLIC_STUDY_BUILD=1` (else prod
-  builds fail); apply 026 + 027 + 028 (ask first); signed-in end-to-end run
-  of the outbox (log offline → back online → row in Supabase, one
-  `client_sync_health` row); then the freeze setup in
-  `docs/trial/freeze-check.md` and the analysis-plan freeze
-  (`docs/trial/analysis-plan-freeze.md`). P/F/C optional + `029` only after
+  builds fail); signed-in end-to-end run of the outbox (log offline → back
+  online → row in Supabase, one `client_sync_health` row); **apply `025`
+  → `026` right after #21 is live on production, not before**; then the
+  freeze setup in `docs/trial/freeze-check.md` (`study-v1` tag, `study`
+  branch) and the analysis-plan freeze
+  (`docs/trial/analysis-plan-freeze.md`; 2 of 4 open items decided 11-12). P/F/C optional + `029` only after
   the advisor's answer. Deferred review items: copy-yesterday still does one
   getUser() per copied entry; AI routes still take anonymous callers
   (`lib/api-guard.ts`). P1 flags wait for the advisor's Q1.
@@ -120,6 +117,11 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   i18n; research ideas: adherence prediction, habit phenotyping, TDEE goals.
 
 ## Blockers
+- **Migration `025` must not reach prod before PR #21 is deployed**
+  (found 2026-11-12): `main`'s `/api/consent` writes `consented_at` with
+  the user's own client and `proxy.ts` sends unconsented users to
+  `/consent`; `025` freezes that column, so consent would return 500 and
+  nobody could enter the app. `026` replaces `025`'s policy, so it waits too.
 - Authed E2E blocked on the [🔒user] public-login items 1–4 above.
 
 ## Key decisions
@@ -176,6 +178,15 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   jump clear of every advisory (2026-10-13).
 
 ## Last verified state
+- 2026-11-12 (later): `fix/study-p0` — lint 0 errors (3 warnings), `tsc` 0,
+  vitest **748/748**, study `next build` OK (unsandboxed). Prod Supabase:
+  `list_migrations` ends 024, 027, 028; rows before = after (profiles 2,
+  food 0, weight 1, workout 0); 8 `build_sha`/`study_build` columns;
+  security advisors: nothing on `client_sync_health`. W6 ran on prod
+  (with `created_at` standing in for `study_start_at`, which needs 026):
+  2 rows, 0 reports. Freeze script vs prod: exit 2 (no `study-v1` tag);
+  prod `/api/build-info` = 404 (ships with #22). `/sec` OK. NOT verified:
+  outbox against Supabase, the workflow on GitHub (`main` only), 025/026.
 - 2026-11-12: `fix/study-p0` @ `c38166d` — lint 0 errors (3 pre-existing
   warnings), `tsc` 0, vitest **748/748** (66 files), `next build` OK
   (unsandboxed). Browser (headless Chrome 156 over CDP, fresh profile,
@@ -187,13 +198,3 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   /api/generate-workout (200) + plan; /login Japanese. `/code-review medium`
   10 findings: 9 fixed, 1 partly (copy-yesterday). NOT verified: outbox
   against Supabase (needs sign-in + 028), migrations on prod, Vercel.
-- 2026-11-04: `fix/study-p0` (P0-9/10/11) — lint 0 errors (3 pre-existing
-  warnings), `tsc` 0, vitest **666/666** (58 files). Study build: `next build`
-  OK; production without the flag → build error; headless Chrome: no guest
-  links on `/` `/login` (normal build shows them); `/api/build-info` returns
-  the sha. Freeze script vs stub: exit codes 0/1/1/2/2/2 as specified. pglite
-  001–027, 6 synthetic users: own `study_start_at` change denied; carry-over
-  w0 = 78 (not trial 80), trial goal weight kept; pre-day-0 rows excluded;
-  unset day 0 flagged by R3/W5; 14/14 queries run. `/code-review medium` 9
-  findings (6 fixed, 3 deferred); `/sec` OK. NOT verified: authed flows /
-  real Supabase writes, 026/027 on prod, Vercel settings.

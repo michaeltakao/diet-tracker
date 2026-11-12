@@ -1,0 +1,67 @@
+name: Study freeze check
+
+# Weekly check that production still runs the frozen study build
+# (vault ADR-008 P0-11, docs/trial/freeze-check.md).
+#
+# Scheduled workflows run only from the default branch (main).
+# Until the `study-v1` tag exists the job ends green with a notice.
+# A failed run emails the repository owner (GitHub's default notification);
+# the record table in docs/trial/freeze-check.md is still filled in by hand
+# from this run's summary.
+
+on:
+  schedule:
+    - cron: '0 0 * * 1' # Mondays 09:00 JST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: freeze-check
+  cancel-in-progress: false
+
+env:
+  PRODUCTION_URL: https://diet-tracker-two-blue.vercel.app
+  STUDY_TAG: study-v1
+
+jobs:
+  freeze-check:
+    name: Production equals the study tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # the script resolves the tag with git rev-list
+          fetch-tags: true
+          persist-credentials: false
+
+      # No setup-node step: the script needs only the runner's built-in Node
+      # (global fetch, Node 18+) and has no dependencies.
+      - name: Look for the study tag
+        id: tag
+        run: |
+          if git rev-parse -q --verify "refs/tags/${STUDY_TAG}^{commit}" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Tag ${STUDY_TAG} does not exist yet; the study build is not frozen. Nothing was checked."
+            echo "Skipped: tag \`${STUDY_TAG}\` does not exist yet." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Exit codes: 0 = frozen build is live, 1 = mismatch, 2 = could not check.
+      # 1 and 2 both fail the run on purpose: an unchecked week must be noticed.
+      - name: Compare production with the study tag
+        if: steps.tag.outputs.exists == 'true'
+        run: |
+          status=0
+          output="$(node scripts/check-study-freeze.mjs "$PRODUCTION_URL" "$STUDY_TAG" 2>&1)" || status=$?
+          echo "$output"
+          {
+            echo '```'
+            echo "$output"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
