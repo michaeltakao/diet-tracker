@@ -6,6 +6,14 @@ Keep this file under 200 lines: Now (latest 3) / Next / Blockers / Key
 decisions / Last verified (latest 2) — move older entries to the archive.
 
 ## Now
+- **2026-11-12 ADR-008 P0 code complete** (`fix/study-p0`, draft PR #22,
+  pushed): P0-2 `0f8fbe6`, P0-4 `cc1baa1`, P0-3 `d809549` + `5100946`
+  (install banner also covered the FAB — found in the browser check), P0-8
+  `962d598`, P0-6 outbox + `028` `19fec03`, P0-7 `9e893ad`, docs + P0-13
+  draft `30e9dd8`; review fixes `7d686f4` (outbox) + `c38166d`. Commit-level
+  detail: vault ADR-008 Progress. Evidence:
+  `~/大学院/研究室/app-analysis-2026-10/remeasure-2026-11-12/`.
+  **026 / 027 / 028 not applied to prod; outbox not run against a server.**
 - **2026-11-04 ADR-008 P0-9 / P0-10 / P0-11** (`fix/study-p0`, draft PR #22).
   **P0-9**: migration `026` adds `profiles.study_start_at` (researcher-only,
   frozen like `consented_at`); `cohort-queries.sql` day 0 = its JST date,
@@ -17,32 +25,21 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   `/api/build-info`; `scripts/check-study-freeze.mjs` + weekly procedure
   `docs/trial/freeze-check.md`; Vercel production build fails without the
   flag. **026 / 027 not applied to prod.**
-- **2026-10-29 Status review + ADR-008 P0 started.** Product done and live
-  (`main` `f8a3d37`); research has **no data yet** — waiting on the advisor's
-  3 answers (none at 10-29), the [🔒user] setup items, and the ADR-008 P0
-  bugs. `feat/trial-data-notice` pushed → **draft PR #21**. Branch
-  `fix/study-p0` (stacked on it): `7209390` empty-storage `getAppData()`
-  handed out shallow-copied defaults, so add*() mutated them and old rows
-  reappeared after storage was cleared (deep copy + test); `a6c43db`
-  **P0-1** — every stored `date` is the JST day, `addedAt` no longer 24 h
-  early before 09:00 (`lib/format-date.ts` JST helpers; incl. 2 server routes).
-  10-30: `fa76cef` **P0-5** (untouched body steppers never stored, B6;
-  onboarding place/time seed the check-in, minutes 15/30/45/60+, B6b);
-  `ba225e9` **P0-12** (目標体重 stepper, stored only when set; scope
-  `'weight'`). Browser-verified at a pinned 01:11 JST — results in
-  `~/大学院/研究室/app-analysis-2026-10/remeasure-2026-10-30/`.
-- 2026-10-14 study prep (PR #21, ADR-007, `025`): see the archive (11-04).
+- **2026-10-29** Status review; ADR-008 P0 started (P0-1 JST dates `a6c43db`,
+  P0-5 `fa76cef`, P0-12 `ba225e9`, storage deep-copy `7209390`; draft PR
+  #21). Full entry in the archive (moved 11-12).
 
 ## Next
-- **[auto] ADR-008 P0, in order** (branch `fix/study-p0`, target 11-12 =
-  new verify-by): ~~P0-1~~ → ~~P0-5~~ → ~~P0-12~~ → ~~P0-9~~ → ~~P0-10~~ →
-  ~~P0-11~~ → P0-2, P0-4, P0-3, P0-8, P0-6, P0-13 (+ P0-7 alongside).
-  Before merging #22: [🔒user] Vercel Production env
-  `NEXT_PUBLIC_STUDY_BUILD=1` (else prod builds fail), apply 026 + 027
-  (ask first), then the freeze setup in `docs/trial/freeze-check.md`.
-  Follow-up: AI routes still take anonymous callers (`lib/api-guard.ts`). Each: lint / build / vitest,
-  then re-run the 10-15 browser measurement (header date = JST, 72.4 is the
-  latest weight, FAB → /add). P1 flags wait for the advisor's Q1.
+- **ADR-008 P0: all done in code** (P0-13 = draft only). Before merging
+  #22: [🔒user] Vercel Production env `NEXT_PUBLIC_STUDY_BUILD=1` (else prod
+  builds fail); apply 026 + 027 + 028 (ask first); signed-in end-to-end run
+  of the outbox (log offline → back online → row in Supabase, one
+  `client_sync_health` row); then the freeze setup in
+  `docs/trial/freeze-check.md` and the analysis-plan freeze
+  (`docs/trial/analysis-plan-freeze.md`). P/F/C optional + `029` only after
+  the advisor's answer. Deferred review items: copy-yesterday still does one
+  getUser() per copied entry; AI routes still take anonymous callers
+  (`lib/api-guard.ts`). P1 flags wait for the advisor's Q1.
 - **Six-month study, 10–30 family and acquaintances (plan 2026-10-14):**
   1. [🔒user] Show the slides to the advisor; settle ethics review, pilot vs
      plan revision, and the Gemini tier. **No URL goes out before that.**
@@ -179,6 +176,17 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   jump clear of every advisory (2026-10-13).
 
 ## Last verified state
+- 2026-11-12: `fix/study-p0` @ `c38166d` — lint 0 errors (3 pre-existing
+  warnings), `tsc` 0, vitest **748/748** (66 files), `next build` OK
+  (unsandboxed). Browser (headless Chrome 156 over CDP, fresh profile,
+  `GEMINI_API_KEY= next dev`, guest, clock 01:00 JST, 390×844): header
+  11月12日; 72.4 → 最新 72.4; FAB centre → /add with the feedback button
+  and the install banner (forced `beforeinstallprompt`) shown — before
+  `5100946` the banner covered it; storage full → toast, nothing stored;
+  4000×3000 noise JPEG 12.2 MB → 1280×960 preview ≈404 KB; no key → one
+  /api/generate-workout (200) + plan; /login Japanese. `/code-review medium`
+  10 findings: 9 fixed, 1 partly (copy-yesterday). NOT verified: outbox
+  against Supabase (needs sign-in + 028), migrations on prod, Vercel.
 - 2026-11-04: `fix/study-p0` (P0-9/10/11) — lint 0 errors (3 pre-existing
   warnings), `tsc` 0, vitest **666/666** (58 files). Study build: `next build`
   OK; production without the flag → build error; headless Chrome: no guest
@@ -189,12 +197,3 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   unset day 0 flagged by R3/W5; 14/14 queries run. `/code-review medium` 9
   findings (6 fixed, 3 deferred); `/sec` OK. NOT verified: authed flows /
   real Supabase writes, 026/027 on prod, Vercel settings.
-- 2026-10-30: `fix/study-p0` (P0-12 + review fixes) — lint 0 errors (3 pre-existing
-  warnings), `tsc` 0, vitest **646/646** (55 files), clean build. Browser
-  (own headless Chrome 156 over CDP — the chrome-devtools MCP profile was
-  locked; clock pinned to 01:11 JST, 390×844): header 10月30日, water key /
-  weight / meal `date` 10-30, meal `addedAt` error 0 h (was 24 h);
-  onboarding untouched → 0 weight rows, goal weight null; 60→70 / goal 65
-  stored; ジム/30分 preselected on /workout. 10-29 secscan of #21: gitleaks
-  clean, semgrep 11 pre-existing. NOT verified: FAB overlap (B2, P0-3 still
-  open), any authed flow / server write, a real wall-clock 00–09 run.

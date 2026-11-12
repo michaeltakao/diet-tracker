@@ -1173,3 +1173,30 @@ anyway since it was cheap alongside the lipid/HbA1c work).
     in all 9 AI routes. Docs: `docs/SPEC.md`, `docs/trial/` (consent form,
     guide, `cohort-queries.sql` S0–S5b / W1–W5). Advisor slides:
     `~/大学院/研究室/research-plan-2026-10/` (14 pp, synthetic screenshots).
+
+## Last verified (moved from STATUS.md 2026-11-12)
+- 2026-10-30: `fix/study-p0` (P0-12 + review fixes) — lint 0 errors (3 pre-existing
+  warnings), `tsc` 0, vitest **646/646** (55 files), clean build. Browser
+  (own headless Chrome 156 over CDP — the chrome-devtools MCP profile was
+  locked; clock pinned to 01:11 JST, 390×844): header 10月30日, water key /
+  weight / meal `date` 10-30, meal `addedAt` error 0 h (was 24 h);
+  onboarding untouched → 0 weight rows, goal weight null; 60→70 / goal 65
+  stored; ジム/30分 preselected on /workout. 10-29 secscan of #21: gitleaks
+  clean, semgrep 11 pre-existing. NOT verified: FAB overlap (B2, P0-3 still
+  open), any authed flow / server write, a real wall-clock 00–09 run.
+
+## Now (moved from STATUS.md 2026-11-12)
+- **2026-10-29 Status review + ADR-008 P0 started.** Product done and live
+  (`main` `f8a3d37`); research has **no data yet** — waiting on the advisor's
+  3 answers (none at 10-29), the [🔒user] setup items, and the ADR-008 P0
+  bugs. `feat/trial-data-notice` pushed → **draft PR #21**. Branch
+  `fix/study-p0` (stacked on it): `7209390` empty-storage `getAppData()`
+  handed out shallow-copied defaults, so add*() mutated them and old rows
+  reappeared after storage was cleared (deep copy + test); `a6c43db`
+  **P0-1** — every stored `date` is the JST day, `addedAt` no longer 24 h
+  early before 09:00 (`lib/format-date.ts` JST helpers; incl. 2 server routes).
+  10-30: `fa76cef` **P0-5** (untouched body steppers never stored, B6;
+  onboarding place/time seed the check-in, minutes 15/30/45/60+, B6b);
+  `ba225e9` **P0-12** (目標体重 stepper, stored only when set; scope
+  `'weight'`). Browser-verified at a pinned 01:11 JST — results in
+  `~/大学院/研究室/app-analysis-2026-10/remeasure-2026-10-30/`.
