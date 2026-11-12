@@ -1,4 +1,4 @@
--- diet-tracker 6 か月調査 集計クエリ — 2026-11-04 改訂(day 0 = study_start_at)
+-- diet-tracker 6 か月調査 集計クエリ — 2026-11-12 改訂(W6 送信状況、時刻帯と送信状況のルール)
 --
 -- 読み取り専用。SELECT のみで、テーブルもビューも作らない。
 -- Supabase の SQL エディタ、または MCP の execute_sql で 1 本ずつ実行する。
@@ -32,6 +32,13 @@
 --            入れた目標体重は使わない)。
 -- 統計     : 10〜30 人を 3 群に分けるので検定はしない。人数・中央値・範囲だけを出す。
 --            対照群がないので、変化をアプリの効果とは書かない。
+-- 時刻帯   : 日付はすべて JST。端末のタイムゾーンは記録していないので、データからは誰も
+--            除かない。国外に出た期間は参加者に申告してもらい、主分析はそのまま出し、
+--            申告された日を除いた感度分析を並べて報告する(2026-11-12 決定)。
+-- 送信状況 : W6 で incomplete = true の参加者(端末が記録を捨てた、または最新の報告で
+--            未送信が残っている)も主分析に入れる。その人の記録のない日は「未使用」ではなく
+--            「不明」と書く。該当人数を報告し、その人を除いた感度分析を並べて報告する
+--            (2026-11-12 決定)。
 -- 注意     : 結果には user_id が出る。メモや論文に貼るときは連番に置き換える。
 --            S 系 = 6 か月の指標(最終報告用)。W 系 = 週次の中間確認用。
 
@@ -668,3 +675,57 @@ select
   count(*) filter (where consented_at is not null and study_start_at is null) as marked_without_start,
   count(*) filter (where consented_at is null and study_start_at is not null) as start_without_consent
 from public.profiles;
+
+-- W6. 端末の送信状況(参加者別。client_sync_health、migration 028)
+--     端末がアプリを開くたびに 1 行送る申告値で、前回の報告からの増分(監査証跡ではない)。
+--     day 0(study_start_at)以降の報告だけを数える。
+--     incomplete = true : dropped > 0(永続エラーで捨てた記録がある)、または最新の報告で
+--                         queued_at_last_report > 0(未送信が端末に残っている)。
+--                         → その人のサーバー上の記録は欠けている。扱いは冒頭の「送信状況」。
+--     reports = 0       : 報告が 1 行もない(調査用ビルドを開いていない、または報告が
+--                         届いていない)。欠けの有無は分からないので incomplete は NULL。
+with p as (
+  select id as user_id, study_start_at
+  from public.profiles
+  where consented_at is not null
+    and study_start_at is not null
+),
+h as (
+  select h.*
+  from public.client_sync_health h
+  join p on p.user_id = h.user_id
+  where h.reported_at >= p.study_start_at
+),
+agg as (
+  select
+    user_id,
+    count(*)              as reports,
+    sum(synced_count)     as synced,
+    sum(failed_count)     as failed_attempts,
+    sum(dropped_count)    as dropped,
+    sum(superseded_count) as superseded
+  from h
+  group by user_id
+),
+latest as (
+  select distinct on (user_id)
+    user_id, reported_at, queued_count, oldest_queued_at
+  from h
+  order by user_id, reported_at desc, id
+)
+select
+  p.user_id,
+  coalesce(a.reports, 0)                                as reports,
+  a.synced,
+  a.failed_attempts,
+  a.dropped,
+  a.superseded,
+  (l.reported_at at time zone 'Asia/Tokyo')::date       as last_report_date,
+  l.queued_count                                        as queued_at_last_report,
+  (l.oldest_queued_at at time zone 'Asia/Tokyo')::date  as oldest_queued_date,
+  case when a.user_id is null then null
+       else (a.dropped > 0 or l.queued_count > 0) end   as incomplete
+from p
+left join agg a    on a.user_id = p.user_id
+left join latest l on l.user_id = p.user_id
+order by incomplete desc nulls last, p.user_id;

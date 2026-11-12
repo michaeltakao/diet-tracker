@@ -11,7 +11,7 @@
 | 日付(`logged_date`, DATE) | 記録した日の **JST** の暦日。クライアントが `lib/format-date.ts` `todayJst()` / `toJstDate()` で作る(ADR-008 P0-1、`a6c43db`)。**P0-1 より前に保存された行は UTC の日付**で、JST 0〜9 時の記録は前日になっている。調査では day 0(`study_start_at`)以降の行だけを使う。 |
 | 時刻(`logged_at` / `recorded_at` / `reported_at`, TIMESTAMPTZ) | UTC で保存。JST に直すときは `at time zone 'Asia/Tokyo'`。 |
 | `created_at` | サーバーに最初に届いた時刻(`DEFAULT now()`)。upsert では最初の値が残る。記録した時刻ではないので、分析には使わない(怪しい行の目印にだけ使う)。 |
-| 端末のタイムゾーン | **記録していない。** 日付はすべて JST 前提で作る。国外で使った参加者の日付は端末の現地日付と一致しない(ADR-008 の未決項目「time-zone rule」)。 |
+| 端末のタイムゾーン | **記録していない。** 日付はすべて JST 前提で作る。国外で使った参加者の日付は端末の現地日付と一致しない。**ルール(2026-11-12 決定):** データからは誰も除かない。国外に出た期間は参加者に申告してもらい、主分析はそのまま、申告された日を除いた感度分析を並べて報告する。 |
 | ビルド(`build_sha`, `study_build`) | food / weight / workout の行を最後に書いたビルド(`lib/build-stamp.ts`、migration 027)。NULL = 027 以前の行か、`lib/migrate.ts` の一括移行。 |
 | 届かなかった行 | food / weight / workout は端末の IndexedDB の送信キュー(`lib/data/outbox.ts`、P0-6)を通る。送れなかった行は端末に残り、再送される。永続エラーで捨てた行と、まだ送れていない行の数は `client_sync_health` に出る(下記)。**その参加者の「記録のない日」を未使用と読む前に確認する。** goal_history / training_programs / ai_usage はキューを通らない(失敗したら端末にだけ残る)。 |
 
@@ -81,7 +81,7 @@
 
 書き込み: `lib/api-guard.ts` `recordAiUsage()`(サーバー側、AI が成功したときだけ)。`usage_date` = JST の日付、`route` = API 名、`calls` = 回数。AI が失敗した呼び出しは数えない。generate-workout は AI が使えないときも計画を返す(P0-4)ので、**運動計画の表示回数 ≠ ai_usage の generate-workout 回数**。
 
-## client_sync_health(端末の送信状況、migration 028 — 未適用)
+## client_sync_health(端末の送信状況、migration 028 — 本番に適用済み 2026-11-12)
 
 書き込み: `lib/data/outbox.ts` `reportHealth()`、アプリを開くたびに 1 行。値は前回の報告からの増分。
 
@@ -93,4 +93,6 @@
 | `superseded_count` | 他の端末の新しい体重があったので送らなかった件数 |
 | `queued_count` / `oldest_queued_at` | 報告時点で端末に残っている件数と、その最古の時刻 |
 
-参加者ごとに `sum(dropped_count) > 0`、または最新の `queued_count > 0` が続く場合は、その人のサーバー上の記録が欠けている。報告では件数を書き、記録のない日を未使用と断定しない。端末が申告する値なので監査証跡ではない。
+参加者ごとに `sum(dropped_count) > 0`、または最新の `queued_count > 0` が続く場合は、その人のサーバー上の記録が欠けている。端末が申告する値なので監査証跡ではない。
+
+**ルール(2026-11-12 決定、集計は `cohort-queries.sql` の W6):** 該当する参加者も主分析に入れる。その人の記録のない日は「未使用」ではなく「不明」と書く。該当人数を報告し、その人を除いた感度分析を並べて報告する。報告が 1 行もない参加者は欠けの有無が分からないので、人数を別に書く。
