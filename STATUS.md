@@ -10,7 +10,8 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   `20c1275`; GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr, GHSA-p3m5-59mp-jv5r).
   Production `/` and `/login` return 200 after the deploy. `main` merged
   into `feat/trial-data-notice` (`559e8f5`, PR #21) and from there into
-  `fix/study-p0` (PR #22) the same day.
+  `fix/study-p0` (`019d5bd`, PR #22) the same day; #21's `npm audit`
+  check is green again. Outbox run against Supabase: still open.
 - **2026-11-12 ADR-008 P0 code complete** (`fix/study-p0`, draft PR #22,
   pushed): P0-2 `0f8fbe6`, P0-4 `cc1baa1`, P0-3 `d809549` + `5100946`
   (install banner also covered the FAB — found in the browser check), P0-8
@@ -20,9 +21,8 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   `~/大学院/研究室/app-analysis-2026-10/remeasure-2026-11-12/`.
   **11-12 later: `027` + `028` applied to prod (rows unchanged, no new
   advisor finding). `025` + `026` held — see Blockers.** Also: W6 query +
-  time-zone / sync-health rules decided,
-  weekly `.github/workflows/freeze-check.yml`. Outbox still not run
-  against a server (needs the magic-link sign-in).
+  time-zone / sync-health rules decided, weekly
+  `.github/workflows/freeze-check.yml`.
 - **2026-11-04 ADR-008 P0-9 / P0-10 / P0-11** (`fix/study-p0`): `026`
   `study_start_at` = day 0; study flag hides guest mode; `027` build stamp
   + `/api/build-info` + freeze script. Full entry in the archive (11-12).
@@ -180,6 +180,15 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   jump clear of every advisory (2026-10-13).
 
 ## Last verified state
+- 2026-11-13: `fix/study-p0` @ `019d5bd` (merge of `main` via
+  `feat/trial-data-notice` `559e8f5`) — lint 0 errors (3 warnings), vitest
+  **748/748** (66 files), study `next build` exit 0 (unsandboxed), `tsc` 0,
+  `npm audit --omit=dev` 0 vulnerabilities; `next` 16.4.1,
+  `eslint-config-next` 16.4.1, `sharp` 0.35.5, `fake-indexeddb` 6.2.8.
+  `feat/trial-data-notice`: vitest 612/612, same lint / tsc / build / audit;
+  PR #21 checks all pass (incl. `npm audit`). Prod `/` + `/login` 200 after
+  #23. NOT verified: outbox against Supabase (needs the magic-link
+  sign-in), PR #22's Vercel previews (pending at push time), 025/026.
 - 2026-11-12 (later): `fix/study-p0` — lint 0 errors (3 warnings), `tsc` 0,
   vitest **748/748**, study `next build` OK (unsandboxed). Prod Supabase:
   `list_migrations` ends 024, 027, 028; rows before = after (profiles 2,
@@ -189,14 +198,3 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   2 rows, 0 reports. Freeze script vs prod: exit 2 (no `study-v1` tag);
   prod `/api/build-info` = 404 (ships with #22). `/sec` OK. NOT verified:
   outbox against Supabase, the workflow on GitHub (`main` only), 025/026.
-- 2026-11-12: `fix/study-p0` @ `c38166d` — lint 0 errors (3 pre-existing
-  warnings), `tsc` 0, vitest **748/748** (66 files), `next build` OK
-  (unsandboxed). Browser (headless Chrome 156 over CDP, fresh profile,
-  `GEMINI_API_KEY= next dev`, guest, clock 01:00 JST, 390×844): header
-  11月12日; 72.4 → 最新 72.4; FAB centre → /add with the feedback button
-  and the install banner (forced `beforeinstallprompt`) shown — before
-  `5100946` the banner covered it; storage full → toast, nothing stored;
-  4000×3000 noise JPEG 12.2 MB → 1280×960 preview ≈404 KB; no key → one
-  /api/generate-workout (200) + plan; /login Japanese. `/code-review medium`
-  10 findings: 9 fixed, 1 partly (copy-yesterday). NOT verified: outbox
-  against Supabase (needs sign-in + 028), migrations on prod, Vercel.

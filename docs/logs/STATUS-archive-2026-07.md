@@ -1225,3 +1225,16 @@ anyway since it was cheap alongside the lipid/HbA1c work).
   `/api/build-info`; `scripts/check-study-freeze.mjs` + weekly procedure
   `docs/trial/freeze-check.md`; Vercel production build fails without the
   flag. **026 / 027 not applied to prod.**
+
+## Last verified — moved from STATUS.md 2026-11-13
+- 2026-11-12: `fix/study-p0` @ `c38166d` — lint 0 errors (3 pre-existing
+  warnings), `tsc` 0, vitest **748/748** (66 files), `next build` OK
+  (unsandboxed). Browser (headless Chrome 156 over CDP, fresh profile,
+  `GEMINI_API_KEY= next dev`, guest, clock 01:00 JST, 390×844): header
+  11月12日; 72.4 → 最新 72.4; FAB centre → /add with the feedback button
+  and the install banner (forced `beforeinstallprompt`) shown — before
+  `5100946` the banner covered it; storage full → toast, nothing stored;
+  4000×3000 noise JPEG 12.2 MB → 1280×960 preview ≈404 KB; no key → one
+  /api/generate-workout (200) + plan; /login Japanese. `/code-review medium`
+  10 findings: 9 fixed, 1 partly (copy-yesterday). NOT verified: outbox
+  against Supabase (needs sign-in + 028), migrations on prod, Vercel.
