@@ -58,12 +58,15 @@ export default function FeedbackButton() {
     <>
       <Toast message={toast} variant="success" />
 
+      {/* ADR-008 P0-3: stacked above the dashboard FAB (bottom-20, 56 px tall →
+          top edge at 136 px) — at bottom-20 it covered the FAB, so a tap on
+          「+」 opened feedback instead of /add. Guarded by fab-overlap.test.ts. */}
       <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label={t.feedbackOpen}
         className="
-          fixed bottom-20 right-4 lg:bottom-6 z-40
+          fixed bottom-36 right-5 lg:bottom-6 lg:right-4 z-40
           flex size-12 items-center justify-center rounded-full
           bg-fg text-surface shadow-[0_4px_16px_rgb(0,0,0,0.25)]
           hover:opacity-90 active:scale-95 transition-all

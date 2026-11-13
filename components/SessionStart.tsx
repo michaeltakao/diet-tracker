@@ -28,7 +28,8 @@
  * "change" affordance that re-expands the full flow.
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { shiftDate } from '@/lib/streak';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Brain, Flame, Dumbbell, ChevronUp, Wind,
 } from 'lucide-react';
@@ -132,6 +133,14 @@ export default function SessionStart({
   const [lastPlanInput, setLastPlanInput] = useState<PlanInput | null>(null);
   /** Exercises swapped out of the current plan, so repeated swaps don't toggle back. */
   const [swappedOut, setSwappedOut]       = useState<ReadonlySet<string>>(new Set());
+  /**
+   * ADR-008 P0-4 double request: handleSave() fetched the plan AND set
+   * savedToday, which re-ran the reload auto-fetch effect → two requests.
+   * The effect now fires at most once, and only for a check-in loaded from
+   * storage; a sequence number drops responses from superseded requests.
+   */
+  const autoFetchDone = useRef(false);
+  const planRequestSeq = useRef(0);
 
   // Hydration-safe client-only load on mount.
   useEffect(() => {
@@ -169,11 +178,7 @@ export default function SessionStart({
 
     // 14 days back: long enough that a weekly split shows up as recovery
     // data, short enough that a long layoff doesn't look like recent work.
-    const start = (() => {
-      const d = new Date(`${today}T00:00:00`);
-      d.setDate(d.getDate() - 14);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    })();
+    const start = shiftDate(today, -14);
 
     return {
       goal: profileGoalToTrainingGoal(profile.fitnessGoal),
@@ -190,6 +195,7 @@ export default function SessionStart({
     dur?: SessionDuration,
     equip?: Equipment[],
   ) => {
+    const seq = ++planRequestSeq.current;
     setPlanLoading(true);
     setPlanResult(null);
     setPlanError(null);
@@ -198,11 +204,13 @@ export default function SessionStart({
     setSwappedOut(new Set());
     try {
       const data = await postJson<GeneratedPlanResult>('/api/generate-workout', input);
-      setPlanResult(data);
+      if (seq === planRequestSeq.current) setPlanResult(data);
     } catch (err) {
-      setPlanError(err instanceof HttpError && err.status === 401 ? 'auth' : 'error');
+      if (seq === planRequestSeq.current) {
+        setPlanError(err instanceof HttpError && err.status === 401 ? 'auth' : 'error');
+      }
     } finally {
-      setPlanLoading(false);
+      if (seq === planRequestSeq.current) setPlanLoading(false);
     }
   }, [buildPlanInput]);
 
@@ -253,8 +261,8 @@ export default function SessionStart({
 
   // Auto-fetch the plan when a check-in for today already exists (page reload mid-flow).
   useEffect(() => {
-    if (!loaded || !savedToday) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot auto-fetch when a saved check-in already exists
+    if (!loaded || !savedToday || autoFetchDone.current) return;
+    autoFetchDone.current = true;
     fetchPlan(savedToday, duration, equipment);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot on load, not on every duration/equipment edit
   }, [loaded, savedToday]);
@@ -302,6 +310,7 @@ export default function SessionStart({
       sorenessAreas,
       notes: savedToday?.notes,
     };
+    autoFetchDone.current = true; // handleSave fetches itself; don't let the effect repeat it
     setSavedToday(ci);
     saveCheckIn(ci);
     fetchPlan(ci, duration, equipment);

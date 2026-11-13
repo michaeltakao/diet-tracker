@@ -25,6 +25,7 @@ import { Dumbbell, Trophy, Utensils, Sparkles } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { STUDY_BUILD } from '@/lib/study-build';
 
 const FEATURE_ICONS = [Dumbbell, Trophy, Utensils, Sparkles] as const;
 
@@ -55,7 +56,8 @@ export default function LandingPage() {
         <Button href="/login" size="lg" className="w-full max-w-xs mb-3">
           {t.landingHeroCta}
         </Button>
-        <GuestLink label={t.landingGuestCta} />
+        {/* No guest mode in the study build (ADR-008 P0-10). */}
+        {!STUDY_BUILD && <GuestLink label={t.landingGuestCta} />}
       </div>
 
       {/* ── Feature highlights ──────────────────────── */}

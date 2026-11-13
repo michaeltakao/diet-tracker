@@ -6,35 +6,39 @@ Keep this file under 200 lines: Now (latest 3) / Next / Blockers / Key
 decisions / Last verified (latest 2) — move older entries to the archive.
 
 ## Now
-- **2026-11-13 security: Next 16.3.8 → 16.4.1 merged** (PR #23, `main` `20c1275`; GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr, GHSA-p3m5-59mp-jv5r). Production `/` and `/login` return 200 after the deploy. `main` merged into this branch the same day.
-- **2026-10-14 Six-month study prep (branch `feat/trial-data-notice`, local
-  commits only, not pushed):** the trial data is now meant for research
-  (vault `ADR-007`, supersedes `ADR-006`; status *proposed* until the advisor
-  answers the three questions on slide 14).
-  - In-app consent removed: `/consent`, `/api/consent`, the `proxy.ts`
-    redirect and the `consent*` i18n keys. Consent is the signed paper form;
-    `consented_at` is set by hand (`docs/trial/consent-roster.sql`).
-  - Goals reach the server: `updateGoals` dual-writes `profiles.goal_*`;
-    `goal_history` (migration `025`, **not applied to prod**) keeps the
-    starting purpose and goal weight. 025 also freezes `consented_at` for
-    user-scope writes.
-  - `/api/research/export` now exports only users with `consented_at` set
-    (it had no consent filter; the removed gate used to make that moot).
-  - Gemini quota errors return 429 with a readable ja/en message in all 9 AI
-    routes (was a generic 500).
-  - Docs: `docs/SPEC.md` (current spec), `docs/trial/` consent form,
-    participant guide, `cohort-queries.sql` rewritten to the fixed 6-month
-    definitions (S0–S5b, W1–W5).
-  - Slides for the advisor: `~/大学院/研究室/research-plan-2026-10/`
-    (`index.html`, `slides.pdf`, 14 pages, screenshots are synthetic data).
-- **2026-10-13 CI, security and housekeeping round — merged + deployed
-  (`main` `448aa58`):** PRs #14–#19: vitest now gates CI; `next` 16.2.6 →
-  16.3.8 (cleared 1 critical + 12 high audit findings); proxy matcher
-  excludes `/icon` and `/apple-icon`; gitleaks PR scan replaces a no-op
-  secret grep; stale PRs #3/#6/#7/#8 closed (branches kept). Full entry in
-  the archive.
+- **2026-11-13 security: Next 16.3.8 → 16.4.1 merged** (PR #23, `main`
+  `20c1275`; GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr, GHSA-p3m5-59mp-jv5r).
+  Production `/` and `/login` return 200 after the deploy. `main` merged
+  into `feat/trial-data-notice` (`559e8f5`, PR #21) and from there into
+  `fix/study-p0` (`019d5bd`, PR #22) the same day; #21's `npm audit`
+  check is green again. **Outbox run: still open** — the sign-in link now
+  reaches localhost but was opened in another browser (PKCE); 0 rows.
+- **2026-11-12 ADR-008 P0 code complete** (`fix/study-p0`, draft PR #22,
+  pushed): P0-2 `0f8fbe6`, P0-4 `cc1baa1`, P0-3 `d809549` + `5100946`
+  (install banner also covered the FAB — found in the browser check), P0-8
+  `962d598`, P0-6 outbox + `028` `19fec03`, P0-7 `9e893ad`, docs + P0-13
+  draft `30e9dd8`; review fixes `7d686f4` (outbox) + `c38166d`. Commit-level
+  detail: vault ADR-008 Progress. Evidence:
+  `~/大学院/研究室/app-analysis-2026-10/remeasure-2026-11-12/`.
+  **11-12 later: `027` + `028` applied to prod (rows unchanged, no new
+  advisor finding). `025` + `026` held — see Blockers.** Also: W6 query +
+  time-zone / sync-health rules decided, weekly
+  `.github/workflows/freeze-check.yml`.
+- **2026-11-04 ADR-008 P0-9 / P0-10 / P0-11** (`fix/study-p0`): day 0, no
+  guest mode in the study build, build stamp. Full entry: archive (11-12).
 
 ## Next
+- **ADR-008 P0: all done in code** (P0-13 = draft only). Before merging
+  #22: [🔒user] Vercel Production env `NEXT_PUBLIC_STUDY_BUILD=1` (else prod
+  builds fail); signed-in outbox run (offline log → online → rows + one
+  `client_sync_health` row; open the link in the requesting Chrome); **apply `025`
+  → `026` right after #21 is live on production, not before**; then the
+  freeze setup in `docs/trial/freeze-check.md` (`study-v1` tag, `study`
+  branch) and the analysis-plan freeze
+  (`docs/trial/analysis-plan-freeze.md`; 2 of 4 open items decided 11-12). P/F/C optional + `029` only after
+  the advisor's answer. Deferred review items: copy-yesterday still does one
+  getUser() per copied entry; AI routes still take anonymous callers
+  (`lib/api-guard.ts`). P1 flags wait for the advisor's Q1.
 - **Six-month study, 10–30 family and acquaintances (plan 2026-10-14):**
   1. [🔒user] Show the slides to the advisor; settle ethics review, pilot vs
      plan revision, and the Gemini tier. **No URL goes out before that.**
@@ -43,7 +47,7 @@ decisions / Last verified (latest 2) — move older entries to the archive.
      (https://ai.google.dev/gemini-api/terms, read 10-14). Decide paid tier /
      strip conditions and medications from prompts / AI off, then update
      section 6 of the consent form to match.
-  3. After approval to proceed: review + push + PR for this branch, apply
+  3. After approval to proceed: `/code-review` + merge PR #21, apply
      migration `025` to prod (ask first), public-login items 1–4 + 6 below.
   4. [🔒user] Print the consent form, fill the contact lines, collect
      signatures, hand the guide only to signers, mark `consented_at`
@@ -55,8 +59,8 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   1. Vercel env (Production): add `SUPABASE_SERVICE_ROLE_KEY` (export,
      participant self-delete, push-subscribe upsert) and confirm
      `GEMINI_API_KEY` is current. `APP_ACCESS_CODE` already set.
-  2. Supabase dashboard → Auth → URL Configuration: add
-     `https://diet-tracker-two-blue.vercel.app` to Site URL / Redirect URLs.
+  2. Supabase Auth → URL Configuration (read 11-13): Site URL is
+     `…-febw.vercel.app`; Redirect URLs has both Vercel callbacks.
   3. Supabase dashboard → Auth → Providers: Google is DISABLED
      (`external.google=false`) — enable it, or hide the login button.
   4. Google Cloud Console → Credentials → OAuth client: Authorized redirect
@@ -111,12 +115,15 @@ decisions / Last verified (latest 2) — move older entries to the archive.
 - **[auto] Small fixes**: MealCard edit coerces empty fields to 0; favorites
   quick-add ignores the servings stepper; STEP-7 bulk-migration rows leave
   `servings`/`source` NULL (backfill or accept).
-- Backlog: recipes, full micronutrient UI, weight-page SVG → recharts,
-  AccountSection full i18n retrofit.
-- P1 research features: adherence prediction, habit phenotyping,
-  TDEE-triggered goal adaptation.
+- Backlog: recipes, micronutrient UI, weight SVG → recharts, AccountSection
+  i18n; research ideas: adherence prediction, habit phenotyping, TDEE goals.
 
 ## Blockers
+- **Migration `025` must not reach prod before PR #21 is deployed**
+  (found 2026-11-12): `main`'s `/api/consent` writes `consented_at` with
+  the user's own client and `proxy.ts` sends unconsented users to
+  `/consent`; `025` freezes that column, so consent would return 500 and
+  nobody could enter the app. `026` replaces `025`'s policy, so it waits too.
 - Authed E2E blocked on the [🔒user] public-login items 1–4 above.
 
 ## Key decisions
@@ -139,15 +146,9 @@ decisions / Last verified (latest 2) — move older entries to the archive.
 - Repo is the Master's research vehicle — see vault `ADR-001`.
 - `postcss` overridden to `^8.5.10` (CVE-2026-41305, MEDIUM).
 - CI workflows hardened against script injection (`cac19bf`, 2026-06-12) — see vault `ADR-003`.
-- **Duolingo redesign phase 7 (hero-card gradient) resolved as: stay flat, no
-  code change** (2026-07-21). `StreakHeader.tsx`'s fox banner already uses a
-  flat `bg-fox` fill + hard-edge `shadow-[0_4px_0_var(--fox-dark)]`, matching
-  phase 4's flat-fill principle (`Button.tsx`/`ProgressBar.tsx`) — this is
-  intentional, not an oversight, and should not be "fixed" into a gradient by
-  a future session. The ad-hoc `bg-gradient-to-br`/`bg-gradient-to-r` usages
-  elsewhere (e.g. `app/workout/page.tsx:361` hero header, several buttons/
-  pills) predate phase 4 and are explicitly NOT retrofit targets for this
-  round — they're pre-existing style debt, not part of the phase 6/7 scope.
+- **Duolingo phase 7 (hero gradient) = stay flat, no change** (2026-07-21):
+  the `StreakHeader.tsx` flat `bg-fox` banner is intentional; older ad-hoc
+  `bg-gradient-*` uses (e.g. workout hero) are style debt, not retrofit targets.
 - **Deploy scope = 家族・知人限定** (user-confirmed 2026-08-09), superseding the
   07-24 "general public" framing; the research-disclosure footer stays off
   `app/page.tsx` for that reason. Re-decide before any wider opening.
@@ -162,8 +163,16 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   every analysis and export must filter on `consented_at IS NOT NULL`.
   Study queries read food / weight / workout rows, goal history, the active
   plan and AI call counts — never vitals, symptoms, conditions or medications.
-- **Goal baseline = earliest `goal_history` row**; a skipped onboarding goal
-  step is not recorded as a goal (it would be a fabricated default).
+- **Day boundary = JST everywhere** (ADR-008 P0-1, 2026-10-29): use
+  `lib/format-date.ts` helpers, never `toISOString().split('T')[0]`.
+- **Study day 0 = `profiles.study_start_at`** (ADR-008 P0-9, 2026-11-04), set
+  by hand with `consented_at`; analysis uses log rows dated on/after it.
+  **Goal baseline = the `goal_history` row in effect at day 0** (latest
+  on/before day 0, else first after; goal weight only up to day 13); a
+  skipped onboarding goal step is not recorded as a goal.
+- **Study build = `NEXT_PUBLIC_STUDY_BUILD=1`** (ADR-008 P0-10/11): no guest
+  mode, rows stamped; production builds without it fail. Freeze = git tag
+  `study-v1` + weekly `scripts/check-study-freeze.mjs`.
 - **`npm audit` gate = production dependencies only** (`--omit=dev
   --audit-level=high`, 2026-10-13). The full-tree audit still runs with
   `continue-on-error`; revert to a full-tree gate once `braces` ships a fix.
@@ -171,32 +180,21 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   jump clear of every advisory (2026-10-13).
 
 ## Last verified state
-- 2026-10-14: `feat/trial-data-notice` (local) — `npm run lint` 0 errors
-  (3 pre-existing warnings), vitest **612/612** (51 files), clean
-  `npm run build` exit 0, `tsc --noEmit` exit 0. Local prod build :3199
-  (placeholder Supabase env, so the proxy is bypassed): `/consent` → 404,
-  POST `/api/consent` → 404, `/dashboard` `/settings` `/onboarding` → 200.
-  Migrations 001–025 applied to an in-memory Postgres (pglite, stubbed
-  `auth` / `storage`): all 14 queries in `cohort-queries.sql` ran on 7
-  synthetic users and matched hand-computed values (KM 0.833 / 0.625,
-  attainment 0.67 / 1.10, unconsented user excluded); RLS: own
-  `goal_history` insert OK, other user's insert / own `consented_at` /
-  `role` change denied, update + delete of history rows affect 0 rows,
-  a backdated `recorded_at` is overwritten by the server, profile delete
-  cascades. `/code-review medium` run: 10 findings, 8 fixed, 2 documented
-  (no `goal_history` backfill; SUS day-14 counts from the signature date). NOT verified: any authed flow against real
-  Supabase (the goal dual-write, the export consent filter, the 429 message
-  as rendered in each client), 025 on prod, the queries on prod.
-- 2026-10-13: `main` (`448aa58`, deployed) — CI green: TypeScript / Build /
-  ESLint / Vitest (**596/596**, 50 files) / npm audit; `gitleaks` ran on
-  PR #19 (1 commit scanned, no leaks) and is skipped on push by design. Local
-  at `99e5c8b` on Next.js 16.3.8: `tsc --noEmit` exit 0, `npm run lint`
-  0 errors (3 pre-existing warnings), clean `npm run build` exit 0, vitest
-  596/596 on Node v26.0.0 and v22.23.3. Prod
-  (https://diet-tracker-two-blue.vercel.app, anonymous curl):
-  `/`, `/login`, `/manifest.webmanifest`, `/sw.js`, `/robots.txt` → 200;
-  `/icon`, `/apple-icon` → 200 `image/png` (byte-identical to the local
-  build, both opened and checked by eye at `99e5c8b`); `/dashboard` → 307
-  `/login?next=%2Fdashboard`; `dt-guest=1` on `/dashboard` → 307
-  `/onboarding`; anonymous POST `/api/recommend` → 403. NOT verified: any
-  authed flow, image optimization, a gitleaks finding failing CI.
+- 2026-11-13: `fix/study-p0` @ `019d5bd` (merge of `main` via
+  `feat/trial-data-notice` `559e8f5`) — lint 0 errors (3 warnings), vitest
+  **748/748** (66 files), study `next build` exit 0 (unsandboxed), `tsc` 0,
+  `npm audit --omit=dev` 0 vulnerabilities; `next` 16.4.1,
+  `eslint-config-next` 16.4.1, `sharp` 0.35.5, `fake-indexeddb` 6.2.8.
+  `feat/trial-data-notice`: vitest 612/612, same lint / tsc / build / audit;
+  PR #21 checks all pass (incl. `npm audit`). Prod `/` + `/login` 200 after
+  #23. Later: Supabase Redirect URLs + `http://localhost:3000/**` (4
+  entries, Site URL unchanged). NOT verified: outbox against Supabase,
+  PR #22's Vercel previews (pending at push time), 025/026.
+- 2026-11-12 (later): `fix/study-p0` — lint 0 errors (3 warnings), `tsc` 0,
+  vitest **748/748**, study `next build` OK (unsandboxed). Prod Supabase:
+  `list_migrations` ends 024, 027, 028; rows before = after (profiles 2,
+  food 0, weight 1, workout 0); 8 `build_sha`/`study_build` columns;
+  security advisors: nothing on `client_sync_health`. W6 ran on prod
+  (with `created_at` standing in for `study_start_at`, which needs 026):
+  2 rows, 0 reports. Freeze script vs prod: exit 2 (no `study-v1` tag);
+  prod `/api/build-info` = 404 (ships with #22). `/sec` OK.

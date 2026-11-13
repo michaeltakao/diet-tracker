@@ -1,5 +1,5 @@
 import { AppData, Badge, BadgeType, DailyGoals, ExerciseRankState, FavoriteFood, FoodEntry, MealTemplate, PersonalRecord, RecommendationFeedback, SymptomEntry, VitalEntry, WeightEntry, WorkoutEntry } from './types';
-import { activityDaysFrom, computeStreak, jstToday } from './streak';
+import { activityDaysFrom, computeStreak, jstToday, shiftDate } from './streak';
 import type { RankId } from './rank';
 
 const STORAGE_KEY = 'diet-tracker-v1';
@@ -53,11 +53,20 @@ const DEFAULT_DATA: AppData = {
   exerciseRanks: {},
 };
 
+/**
+ * Deep copy of DEFAULT_DATA. A shallow spread shares its arrays, so the first
+ * add*() on empty storage pushed into the module-level defaults and the rows
+ * came back on the next empty-storage read in the same session.
+ */
+function freshDefaultData(): AppData {
+  return structuredClone(DEFAULT_DATA);
+}
+
 export function getAppData(): AppData {
-  if (typeof window === 'undefined') return DEFAULT_DATA;
+  if (typeof window === 'undefined') return freshDefaultData();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_DATA, goals: { ...DEFAULT_GOALS } };
+    if (!raw) return freshDefaultData();
     const parsed = JSON.parse(raw) as Partial<AppData>;
     return {
       foodEntries: parsed.foodEntries ?? [],
@@ -82,13 +91,49 @@ export function getAppData(): AppData {
       exerciseRanks: parsed.exerciseRanks ?? {},
     };
   } catch {
-    return { ...DEFAULT_DATA, goals: { ...DEFAULT_GOALS } };
+    return freshDefaultData();
   }
 }
 
-export function saveAppData(data: AppData): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+/** Window event fired when a localStorage write fails (quota, private mode). */
+export const STORAGE_ERROR_EVENT = 'dt:storage-error';
+
+export interface StorageErrorDetail {
+  key: string;
+  error: string;
+}
+
+/**
+ * `localStorage.setItem` that never throws (ADR-008 P0-2). On failure it
+ * fires {@link STORAGE_ERROR_EVENT} so the UI can tell the user the record
+ * was not saved, instead of the write vanishing silently (B3: a full
+ * storage used to drop records with no sign).
+ *
+ * @returns true when the value was stored.
+ */
+export function safeSetItem(key: string, value: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (e) {
+    const detail: StorageErrorDetail = {
+      key,
+      error: e instanceof Error ? e.name || e.message : String(e),
+    };
+    try {
+      window.dispatchEvent(new CustomEvent(STORAGE_ERROR_EVENT, { detail }));
+    } catch {
+      // No event support (tests / very old engines): the false return still reports it.
+    }
+    return false;
+  }
+}
+
+/** Persist the app blob. Returns false (and fires the notice) on failure. */
+export function saveAppData(data: AppData): boolean {
+  if (typeof window === 'undefined') return false;
+  return safeSetItem(STORAGE_KEY, JSON.stringify(data));
 }
 
 // ── Recommendation feedback (Phase B: preference signals) ──
@@ -432,11 +477,10 @@ export function checkAndAwardBadges(today: string, opts?: { goalsAreReal?: boole
   }
 
   // Workout master: 5+ unique workout days in last 7 days (once ever)
-  const weekAgo = new Date(today);
-  weekAgo.setDate(weekAgo.getDate() - 6); // inclusive 7-day window: today + preceding 6 days
+  const weekAgo = shiftDate(today, -6); // inclusive 7-day window: today + preceding 6 days
   const workoutDays = new Set(
     data.workoutEntries
-      .filter((w) => w.date >= weekAgo.toISOString().split('T')[0])
+      .filter((w) => w.date >= weekAgo)
       .map((w) => w.date)
   );
   if (workoutDays.size >= 5) {
@@ -446,7 +490,7 @@ export function checkAndAwardBadges(today: string, opts?: { goalsAreReal?: boole
   // Vitals week: 5+ unique vital-log days in last 7 days (once ever)
   const vitalDays = new Set(
     data.vitalEntries
-      .filter((v) => v.date >= weekAgo.toISOString().split('T')[0])
+      .filter((v) => v.date >= weekAgo)
       .map((v) => v.date)
   );
   if (vitalDays.size >= 5) {

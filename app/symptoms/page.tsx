@@ -16,10 +16,10 @@ import type { SymptomEntry } from '@/lib/types';
 import { COMMON_SYMPTOMS, SYMPTOM_TRIGGERS, SEVERITY_MIN, SEVERITY_MAX, DURATION_MAX_MINUTES, isValidSymptomInput } from '@/lib/symptoms';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { fmtShortJa } from '@/lib/format-date';
+import { fmtShortJa, todayJst } from '@/lib/format-date';
 import { CARD_CLASS as cardCls } from '@/components/ui/Card';
 
-function getTodayDate() { return new Date().toISOString().split('T')[0]; }
+function getTodayDate() { return todayJst(); }
 
 /** Local "now" formatted for <input type="datetime-local"> (device = JST). */
 function nowLocalInput(): string {

@@ -3,8 +3,10 @@
  * Writes to localStorage immediately; syncs to Supabase when authenticated.
  */
 
+import { todayJst } from '@/lib/format-date';
 import type { DailyCheckIn } from '@/lib/types';
 import { getWriteContext } from './_write';
+import { safeSetItem } from '@/lib/storage';
 
 const KEY = 'diet-tracker-checkins';
 
@@ -19,7 +21,7 @@ function getAll(): Record<string, DailyCheckIn> {
 }
 
 function saveAll(data: Record<string, DailyCheckIn>): void {
-  localStorage.setItem(KEY, JSON.stringify(data));
+  safeSetItem(KEY, JSON.stringify(data));
 }
 
 export function getCheckIn(date: string): DailyCheckIn | null {
@@ -66,6 +68,5 @@ export function getRecentCheckIns(days = 7): DailyCheckIn[] {
 }
 
 export function todayDate(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return todayJst();
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type, type Schema } from '@google/genai';
-import { aiQuotaResponse, generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
+import { generateWithRetry, isQuotaError, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import {
@@ -14,8 +14,6 @@ import {
 } from '@/lib/workout-generator';
 import type { Equipment } from '@/lib/exercise-db';
 import type { MusclePart } from '@/lib/types';
-
-const apiKey = process.env.GEMINI_API_KEY;
 
 const VALID_GOALS = ['hypertrophy', 'strength', 'endurance', 'weight_loss'] as const;
 const VALID_EQUIPMENT = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'] as const;
@@ -107,14 +105,32 @@ function buildPrompt(input: GeneratePlanInput, plan: GeneratedPlan): string {
   ].filter(Boolean).join('\n');
 }
 
+export type Narrative = { sessionName: string; notes: string; motivationMessage: string };
+
+/**
+ * ADR-008 P0-4: the plan is deterministic and never depends on Gemini, so a
+ * missing key, a Gemini error, or an exhausted AI quota returns the plan with
+ * `narrative: null` (200) instead of an error. Before this, any AI failure
+ * left a participant with no workout at all.
+ */
 export async function POST(request: Request): Promise<NextResponse> {
-  if (!apiKey) return NextResponse.json({ error: 'GEMINI_API_KEY not set' }, { status: 500 });
+  const apiKey = process.env.GEMINI_API_KEY;
 
   const guard = await guardAiRoute(request, 'generate-workout');
-  if ('blocked' in guard) return guard.blocked;
-  const userId = guard.userId;
+  // Daily AI quota used up (or its check failed): still serve the plan, just
+  // without narration. Auth / access-gate blocks stay blocked.
+  let aiQuotaExhausted = false;
+  let identity: { clientId: string; userId: string | null };
+  if ('blocked' in guard) {
+    if (!guard.quotaOnly) return guard.blocked;
+    aiQuotaExhausted = true;
+    identity = guard.quotaOnly;
+  } else {
+    identity = guard;
+  }
+  const { clientId, userId } = identity;
 
-  const rl = checkRateLimit(guard.clientId, 'generate-workout', RATE_LIMITS['generate-workout']);
+  const rl = checkRateLimit(clientId, 'generate-workout', RATE_LIMITS['generate-workout']);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Please wait before retrying.' },
@@ -193,6 +209,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     });
   }
 
+  if (!apiKey || aiQuotaExhausted) {
+    return NextResponse.json({ plan, narrative: null });
+  }
+
   try {
     const ai = new GoogleGenAI({ apiKey });
     const result = await generateWithRetry(ai, {
@@ -203,13 +223,12 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     await recordAiUsage(userId, 'generate-workout', result.usageMetadata?.totalTokenCount);
 
-    const narrative = parseGeminiJson<{ sessionName: string; notes: string; motivationMessage: string }>(result.text);
+    const narrative = parseGeminiJson<Narrative>(result.text);
     return NextResponse.json({ plan, narrative });
   } catch (err) {
-    // Generic message only — never echo raw model output or error internals.
-    console.error('[GENERATE_WORKOUT_ERROR]', err);
-    const quota = aiQuotaResponse(err);
-    if (quota) return quota;
-    return NextResponse.json({ error: 'Plan generation failed. Please try again.' }, { status: 500 });
+    // Never echo raw model output or error internals. Gemini failure (incl.
+    // its own 429 quota) only loses the narration — the plan still goes out.
+    console.error('[GENERATE_WORKOUT_ERROR]', isQuotaError(err) ? 'gemini quota' : err);
+    return NextResponse.json({ plan, narrative: null });
   }
 }

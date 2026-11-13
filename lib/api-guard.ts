@@ -77,7 +77,16 @@ function clientIdFor(request: Request, userId: string | undefined): string {
  * rate-limit identity plus the authenticated user id (null for guests).
  */
 export type GuardResult =
-  | { blocked: NextResponse }
+  | {
+      blocked: NextResponse;
+      /**
+       * Set only when the caller IS allowed in but its daily AI quota is used
+       * up (or the quota check failed). Routes with a non-AI fallback (e.g.
+       * generate-workout's deterministic plan) may serve that instead of
+       * `blocked`; every other route just returns `blocked`.
+       */
+      quotaOnly?: { clientId: string; userId: string };
+    }
   | { clientId: string; userId: string | null };
 
 /**
@@ -174,7 +183,12 @@ export async function guardAiRoute(
 
   if (user?.id) {
     const quotaBlocked = await checkDailyQuota(user.id, route);
-    if (quotaBlocked) return { blocked: quotaBlocked };
+    if (quotaBlocked) {
+      return {
+        blocked: quotaBlocked,
+        quotaOnly: { clientId: clientIdFor(request, user.id), userId: user.id },
+      };
+    }
   }
 
   return { clientId: clientIdFor(request, user?.id), userId: user?.id ?? null };

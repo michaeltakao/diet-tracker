@@ -2,7 +2,8 @@
  * Weight data access layer.
  *
  * Read:  localStorage always (synchronous, immediate).
- * Write: localStorage first; then Supabase when authenticated (async, fire-and-forget).
+ * Write: localStorage first; then Supabase via the outbox when authenticated
+ *        (queued in IndexedDB and retried on failure — ADR-008 P0-6).
  *
  * STEP 6: dual-write added.
  * STEP 7: reads will prefer Supabase after migration runs.
@@ -15,7 +16,7 @@ import {
   getLatestWeight   as _getLatest,
   getAppData        as _getAll,
 } from '@/lib/storage';
-import { getWriteContext } from './_write';
+import { write as outboxWrite } from './outbox';
 import type { WeightEntry } from '@/lib/types';
 
 // ── Read (localStorage, synchronous) ──────────────────────────────────────────
@@ -49,38 +50,23 @@ export async function addWeightEntry(entry: WeightEntry): Promise<void> {
   // Step 1: localStorage
   _add(entry);
 
-  // Step 2: Supabase (UPSERT — one row per user per date)
-  const ctx = await getWriteContext();
-  if (!ctx) return;
-
-  const { error } = await ctx.supabase.from('weight_logs').upsert({
-    id:          entry.id,
-    user_id:     ctx.userId,
-    logged_date: entry.date,
-    weight_kg:   entry.weight,
-    logged_at:   entry.addedAt,
-  }, { onConflict: 'user_id,logged_date' });
-
-  if (error) {
-    console.warn('[data/weight] Supabase addWeightEntry failed:', error.message);
-  }
+  // Step 2: outbox → Supabase (UPSERT — one row per user per date; replay is
+  // last-write-wins on (user_id, logged_date), see lib/data/outbox.ts)
+  await outboxWrite({
+    kind: 'upsert',
+    table: 'weight_logs',
+    row: { id: entry.id, logged_date: entry.date, weight_kg: entry.weight, logged_at: entry.addedAt },
+    onConflict: 'user_id,logged_date',
+  });
 }
 
 export async function removeWeightEntry(id: string): Promise<void> {
+  // The date lets the queued delete replace a still-queued upsert of that day,
+  // and the outbox deletes the server row by (user_id, logged_date).
+  const loggedDate = _getAll().weightEntries.find((e) => e.id === id)?.date;
   // Step 1: localStorage
   _remove(id);
 
-  // Step 2: Supabase
-  const ctx = await getWriteContext();
-  if (!ctx) return;
-
-  const { error } = await ctx.supabase
-    .from('weight_logs')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', ctx.userId);
-
-  if (error) {
-    console.warn('[data/weight] Supabase removeWeightEntry failed:', error.message);
-  }
+  // Step 2: outbox → Supabase
+  await outboxWrite({ kind: 'delete', table: 'weight_logs', id, ...(loggedDate ? { loggedDate } : {}) });
 }

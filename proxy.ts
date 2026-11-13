@@ -19,6 +19,12 @@
  * dt-guest cookie (set by the login page's "Continue without an account"
  * link); the auth guard then passes unauthenticated page requests through.
  *
+ * Study build (NEXT_PUBLIC_STUDY_BUILD=1, vault ADR-008 P0-10): the dt-guest
+ * cookie is ignored, so a device that opted into guest mode before is sent to
+ * /login like any anonymous visitor. Guest rows never reach Supabase and the
+ * participant would be counted as dropped. The unconfigured-Supabase pass-
+ * through above is unchanged (local dev only).
+ *
  * See: docs/decisions/ADR-007-dual-write.md
  */
 
@@ -36,6 +42,15 @@ function isSupabaseConfigured(): boolean {
   const hasUrl = url.length > 0 && !url.includes('placeholder') && !url.includes('xxxx');
   const hasKey = key.length > 0 && !key.includes('placeholder');
   return hasUrl && hasKey;
+}
+
+/**
+ * Same value as STUDY_BUILD in lib/study-build.ts (inlined at build time).
+ * Read here directly, like isSupabaseConfigured(), and per call so tests can
+ * switch it.
+ */
+function isStudyBuild(): boolean {
+  return process.env.NEXT_PUBLIC_STUDY_BUILD === '1';
 }
 
 export async function proxy(request: NextRequest) {
@@ -121,7 +136,8 @@ export async function proxy(request: NextRequest) {
   // AI routes still enforce their own gate in lib/api-guard.ts.
   // Exception 2: the public landing page itself — anonymous, non-guest
   // visitors render app/page.tsx directly instead of bouncing to /login.
-  const isGuest = request.cookies.get('dt-guest')?.value === '1';
+  // The study build has no guest mode: the cookie is ignored (see header).
+  const isGuest = !isStudyBuild() && request.cookies.get('dt-guest')?.value === '1';
   if (!user && isGuest && !isLoginPage) {
     if (needsOnboarding) return onboardingRedirect();
     // Fully onboarded guest landing on `/` → dashboard, not the landing page.

@@ -1,5 +1,6 @@
 'use client';
 
+import { todayJst, nowJstTime, jstTimestamp } from '@/lib/format-date';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
@@ -67,18 +68,15 @@ interface CoachAdvice {
   motivationMessage: string;
 }
 
-function getTodayDate() { return new Date().toISOString().split('T')[0]; }
+function getTodayDate() { return todayJst(); }
 
 function getCurrentTime(): string {
-  const now = new Date();
-  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  return nowJstTime();
 }
 
 function buildTimestamp(date: string, time: string): string {
-  const [h, m] = time.split(':').map(Number);
-  const dt = new Date(`${date}T00:00:00`);
-  dt.setHours(h, m, 0, 0);
-  return dt.toISOString();
+  // JST day + JST HH:MM -> ISO instant (ADR-008 P0-1: no 24 h shift before 09:00)
+  return jstTimestamp(date, time);
 }
 
 function formatTime(iso: string) {

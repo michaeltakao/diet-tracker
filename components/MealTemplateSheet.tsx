@@ -6,6 +6,7 @@
  * source:'db' — values are the template's stored finals (1× portion).
  */
 
+import { todayJst } from '@/lib/format-date';
 import { useEffect, useState } from 'react';
 import { X, Trash2, BookmarkPlus } from 'lucide-react';
 import { getMealTemplates, deleteMealTemplate } from '@/lib/data/meal-templates';
@@ -14,7 +15,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import type { MealTemplate } from '@/lib/types';
 
 function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0];
+  return todayJst();
 }
 
 interface MealTemplateSheetProps {

@@ -11,6 +11,7 @@
  * stays light.
  */
 
+import { todayJst } from '@/lib/format-date';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -87,7 +88,7 @@ const ExerciseProgressChart = dynamic(
 
 /** Same "today" convention as the rest of the app (lib/data date stamps). */
 function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0];
+  return todayJst();
 }
 
 interface TdeeHistoryRow {

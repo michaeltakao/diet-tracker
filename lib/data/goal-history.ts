@@ -63,13 +63,21 @@ export function toGoalColumns(goals: DailyGoals): GoalColumns {
 /**
  * Build a snapshot. `goals` is null when the caller has no real nutrition
  * targets (onboarding finished without computed targets) — the nutrition
- * columns are then NULL rather than the fabricated defaults.
+ * columns are then NULL rather than the fabricated defaults. `goalWeightKg`
+ * then carries a goal weight the user did set (ADR-008 P0-12); it is ignored
+ * when `goals` is given (goals.goalWeight wins).
  */
-export function toGoalSnapshot(fitnessGoal: FitnessGoal | null, goals: DailyGoals | null): GoalSnapshot {
+export function toGoalSnapshot(
+  fitnessGoal: FitnessGoal | null,
+  goals: DailyGoals | null,
+  goalWeightKg: number | null = null,
+): GoalSnapshot {
   if (!goals) {
+    const w = Number(goalWeightKg);
     return {
       fitness_goal: fitnessGoal,
-      goal_weight_kg: null, goal_calories: null,
+      goal_weight_kg: goalWeightKg != null && Number.isFinite(w) && w > 0 ? oneDecimal(w) : null,
+      goal_calories: null,
       goal_protein_g: null, goal_fat_g: null, goal_carbs_g: null,
     };
   }
@@ -111,8 +119,8 @@ export function markPurposeChosen(): void {
 /**
  * Append a goal snapshot for the signed-in user. Call after onboarding
  * completes and after a settings save. Pass `fitnessGoal: null` when the
- * purpose was never actively chosen; a snapshot with neither a purpose nor
- * goals is not written.
+ * purpose was never actively chosen; a snapshot with no purpose, no goals
+ * and no goal weight is not written.
  *
  * Skipped when it equals the last snapshot this device sent for the same
  * user. The marker is written only after a successful insert, so a failed
@@ -121,13 +129,14 @@ export function markPurposeChosen(): void {
 export async function recordGoalSnapshot(
   fitnessGoal: FitnessGoal | null,
   goals: DailyGoals | null,
+  goalWeightKg: number | null = null,
 ): Promise<void> {
   if (typeof window === 'undefined') return;
-  if (fitnessGoal === null && goals === null) return;
+  if (fitnessGoal === null && goals === null && goalWeightKg === null) return;
   const ctx = await getWriteContext();
   if (!ctx) return;
 
-  const snapshot = toGoalSnapshot(fitnessGoal, goals);
+  const snapshot = toGoalSnapshot(fitnessGoal, goals, goalWeightKg);
   const marker = `${ctx.userId}:${JSON.stringify(snapshot)}`;
   try {
     if (localStorage.getItem(LAST_SNAPSHOT_KEY) === marker) return;

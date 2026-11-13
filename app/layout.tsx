@@ -9,6 +9,8 @@ import PwaInstallBanner from '@/components/PwaInstallBanner';
 import SideNav from '@/components/SideNav';
 import CalorieContextBar from '@/components/CalorieContextBar';
 import FeedbackButton from '@/components/FeedbackButton';
+import { StorageErrorNotice } from '@/components/StorageErrorNotice';
+import { OutboxSync } from '@/components/OutboxSync';
 
 // Duolingo-style rounded type (design phase 2). Nunito is a variable font:
 // loading the variable axis covers every weight 400–900 in one file
@@ -101,9 +103,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <PwaInstallBanner />
             </div>
             <FeedbackButton />
+            <StorageErrorNotice />
           </LanguageProvider>
         </ProfileProvider>
         <PwaRegister />
+        <OutboxSync />
         <TextScaleInit />
       </body>
     </html>

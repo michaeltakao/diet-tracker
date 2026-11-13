@@ -194,6 +194,56 @@ export type Database = {
           },
         ]
       }
+      client_sync_health: {
+        Row: {
+          build_sha: string | null
+          dropped_count: number
+          failed_count: number
+          id: string
+          oldest_queued_at: string | null
+          queued_count: number
+          reported_at: string
+          study_build: boolean | null
+          superseded_count: number
+          synced_count: number
+          user_id: string
+        }
+        Insert: {
+          build_sha?: string | null
+          dropped_count?: number
+          failed_count?: number
+          id?: string
+          oldest_queued_at?: string | null
+          queued_count?: number
+          reported_at?: string
+          study_build?: boolean | null
+          superseded_count?: number
+          synced_count?: number
+          user_id: string
+        }
+        Update: {
+          build_sha?: string | null
+          dropped_count?: number
+          failed_count?: number
+          id?: string
+          oldest_queued_at?: string | null
+          queued_count?: number
+          reported_at?: string
+          study_build?: boolean | null
+          superseded_count?: number
+          synced_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_sync_health_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exercise_ranks: {
         Row: {
           achieved_at: string
@@ -279,6 +329,7 @@ export type Database = {
       food_logs: {
         Row: {
           amount_g: number | null
+          build_sha: string | null
           calories: number
           carbs_g: number
           created_at: string
@@ -296,10 +347,12 @@ export type Database = {
           sodium_mg: number | null
           source: string | null
           source_id: string | null
+          study_build: boolean | null
           user_id: string
         }
         Insert: {
           amount_g?: number | null
+          build_sha?: string | null
           calories: number
           carbs_g?: number
           created_at?: string
@@ -317,10 +370,12 @@ export type Database = {
           sodium_mg?: number | null
           source?: string | null
           source_id?: string | null
+          study_build?: boolean | null
           user_id: string
         }
         Update: {
           amount_g?: number | null
+          build_sha?: string | null
           calories?: number
           carbs_g?: number
           created_at?: string
@@ -338,6 +393,7 @@ export type Database = {
           sodium_mg?: number | null
           source?: string | null
           source_id?: string | null
+          study_build?: boolean | null
           user_id?: string
         }
         Relationships: [
@@ -496,6 +552,7 @@ export type Database = {
           role: string
           sex: string | null
           study_cohort: string | null
+          study_start_at: string | null
           updated_at: string
         }
         Insert: {
@@ -523,6 +580,7 @@ export type Database = {
           role?: string
           sex?: string | null
           study_cohort?: string | null
+          study_start_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -550,6 +608,7 @@ export type Database = {
           role?: string
           sex?: string | null
           study_cohort?: string | null
+          study_start_at?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1259,26 +1318,32 @@ export type Database = {
       }
       weight_logs: {
         Row: {
+          build_sha: string | null
           created_at: string
           id: string
           logged_at: string
           logged_date: string
+          study_build: boolean | null
           user_id: string
           weight_kg: number
         }
         Insert: {
+          build_sha?: string | null
           created_at?: string
           id?: string
           logged_at?: string
           logged_date: string
+          study_build?: boolean | null
           user_id: string
           weight_kg: number
         }
         Update: {
+          build_sha?: string | null
           created_at?: string
           id?: string
           logged_at?: string
           logged_date?: string
+          study_build?: boolean | null
           user_id?: string
           weight_kg?: number
         }
@@ -1294,6 +1359,7 @@ export type Database = {
       }
       workout_logs: {
         Row: {
+          build_sha: string | null
           category: Database["public"]["Enums"]["workout_category"]
           created_at: string
           duration_min: number | null
@@ -1306,10 +1372,12 @@ export type Database = {
           reps: number | null
           set_details: Json | null
           sets: number | null
+          study_build: boolean | null
           user_id: string
           weight_kg: number | null
         }
         Insert: {
+          build_sha?: string | null
           category?: Database["public"]["Enums"]["workout_category"]
           created_at?: string
           duration_min?: number | null
@@ -1322,10 +1390,12 @@ export type Database = {
           reps?: number | null
           set_details?: Json | null
           sets?: number | null
+          study_build?: boolean | null
           user_id: string
           weight_kg?: number | null
         }
         Update: {
+          build_sha?: string | null
           category?: Database["public"]["Enums"]["workout_category"]
           created_at?: string
           duration_min?: number | null
@@ -1338,6 +1408,7 @@ export type Database = {
           reps?: number | null
           set_details?: Json | null
           sets?: number | null
+          study_build?: boolean | null
           user_id?: string
           weight_kg?: number | null
         }

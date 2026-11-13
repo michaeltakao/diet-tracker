@@ -6,6 +6,7 @@
 import type { TrainingProgram, TrainingSession, PlannedExercise } from '@/lib/types';
 import type { Json } from '@/lib/database.types';
 import { getWriteContext } from './_write';
+import { safeSetItem } from '@/lib/storage';
 
 const KEY = 'diet-tracker-training-plans';
 
@@ -26,7 +27,7 @@ export function getPrograms(): TrainingProgram[] {
 }
 
 function save(programs: TrainingProgram[]): void {
-  localStorage.setItem(KEY, JSON.stringify(programs));
+  safeSetItem(KEY, JSON.stringify(programs));
 }
 
 export function getActiveProgram(): TrainingProgram | null {

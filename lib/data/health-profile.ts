@@ -6,6 +6,7 @@
 
 import type { UserHealthProfile } from '@/lib/types';
 import { getWriteContext } from './_write';
+import { safeSetItem } from '@/lib/storage';
 
 const HEALTH_PROFILE_KEY = 'diet-tracker-health-profile';
 
@@ -33,7 +34,7 @@ export function getHealthProfile(): UserHealthProfile {
 
 export function updateHealthProfile(profile: UserHealthProfile): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(HEALTH_PROFILE_KEY, JSON.stringify(profile));
+  safeSetItem(HEALTH_PROFILE_KEY, JSON.stringify(profile));
 
   // Dual-write to Supabase profiles table (fire-and-forget)
   void (async () => {

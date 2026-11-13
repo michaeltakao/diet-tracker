@@ -14,10 +14,10 @@ import { addVitalEntry, removeVitalEntry, getAllVitalEntries, checkAndAwardBadge
 import type { VitalEntry, GlucoseContext } from '@/lib/types';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { fmtShortJa } from '@/lib/format-date';
+import { fmtShortJa, todayJst } from '@/lib/format-date';
 import { CARD_CLASS as cardCls } from '@/components/ui/Card';
 
-function getTodayDate() { return new Date().toISOString().split('T')[0]; }
+function getTodayDate() { return todayJst(); }
 
 type VitalKind = 'blood_pressure' | 'blood_glucose' | 'lipid' | 'hba1c';
 

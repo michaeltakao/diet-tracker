@@ -23,7 +23,8 @@ import ExerciseVideo from '@/components/ExerciseVideo';
 
 export interface GeneratedPlanResult {
   plan: GeneratedPlan;
-  narrative: { sessionName: string; notes: string; motivationMessage: string };
+  /** null when the AI narration was unavailable (ADR-008 P0-4) — the plan still renders. */
+  narrative: { sessionName: string; notes: string; motivationMessage: string } | null;
 }
 
 export default function GeneratedPlanCard({
@@ -112,7 +113,7 @@ export default function GeneratedPlanCard({
             <p className="text-xs font-black uppercase tracking-widest text-brand-700 dark:text-brand-300 opacity-60">
               {t.aiSuggestionLabel}
             </p>
-            <p className="text-base font-black text-brand-700 dark:text-brand-300">{narrative.sessionName}</p>
+            <p className="text-base font-black text-brand-700 dark:text-brand-300">{narrative?.sessionName || t.planDefaultName}</p>
           </div>
         </div>
         <button
@@ -125,7 +126,7 @@ export default function GeneratedPlanCard({
         </button>
       </div>
 
-      {narrative.notes && (
+      {narrative?.notes && (
         <p className="text-xs text-brand-700 dark:text-brand-300 opacity-80 mb-3 bg-card/40 px-3 py-2 rounded-xl">
           {narrative.notes}
         </p>
@@ -178,7 +179,7 @@ export default function GeneratedPlanCard({
         </>
       )}
 
-      {narrative.motivationMessage && (
+      {narrative?.motivationMessage && (
         <p className="text-sm font-black text-brand-700 dark:text-brand-300 border-t border-current border-opacity-10 pt-3 mt-3">
           {narrative.motivationMessage}
         </p>

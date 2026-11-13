@@ -1,24 +1,44 @@
--- diet-tracker 6 か月調査 集計クエリ — 2026-10-14 改訂
+-- diet-tracker 6 か月調査 集計クエリ — 2026-11-12 改訂(W6 送信状況、時刻帯と送信状況のルール)
 --
 -- 読み取り専用。SELECT のみで、テーブルもビューも作らない。
 -- Supabase の SQL エディタ、または MCP の execute_sql で 1 本ずつ実行する。
 -- 定義は配布開始前に固定した(研究計画スライド 10 枚目と同じ)。結果を見てから変えない。
 --
--- 対象者   : profiles.consented_at が入っているユーザー
---            (= 研究者が書面の同意書を確認済み。consent-roster.sql で入れる)。
+-- 対象者   : profiles.consented_at と study_start_at が両方入っているユーザー
+--            (= 研究者が書面の同意書を確認済み。consent-roster.sql の R2 で同時に入れる)。
 -- 対象データ: food_logs / weight_logs / workout_logs / goal_history / training_programs /
---             ai_usage と profiles の id・created_at・consented_at。
+--             ai_usage と profiles の id・consented_at・study_start_at。
 --             vital_logs / symptom_logs / profiles.health_conditions / medications は読まない。
--- day 0    : 初回ログイン日 = profiles.created_at を Asia/Tokyo に直した日付。
--- day_n    : logged_date − day 0。logged_date は端末のローカル日付(国内利用なら JST)。
+-- day 0    : profiles.study_start_at を Asia/Tokyo に直した日付(migration 026、研究者が手で入れる。
+--            既定 = greatest(署名日の正午 JST, アカウント作成時刻))。2026-11-04 までは
+--            created_at(初回ログイン日)だったが、家族トライアルからの継続者では
+--            トライアル期の記録が 1 か月目に入るため変えた(vault ADR-008 P0-9)。
+-- day_n    : logged_date − day 0。logged_date は記録した日の JST の日付(ADR-008 P0-1 以降)。
+--            P0-1 より前に保存された行は UTC の日付で、JST 0〜9 時の記録は前日になっている。
+-- 使う行   : day 0 以降(day_n >= 0)の行だけ。day 0 より前の行(トライアル期)は使わない
+--            (ADR-008 の既定ルール。使うのは感度分析だけ)。各クエリの day_n の範囲がこれを兼ねる。
 -- 月 m     : day 30(m−1) 〜 30m−1。6 か月目 = day 150〜179。
 -- 活動日   : 食事・体重・運動のいずれかを 1 件以上記録した日。
--- 開始時の目的: goal_history で fitness_goal が入っている最も古い行(NULL = 本人が目的を選んでいない)。
+-- 開始時の目的: day 0 の時点で有効だった目的 = goal_history で fitness_goal が入っている行のうち、
+--            記録日(JST)が day 0 以前で最も新しい行。なければ day 0 より後で最も古い行
+--            (NULL = 本人が目的を選んでいない)。トライアル期に設定した目的を変えずに続ける人の
+--            目的を拾うため、目的と目標体重だけは day 0 より前の行も使う。
+--            この選び方(base_goal / base_gw)は S0・S1・S3・S3b・S4・S5・S5b に同じ文で
+--            書いてある。変えるときは全部を同時に変える。
 --            lose = weight_loss / gain = muscle_gain / maintain = maintenance /
 --            other = endurance・flexibility / no_goal = 行がない(初期設定で目的を飛ばした人)。
--- 開始時の目標体重: day 0〜13 に記録された goal_history のうち、goal_weight_kg が入っている最初の行。
+-- 開始時の目標体重: 開始時の目的と同じ選び方。goal_weight_kg が入っている行のうち、記録日が
+--            day 0 以前で最も新しい行。なければ day 1〜13 で最も古い行(day 14 以降に初めて
+--            入れた目標体重は使わない)。
 -- 統計     : 10〜30 人を 3 群に分けるので検定はしない。人数・中央値・範囲だけを出す。
 --            対照群がないので、変化をアプリの効果とは書かない。
+-- 時刻帯   : 日付はすべて JST。端末のタイムゾーンは記録していないので、データからは誰も
+--            除かない。国外に出た期間は参加者に申告してもらい、主分析はそのまま出し、
+--            申告された日を除いた感度分析を並べて報告する(2026-11-12 決定)。
+-- 送信状況 : W6 で incomplete = true の参加者(端末が記録を捨てた、または最新の報告で
+--            未送信が残っている)も主分析に入れる。その人の記録のない日は「未使用」ではなく
+--            「不明」と書く。該当人数を報告し、その人を除いた感度分析を並べて報告する
+--            (2026-11-12 決定)。
 -- 注意     : 結果には user_id が出る。メモや論文に貼るときは連番に置き換える。
 --            S 系 = 6 か月の指標(最終報告用)。W 系 = 週次の中間確認用。
 
@@ -31,23 +51,31 @@
 with p as (
   select
     id as user_id,
-    (created_at at time zone 'Asia/Tokyo')::date as day0,
+    (study_start_at at time zone 'Asia/Tokyo')::date as day0,
     (consented_at at time zone 'Asia/Tokyo')::date as consent_marked_on,
-    (now() at time zone 'Asia/Tokyo')::date - (created_at at time zone 'Asia/Tokyo')::date as age_days
+    (now() at time zone 'Asia/Tokyo')::date - (study_start_at at time zone 'Asia/Tokyo')::date as age_days
   from public.profiles
   where consented_at is not null
+    and study_start_at is not null
 ), base_goal as (
   select distinct on (g.user_id) g.user_id, g.fitness_goal, g.recorded_at
   from public.goal_history g
+  join p on p.user_id = g.user_id
   where g.fitness_goal is not null
-  order by g.user_id, g.recorded_at
+  order by g.user_id,
+           (g.recorded_at at time zone 'Asia/Tokyo')::date > p.day0,
+           case when (g.recorded_at at time zone 'Asia/Tokyo')::date <= p.day0 then g.recorded_at end desc nulls last,
+           g.recorded_at
 ), base_gw as (
   select distinct on (g.user_id) g.user_id, g.goal_weight_kg
   from public.goal_history g
   join p on p.user_id = g.user_id
   where g.goal_weight_kg is not null
-    and (g.recorded_at at time zone 'Asia/Tokyo')::date - p.day0 between 0 and 13
-  order by g.user_id, g.recorded_at
+    and (g.recorded_at at time zone 'Asia/Tokyo')::date - p.day0 <= 13
+  order by g.user_id,
+           (g.recorded_at at time zone 'Asia/Tokyo')::date > p.day0,
+           case when (g.recorded_at at time zone 'Asia/Tokyo')::date <= p.day0 then g.recorded_at end desc nulls last,
+           g.recorded_at
 )
 select
   p.user_id,
@@ -78,15 +106,20 @@ order by p.day0, p.user_id;
 with p as (
   select
     id as user_id,
-    (created_at at time zone 'Asia/Tokyo')::date as day0,
-    (now() at time zone 'Asia/Tokyo')::date - (created_at at time zone 'Asia/Tokyo')::date as age_days
+    (study_start_at at time zone 'Asia/Tokyo')::date as day0,
+    (now() at time zone 'Asia/Tokyo')::date - (study_start_at at time zone 'Asia/Tokyo')::date as age_days
   from public.profiles
   where consented_at is not null
+    and study_start_at is not null
 ), base_goal as (
-  select distinct on (user_id) user_id, fitness_goal
-  from public.goal_history
-  where fitness_goal is not null
-  order by user_id, recorded_at
+  select distinct on (g.user_id) g.user_id, g.fitness_goal, g.recorded_at
+  from public.goal_history g
+  join p on p.user_id = g.user_id
+  where g.fitness_goal is not null
+  order by g.user_id,
+           (g.recorded_at at time zone 'Asia/Tokyo')::date > p.day0,
+           case when (g.recorded_at at time zone 'Asia/Tokyo')::date <= p.day0 then g.recorded_at end desc nulls last,
+           g.recorded_at
 ), pp as (
   select p.*,
     case
@@ -137,10 +170,11 @@ order by (purpose is null) desc, purpose, month_n;
 with p as (
   select
     id as user_id,
-    (created_at at time zone 'Asia/Tokyo')::date as day0,
-    least((now() at time zone 'Asia/Tokyo')::date - (created_at at time zone 'Asia/Tokyo')::date, 179) as follow_up_end
+    (study_start_at at time zone 'Asia/Tokyo')::date as day0,
+    least((now() at time zone 'Asia/Tokyo')::date - (study_start_at at time zone 'Asia/Tokyo')::date, 179) as follow_up_end
   from public.profiles
   where consented_at is not null
+    and study_start_at is not null
 ), act as (
   select user_id, logged_date from public.food_logs
   union
@@ -174,10 +208,11 @@ order by time_days, user_id;
 with p as (
   select
     id as user_id,
-    (created_at at time zone 'Asia/Tokyo')::date as day0,
-    least((now() at time zone 'Asia/Tokyo')::date - (created_at at time zone 'Asia/Tokyo')::date, 179) as follow_up_end
+    (study_start_at at time zone 'Asia/Tokyo')::date as day0,
+    least((now() at time zone 'Asia/Tokyo')::date - (study_start_at at time zone 'Asia/Tokyo')::date, 179) as follow_up_end
   from public.profiles
   where consented_at is not null
+    and study_start_at is not null
 ), act as (
   select user_id, logged_date from public.food_logs
   union
@@ -228,22 +263,30 @@ order by t;
 with p as (
   select
     id as user_id,
-    (created_at at time zone 'Asia/Tokyo')::date as day0,
-    (now() at time zone 'Asia/Tokyo')::date - (created_at at time zone 'Asia/Tokyo')::date as age_days
+    (study_start_at at time zone 'Asia/Tokyo')::date as day0,
+    (now() at time zone 'Asia/Tokyo')::date - (study_start_at at time zone 'Asia/Tokyo')::date as age_days
   from public.profiles
   where consented_at is not null
+    and study_start_at is not null
 ), base_goal as (
-  select distinct on (user_id) user_id, fitness_goal
-  from public.goal_history
-  where fitness_goal is not null
-  order by user_id, recorded_at
+  select distinct on (g.user_id) g.user_id, g.fitness_goal, g.recorded_at
+  from public.goal_history g
+  join p on p.user_id = g.user_id
+  where g.fitness_goal is not null
+  order by g.user_id,
+           (g.recorded_at at time zone 'Asia/Tokyo')::date > p.day0,
+           case when (g.recorded_at at time zone 'Asia/Tokyo')::date <= p.day0 then g.recorded_at end desc nulls last,
+           g.recorded_at
 ), base_gw as (
   select distinct on (g.user_id) g.user_id, g.goal_weight_kg
   from public.goal_history g
   join p on p.user_id = g.user_id
   where g.goal_weight_kg is not null
-    and (g.recorded_at at time zone 'Asia/Tokyo')::date - p.day0 between 0 and 13
-  order by g.user_id, g.recorded_at
+    and (g.recorded_at at time zone 'Asia/Tokyo')::date - p.day0 <= 13
+  order by g.user_id,
+           (g.recorded_at at time zone 'Asia/Tokyo')::date > p.day0,
+           case when (g.recorded_at at time zone 'Asia/Tokyo')::date <= p.day0 then g.recorded_at end desc nulls last,
+           g.recorded_at
 ), w0 as (
   select distinct on (w.user_id) w.user_id, w.weight_kg
   from public.weight_logs w
@@ -299,22 +342,30 @@ order by status, attainment desc nulls last, p.user_id;
 with p as (
   select
     id as user_id,
-    (created_at at time zone 'Asia/Tokyo')::date as day0,
-    (now() at time zone 'Asia/Tokyo')::date - (created_at at time zone 'Asia/Tokyo')::date as age_days
+    (study_start_at at time zone 'Asia/Tokyo')::date as day0,
+    (now() at time zone 'Asia/Tokyo')::date - (study_start_at at time zone 'Asia/Tokyo')::date as age_days
   from public.profiles
   where consented_at is not null
+    and study_start_at is not null
 ), base_goal as (
-  select distinct on (user_id) user_id, fitness_goal
-  from public.goal_history
-  where fitness_goal is not null
-  order by user_id, recorded_at
+  select distinct on (g.user_id) g.user_id, g.fitness_goal, g.recorded_at
+  from public.goal_history g
+  join p on p.user_id = g.user_id
+  where g.fitness_goal is not null
+  order by g.user_id,
+           (g.recorded_at at time zone 'Asia/Tokyo')::date > p.day0,
+           case when (g.recorded_at at time zone 'Asia/Tokyo')::date <= p.day0 then g.recorded_at end desc nulls last,
+           g.recorded_at
 ), base_gw as (
   select distinct on (g.user_id) g.user_id, g.goal_weight_kg
   from public.goal_history g
   join p on p.user_id = g.user_id
   where g.goal_weight_kg is not null
-    and (g.recorded_at at time zone 'Asia/Tokyo')::date - p.day0 between 0 and 13
-  order by g.user_id, g.recorded_at
+    and (g.recorded_at at time zone 'Asia/Tokyo')::date - p.day0 <= 13
+  order by g.user_id,
+           (g.recorded_at at time zone 'Asia/Tokyo')::date > p.day0,
+           case when (g.recorded_at at time zone 'Asia/Tokyo')::date <= p.day0 then g.recorded_at end desc nulls last,
+           g.recorded_at
 ), w0 as (
   select distinct on (w.user_id) w.user_id, w.weight_kg
   from public.weight_logs w
@@ -374,15 +425,20 @@ order by (purpose is null) desc, purpose;
 with p as (
   select
     id as user_id,
-    (created_at at time zone 'Asia/Tokyo')::date as day0,
-    (now() at time zone 'Asia/Tokyo')::date - (created_at at time zone 'Asia/Tokyo')::date as age_days
+    (study_start_at at time zone 'Asia/Tokyo')::date as day0,
+    (now() at time zone 'Asia/Tokyo')::date - (study_start_at at time zone 'Asia/Tokyo')::date as age_days
   from public.profiles
   where consented_at is not null
+    and study_start_at is not null
 ), base_goal as (
-  select distinct on (user_id) user_id, fitness_goal
-  from public.goal_history
-  where fitness_goal is not null
-  order by user_id, recorded_at
+  select distinct on (g.user_id) g.user_id, g.fitness_goal, g.recorded_at
+  from public.goal_history g
+  join p on p.user_id = g.user_id
+  where g.fitness_goal is not null
+  order by g.user_id,
+           (g.recorded_at at time zone 'Asia/Tokyo')::date > p.day0,
+           case when (g.recorded_at at time zone 'Asia/Tokyo')::date <= p.day0 then g.recorded_at end desc nulls last,
+           g.recorded_at
 ), w0 as (
   select distinct on (w.user_id) w.user_id, w.weight_kg
   from public.weight_logs w
@@ -422,15 +478,20 @@ order by p.user_id;
 with p as (
   select
     id as user_id,
-    (created_at at time zone 'Asia/Tokyo')::date as day0,
-    (now() at time zone 'Asia/Tokyo')::date - (created_at at time zone 'Asia/Tokyo')::date as age_days
+    (study_start_at at time zone 'Asia/Tokyo')::date as day0,
+    (now() at time zone 'Asia/Tokyo')::date - (study_start_at at time zone 'Asia/Tokyo')::date as age_days
   from public.profiles
   where consented_at is not null
+    and study_start_at is not null
 ), base_goal as (
-  select distinct on (user_id) user_id, fitness_goal
-  from public.goal_history
-  where fitness_goal is not null
-  order by user_id, recorded_at
+  select distinct on (g.user_id) g.user_id, g.fitness_goal, g.recorded_at
+  from public.goal_history g
+  join p on p.user_id = g.user_id
+  where g.fitness_goal is not null
+  order by g.user_id,
+           (g.recorded_at at time zone 'Asia/Tokyo')::date > p.day0,
+           case when (g.recorded_at at time zone 'Asia/Tokyo')::date <= p.day0 then g.recorded_at end desc nulls last,
+           g.recorded_at
 ), wd as (
   select
     p.user_id,
@@ -472,15 +533,20 @@ order by purpose, p.user_id;
 with p as (
   select
     id as user_id,
-    (created_at at time zone 'Asia/Tokyo')::date as day0,
-    (now() at time zone 'Asia/Tokyo')::date - (created_at at time zone 'Asia/Tokyo')::date as age_days
+    (study_start_at at time zone 'Asia/Tokyo')::date as day0,
+    (now() at time zone 'Asia/Tokyo')::date - (study_start_at at time zone 'Asia/Tokyo')::date as age_days
   from public.profiles
   where consented_at is not null
+    and study_start_at is not null
 ), base_goal as (
-  select distinct on (user_id) user_id, fitness_goal
-  from public.goal_history
-  where fitness_goal is not null
-  order by user_id, recorded_at
+  select distinct on (g.user_id) g.user_id, g.fitness_goal, g.recorded_at
+  from public.goal_history g
+  join p on p.user_id = g.user_id
+  where g.fitness_goal is not null
+  order by g.user_id,
+           (g.recorded_at at time zone 'Asia/Tokyo')::date > p.day0,
+           case when (g.recorded_at at time zone 'Asia/Tokyo')::date <= p.day0 then g.recorded_at end desc nulls last,
+           g.recorded_at
 ), wd as (
   select
     p.user_id,
@@ -519,9 +585,10 @@ order by (purpose is null) desc, purpose;
 -- W1. 中止条件 1(開始 4 週間 = day 0〜27 に活動日が 3 日以上ある人数。5 人未満なら配布を止める)
 --     中止条件 2(3 か月時点の継続が 5 人未満)は S1 の month_n = 3、purpose = '(all)' の retained を見る。
 with p as (
-  select id as user_id, (created_at at time zone 'Asia/Tokyo')::date as day0
+  select id as user_id, (study_start_at at time zone 'Asia/Tokyo')::date as day0
   from public.profiles
   where consented_at is not null
+    and study_start_at is not null
 ), act as (
   select user_id, logged_date from public.food_logs
   union
@@ -542,9 +609,10 @@ from per_user;
 
 -- W2. 週あたり活動日数(ユーザー × 週。week_n = floor(day_n / 7))
 with p as (
-  select id as user_id, (created_at at time zone 'Asia/Tokyo')::date as day0
+  select id as user_id, (study_start_at at time zone 'Asia/Tokyo')::date as day0
   from public.profiles
   where consented_at is not null
+    and study_start_at is not null
 ), act as (
   select user_id, logged_date from public.food_logs
   union
@@ -557,15 +625,16 @@ select
   floor((a.logged_date - p.day0) / 7.0)::int as week_n,
   count(*)                                   as active_days
 from p
-join act a on a.user_id = p.user_id
+join act a on a.user_id = p.user_id and a.logged_date >= p.day0
 group by p.user_id, week_n
 order by p.user_id, week_n;
 
 -- W3. 目標の入力状況(week 1 のお願い「目標体重を入れる」ができているか)
 with p as (
-  select id as user_id, (created_at at time zone 'Asia/Tokyo')::date as day0
+  select id as user_id, (study_start_at at time zone 'Asia/Tokyo')::date as day0
   from public.profiles
   where consented_at is not null
+    and study_start_at is not null
 )
 select
   count(*)                                                                    as participants,
@@ -575,7 +644,7 @@ select
   count(*) filter (where exists (
     select 1 from public.goal_history g
     where g.user_id = p.user_id and g.goal_weight_kg is not null
-      and (g.recorded_at at time zone 'Asia/Tokyo')::date - p.day0 between 0 and 13))
+      and (g.recorded_at at time zone 'Asia/Tokyo')::date - p.day0 <= 13))
                                                                               as with_goal_weight_by_day13,
   count(*) filter (where exists (
     select 1 from public.weight_logs w
@@ -593,11 +662,73 @@ select
 from public.ai_usage u
 join public.profiles p on p.id = u.user_id
 where p.consented_at is not null
+  and p.study_start_at is not null
+  and u.usage_date >= (p.study_start_at at time zone 'Asia/Tokyo')::date
 group by u.usage_date, u.route
 order by u.usage_date desc, calls desc;
 
 -- W5. 同意を確認していないアカウントの数(署名なしの登録が増えていないか。中身は読まない)
+--     marked_without_start / start_without_consent は 0 であること(R2 で 2 列を同時に入れる)。
 select
-  count(*) filter (where consented_at is not null) as consent_marked,
-  count(*) filter (where consented_at is null)     as not_marked
+  count(*) filter (where consented_at is not null)                            as consent_marked,
+  count(*) filter (where consented_at is null)                                as not_marked,
+  count(*) filter (where consented_at is not null and study_start_at is null) as marked_without_start,
+  count(*) filter (where consented_at is null and study_start_at is not null) as start_without_consent
 from public.profiles;
+
+-- W6. 端末の送信状況(参加者別。client_sync_health、migration 028)
+--     端末がアプリを開くたびに 1 行送る申告値で、前回の報告からの増分(監査証跡ではない)。
+--     day 0(study_start_at)以降の報告だけを数える。
+--     各行は前回の報告からの増分なので、day 0 より前からアプリを使っていた人(継続者)では、
+--     day 0 以降の最初の報告に day 0 より前の分が混じることがある。incomplete = true の人は
+--     報告の行を日付順に見て、day 0 以降の記録が欠けたのかを確かめてから人数に入れる。
+--     incomplete = true : dropped > 0(永続エラーで捨てた記録がある)、または最新の報告で
+--                         queued_at_last_report > 0(未送信が端末に残っている)。
+--                         → その人のサーバー上の記録は欠けている。扱いは冒頭の「送信状況」。
+--     reports = 0       : 報告が 1 行もない(調査用ビルドを開いていない、または報告が
+--                         届いていない)。欠けの有無は分からないので incomplete は NULL。
+with p as (
+  select id as user_id, study_start_at
+  from public.profiles
+  where consented_at is not null
+    and study_start_at is not null
+),
+h as (
+  select h.*
+  from public.client_sync_health h
+  join p on p.user_id = h.user_id
+  where h.reported_at >= p.study_start_at
+),
+agg as (
+  select
+    user_id,
+    count(*)              as reports,
+    sum(synced_count)     as synced,
+    sum(failed_count)     as failed_attempts,
+    sum(dropped_count)    as dropped,
+    sum(superseded_count) as superseded
+  from h
+  group by user_id
+),
+latest as (
+  select distinct on (user_id)
+    user_id, reported_at, queued_count, oldest_queued_at
+  from h
+  order by user_id, reported_at desc, id
+)
+select
+  p.user_id,
+  coalesce(a.reports, 0)                                as reports,
+  a.synced,
+  a.failed_attempts,
+  a.dropped,
+  a.superseded,
+  (l.reported_at at time zone 'Asia/Tokyo')::date       as last_report_date,
+  l.queued_count                                        as queued_at_last_report,
+  (l.oldest_queued_at at time zone 'Asia/Tokyo')::date  as oldest_queued_date,
+  case when a.user_id is null then null
+       else (a.dropped > 0 or l.queued_count > 0) end   as incomplete
+from p
+left join agg a    on a.user_id = p.user_id
+left join latest l on l.user_id = p.user_id
+order by incomplete desc nulls last, p.user_id;

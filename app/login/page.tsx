@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Login page.
+ * Login page. UI text comes from lib/i18n.ts (default ja — ADR-008 P0-8).
  *
  * Three auth paths:
  * 1. Google OAuth (primary — one-click, no password)
@@ -25,6 +25,9 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { Loader2, Mail, LogIn, Leaf } from 'lucide-react';
 import { useProfile } from '@/contexts/ProfileContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import type { Translations } from '@/lib/i18n';
+import { STUDY_BUILD } from '@/lib/study-build';
 
 // ── Google icon (inline SVG — avoids next/image in auth context) ──────────────
 
@@ -55,6 +58,7 @@ function GoogleIcon() {
 
 function LoginPageInner() {
   const { signInWithGoogle, signInWithEmail, isAuthenticated } = useProfile();
+  const { t } = useLanguage();
   const searchParams = useSearchParams();
 
   const nextPath   = searchParams.get('next') ?? '/dashboard';
@@ -69,7 +73,7 @@ function LoginPageInner() {
 
   // Build human-readable error text from URL params
   const urlError = errorCode
-    ? errorMsg ?? getErrorLabel(errorCode)
+    ? errorMsg ?? getErrorLabel(errorCode, t)
     : null;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -105,7 +109,7 @@ function LoginPageInner() {
   if (isAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-sm text-muted">Redirecting…</p>
+        <p className="text-sm text-muted">{t.loginRedirecting}</p>
       </div>
     );
   }
@@ -120,18 +124,22 @@ function LoginPageInner() {
         </div>
         <div>
           <h1 className="text-xl font-semibold text-fg">
-            Check your inbox
+            {t.loginCheckInbox}
           </h1>
           <p className="mt-2 text-sm text-muted">
-            We sent a magic link to <span className="font-medium text-fg">{email}</span>.<br />
-            Click the link to sign in.
+            {t.loginSentTo.split('{email}').map((part, i) => (
+              <span key={i}>
+                {i > 0 && <span className="font-medium text-fg">{email}</span>}
+                {part}
+              </span>
+            ))}
           </p>
         </div>
         <button
           onClick={() => { setEmailSent(false); setEmail(''); }}
           className="text-sm text-green-600 hover:underline"
         >
-          Use a different email
+          {t.loginDifferentEmail}
         </button>
       </div>
     );
@@ -151,8 +159,7 @@ function LoginPageInner() {
           Diet Tracker
         </h1>
         <p className="text-sm text-muted text-center max-w-xs">
-          Plan your training, track your progress — with AI-powered nutrition support.
-          Sign in to sync your data across devices.
+          {t.loginTagline}
         </p>
       </div>
 
@@ -188,13 +195,13 @@ function LoginPageInner() {
             ? <Loader2 className="w-5 h-5 animate-spin" />
             : <GoogleIcon />
           }
-          Continue with Google
+          {t.loginGoogle}
         </button>
 
         {/* Divider */}
         <div className="flex items-center gap-3">
           <div className="flex-1 h-px bg-line" />
-          <span className="text-xs text-faint">or</span>
+          <span className="text-xs text-faint">{t.loginOr}</span>
           <div className="flex-1 h-px bg-line" />
         </div>
 
@@ -205,7 +212,7 @@ function LoginPageInner() {
               htmlFor="login-email"
               className="text-xs font-medium text-muted uppercase tracking-wide"
             >
-              Email
+              {t.loginEmailLabel}
             </label>
             <input
               id="login-email"
@@ -246,30 +253,32 @@ function LoginPageInner() {
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : <LogIn className="w-4 h-4" />
             }
-            Send magic link
+            {t.loginSendLink}
           </button>
         </form>
       </div>
 
-      {/* Guest mode */}
-      <Link
-        href={nextPath.startsWith('/') ? nextPath : '/dashboard'}
-        prefetch={false}
-        onClick={() => {
-          // Guest opt-in cookie: proxy.ts lets unauthenticated requests through
-          // when present. prefetch={false} so the RSC payload is never fetched
-          // (and cached as a /login redirect) before the cookie exists.
-          document.cookie = 'dt-guest=1; path=/; max-age=31536000; samesite=lax';
-        }}
-        className="text-sm text-faint hover:text-fg transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-      >
-        Continue without an account →
-      </Link>
+      {/* Guest mode — not offered in the study build (ADR-008 P0-10) */}
+      {!STUDY_BUILD && (
+        <Link
+          href={nextPath.startsWith('/') ? nextPath : '/dashboard'}
+          prefetch={false}
+          onClick={() => {
+            // Guest opt-in cookie: proxy.ts lets unauthenticated requests through
+            // when present. prefetch={false} so the RSC payload is never fetched
+            // (and cached as a /login redirect) before the cookie exists.
+            document.cookie = 'dt-guest=1; path=/; max-age=31536000; samesite=lax';
+          }}
+          className="text-sm text-faint hover:text-fg transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        >
+          {t.loginGuest}
+        </Link>
+      )}
 
       {/* Privacy note */}
       <p className="text-xs text-faint text-center max-w-xs">
-        By signing in, you agree to store your health data in Supabase.
-        Guest mode keeps all data on this device only.
+        {t.loginPrivacy}
+        {!STUDY_BUILD && ` ${t.loginPrivacyGuest}`}
       </p>
     </div>
   );
@@ -277,14 +286,14 @@ function LoginPageInner() {
 
 // ── Error label helper ────────────────────────────────────────────────────────
 
-function getErrorLabel(code: string): string {
+function getErrorLabel(code: string, t: Translations): string {
   switch (code) {
-    case 'auth_failed':      return 'Authentication failed. Please try again.';
-    case 'oauth_error':      return 'OAuth sign-in was cancelled or failed.';
-    case 'exchange_failed':  return 'Sign-in link expired. Please request a new one.';
-    case 'missing_code':     return 'Invalid sign-in link. Please request a new one.';
-    case 'server_error':     return 'Server error. Please try again later.';
-    default:                 return 'Sign-in failed. Please try again.';
+    case 'auth_failed':      return t.loginErrAuthFailed;
+    case 'oauth_error':      return t.loginErrOauth;
+    case 'exchange_failed':  return t.loginErrExpired;
+    case 'missing_code':     return t.loginErrInvalidLink;
+    case 'server_error':     return t.loginErrServer;
+    default:                 return t.loginErrGeneric;
   }
 }
 

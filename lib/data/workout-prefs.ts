@@ -133,3 +133,26 @@ export function recordLocationChoice(location: TrainingLocation, date: string): 
   prefs.recentLocations = [{ date, location }, ...prefs.recentLocations].slice(0, MAX_RECENT_LOCATIONS);
   saveWorkoutPrefs(prefs);
 }
+
+/** Onboarding "今日はどこで動けそう？" vocabulary → session-start location. */
+export const ONBOARDING_LOCATION: Record<'home' | 'gym' | 'outside', TrainingLocation> = {
+  home: 'home',
+  gym: 'gym',
+  outside: 'outdoor',
+};
+
+/**
+ * Carry the onboarding place/time answers into the first workout check-in
+ * (ADR-008 P0-5, bug B6b: they were asked and then dropped). Fills only
+ * unset fields, so a returning user's own last choice always wins.
+ */
+export function seedPrefsFromOnboarding(
+  environment: 'home' | 'gym' | 'outside',
+  minutes: SessionDuration,
+): void {
+  const prefs = getWorkoutPrefs();
+  if (prefs.lastLocation && prefs.lastDuration) return;
+  prefs.lastLocation ??= ONBOARDING_LOCATION[environment];
+  prefs.lastDuration ??= minutes;
+  saveWorkoutPrefs(prefs);
+}
