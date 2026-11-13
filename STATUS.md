@@ -11,7 +11,8 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   Production `/` and `/login` return 200 after the deploy. `main` merged
   into `feat/trial-data-notice` (`559e8f5`, PR #21) and from there into
   `fix/study-p0` (`019d5bd`, PR #22) the same day; #21's `npm audit`
-  check is green again. Outbox run against Supabase: still open.
+  check is green again. **Outbox run: still open** — the sign-in link now
+  reaches localhost but was opened in another browser (PKCE); 0 rows.
 - **2026-11-12 ADR-008 P0 code complete** (`fix/study-p0`, draft PR #22,
   pushed): P0-2 `0f8fbe6`, P0-4 `cc1baa1`, P0-3 `d809549` + `5100946`
   (install banner also covered the FAB — found in the browser check), P0-8
@@ -23,15 +24,14 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   advisor finding). `025` + `026` held — see Blockers.** Also: W6 query +
   time-zone / sync-health rules decided, weekly
   `.github/workflows/freeze-check.yml`.
-- **2026-11-04 ADR-008 P0-9 / P0-10 / P0-11** (`fix/study-p0`): `026`
-  `study_start_at` = day 0; study flag hides guest mode; `027` build stamp
-  + `/api/build-info` + freeze script. Full entry in the archive (11-12).
+- **2026-11-04 ADR-008 P0-9 / P0-10 / P0-11** (`fix/study-p0`): day 0, no
+  guest mode in the study build, build stamp. Full entry: archive (11-12).
 
 ## Next
 - **ADR-008 P0: all done in code** (P0-13 = draft only). Before merging
   #22: [🔒user] Vercel Production env `NEXT_PUBLIC_STUDY_BUILD=1` (else prod
-  builds fail); signed-in end-to-end run of the outbox (log offline → back
-  online → row in Supabase, one `client_sync_health` row); **apply `025`
+  builds fail); signed-in outbox run (offline log → online → rows + one
+  `client_sync_health` row; open the link in the requesting Chrome); **apply `025`
   → `026` right after #21 is live on production, not before**; then the
   freeze setup in `docs/trial/freeze-check.md` (`study-v1` tag, `study`
   branch) and the analysis-plan freeze
@@ -59,8 +59,8 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   1. Vercel env (Production): add `SUPABASE_SERVICE_ROLE_KEY` (export,
      participant self-delete, push-subscribe upsert) and confirm
      `GEMINI_API_KEY` is current. `APP_ACCESS_CODE` already set.
-  2. Supabase dashboard → Auth → URL Configuration: add
-     `https://diet-tracker-two-blue.vercel.app` to Site URL / Redirect URLs.
+  2. Supabase Auth → URL Configuration (read 11-13): Site URL is
+     `…-febw.vercel.app`; Redirect URLs has both Vercel callbacks.
   3. Supabase dashboard → Auth → Providers: Google is DISABLED
      (`external.google=false`) — enable it, or hide the login button.
   4. Google Cloud Console → Credentials → OAuth client: Authorized redirect
@@ -187,8 +187,9 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   `eslint-config-next` 16.4.1, `sharp` 0.35.5, `fake-indexeddb` 6.2.8.
   `feat/trial-data-notice`: vitest 612/612, same lint / tsc / build / audit;
   PR #21 checks all pass (incl. `npm audit`). Prod `/` + `/login` 200 after
-  #23. NOT verified: outbox against Supabase (needs the magic-link
-  sign-in), PR #22's Vercel previews (pending at push time), 025/026.
+  #23. Later: Supabase Redirect URLs + `http://localhost:3000/**` (4
+  entries, Site URL unchanged). NOT verified: outbox against Supabase,
+  PR #22's Vercel previews (pending at push time), 025/026.
 - 2026-11-12 (later): `fix/study-p0` — lint 0 errors (3 warnings), `tsc` 0,
   vitest **748/748**, study `next build` OK (unsandboxed). Prod Supabase:
   `list_migrations` ends 024, 027, 028; rows before = after (profiles 2,
@@ -196,5 +197,4 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   security advisors: nothing on `client_sync_health`. W6 ran on prod
   (with `created_at` standing in for `study_start_at`, which needs 026):
   2 rows, 0 reports. Freeze script vs prod: exit 2 (no `study-v1` tag);
-  prod `/api/build-info` = 404 (ships with #22). `/sec` OK. NOT verified:
-  outbox against Supabase, the workflow on GitHub (`main` only), 025/026.
+  prod `/api/build-info` = 404 (ships with #22). `/sec` OK.
