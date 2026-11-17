@@ -26,6 +26,7 @@ import {
   getMedicationRules,
   buildHealthContextPrompt,
 } from '@/lib/medication-rules';
+import { normalizeJaText, medicationMatches } from '@/lib/ja-normalize';
 import {
   isMinor,
   isSenior,
@@ -131,23 +132,46 @@ const FOOD_RULES: FoodRule[] = [
   },
 ];
 
+// ── Food-name matching ──────────────────────────────────────────────────────
+
+/**
+ * Spellings that kana normalisation cannot reach (kanji ↔ kana, okurigana,
+ * small-tsu). Used ONLY for matching; the prompt ban list in
+ * {@link buildSafetyReport} keeps the canonical terms so prompts are unchanged.
+ */
+export const TERM_VARIANTS: Readonly<Record<string, readonly string[]>> = {
+  '鶏むね':   ['鶏胸', 'むね肉'],
+  'ささみ':   ['笹身'],
+  '納豆':     ['なっとう'],
+  '青汁':     ['あおじる'],
+  'イワシ':   ['鰯'],
+  'アジ':     ['鯵'],
+  'エビ':     ['海老'],
+  'カツオ':   ['鰹'],
+  '梅干し':   ['梅干'],
+  '漬物':     ['漬け物'],
+  'ドーナツ': ['ドーナッツ'],
+  'グレープフルーツ': ['グレフル', 'grapefruit'],
+};
+
+/** Normalised match terms per rule (canonical terms + their variants). */
+const RULE_MATCH_TERMS: ReadonlyMap<FoodRule, readonly string[]> = new Map(
+  FOOD_RULES.map(rule => [
+    rule,
+    [...new Set(
+      rule.terms.flatMap(t => [t, ...(TERM_VARIANTS[t] ?? [])]).map(normalizeJaText),
+    )],
+  ]),
+);
+
 // ── Trigger matching ────────────────────────────────────────────────────────
 
-/** Bidirectional, case-insensitive medication match (mirrors getMedicationRules). */
-function userHasMedication(keywords: string[], medications: string[]): boolean {
-  return keywords.some(kw =>
-    medications.some(med =>
-      med.toLowerCase().includes(kw.toLowerCase()) ||
-      kw.toLowerCase().includes(med.toLowerCase()),
-    ),
-  );
-}
 
 function ruleApplies(rule: FoodRule, profile: UserHealthProfile): boolean {
   const conditions  = profile.healthConditions ?? [];
   const medications = profile.medications ?? [];
   return rule.trigger.kind === 'medication'
-    ? userHasMedication(rule.trigger.keywords, medications)
+    ? medicationMatches(rule.trigger.keywords, medications)
     : conditions.includes(rule.trigger.keywords[0]);
 }
 
@@ -171,9 +195,10 @@ export function screenFood(
   profile: UserHealthProfile,
 ): { allowed: boolean; notes: SafetyNote[] } {
   const notes: SafetyNote[] = [];
+  const normName = normalizeJaText(name);
   for (const rule of FOOD_RULES) {
     if (!ruleApplies(rule, profile)) continue;
-    if (rule.terms.some(term => name.includes(term))) {
+    if ((RULE_MATCH_TERMS.get(rule) ?? []).some(term => normName.includes(term))) {
       notes.push({
         severity: rule.severity,
         message:  rule.message,
@@ -239,7 +264,8 @@ export function clampMacros(
 /**
  * Build the deterministic safety context for a user: text to inject into the
  * LLM prompt, warnings that must always be present, and the absolute set of
- * contraindicated food terms (used both in the prompt and as the post-filter).
+ * contraindicated food terms (canonical spellings, used in the prompt; the
+ * post-filter in screenFood also matches their kana forms and TERM_VARIANTS).
  */
 export function buildSafetyReport(
   profile: UserHealthProfile,
@@ -257,7 +283,9 @@ export function buildSafetyReport(
     ...(isMinor(profile.age) ? [MINOR_GROWTH_WARNING] : []),
   ])];
 
-  // Absolute contraindicated terms that apply to this specific user.
+  // Absolute contraindicated terms that apply to this specific user. These are
+  // the canonical spellings only (they go into the prompt); the post-filter in
+  // screenFood additionally matches kana forms and TERM_VARIANTS.
   const contraindicatedTerms = [...new Set(
     FOOD_RULES
       .filter(rule => rule.severity === 'contraindicated' && ruleApplies(rule, profile))

@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
   screenFood,
+  TERM_VARIANTS,
   clampMacros,
   buildSafetyReport,
   filterRecommendation,
   MINOR_GROWTH_WARNING,
 } from '@/lib/recommend-safety';
+import { normalizeJaText, medicationMatches } from '@/lib/ja-normalize';
+import { getMedicationRules } from '@/lib/medication-rules';
 import { estimatedEnergyRequirement, SENIOR_PROTEIN_G_PER_KG } from '@/lib/nutrition-standards';
 import type {
   UserHealthProfile,
@@ -80,6 +83,100 @@ describe('screenFood', () => {
     const { allowed, notes } = screenFood('鶏むね肉のグリル', profile({ medications: ['ワーファリン'] }));
     expect(allowed).toBe(true);
     expect(notes).toHaveLength(0);
+  });
+});
+
+// ── Variant matching ────────────────────────────────────────────────────────
+
+describe('normalizeJaText', () => {
+  it('maps katakana to hiragana, half-width to full-width, and lower-cases', () => {
+    expect(normalizeJaText('ササミ')).toBe('ささみ');
+    expect(normalizeJaText('ｴﾋﾞ')).toBe('えび');
+    expect(normalizeJaText('ＤＨＡ')).toBe('dha');
+    expect(normalizeJaText('ドーナツ')).toBe('どーなつ');
+  });
+
+  it('drops whitespace and ・ separators but keeps the long-vowel mark', () => {
+    expect(normalizeJaText('グレープ・フルーツ')).toBe(normalizeJaText('グレープフルーツ'));
+    expect(normalizeJaText('ナットウ　ご飯')).toBe('なっとうご飯');
+    expect(normalizeJaText('ビール')).toBe('びーる');
+  });
+});
+
+describe('medicationMatches', () => {
+  const wf = ['ワーファリン', 'ワルファリン', 'warfarin'];
+
+  it.each(['わーふぁりん', 'ﾜｰﾌｧﾘﾝ', 'ワーファリン錠1mg', 'Warfarin', 'ワルファリン'])('%s matches warfarin', med => {
+    expect(medicationMatches(wf, [med])).toBe(true);
+  });
+
+  it('ignores medications that normalise to empty (would otherwise match every rule)', () => {
+    expect(medicationMatches(wf, ['', ' ', '・'])).toBe(false);
+  });
+
+  it('getMedicationRules uses the same normalisation', () => {
+    expect(getMedicationRules(['わーふぁりん']).length).toBeGreaterThan(0);
+    expect(getMedicationRules(['　'])).toHaveLength(0);
+  });
+});
+
+describe('screenFood variant matching', () => {
+  const ckd   = profile({ healthConditions: ['腎臓病'] });
+  const gout  = profile({ healthConditions: ['痛風'] });
+  const htn   = profile({ healthConditions: ['高血圧'] });
+  const dm    = profile({ healthConditions: ['糖尿病'] });
+  const wf    = profile({ medications: ['ワーファリン'] });
+
+  const cases: Array<[string, UserHealthProfile, string]> = [
+    ['鶏胸肉のソテー', ckd, '鶏むね → 鶏胸'],
+    ['むね肉の唐揚げ', ckd, '鶏むね → むね肉'],
+    ['鶏ムネ肉', ckd, '鶏むね via katakana'],
+    ['ササミのサラダ', ckd, 'ささみ via katakana'],
+    ['笹身の梅肉和え', ckd, 'ささみ → 笹身'],
+    ['なっとう巻き', wf, '納豆 → なっとう'],
+    ['あおじる', wf, '青汁 → あおじる'],
+    ['鰯の梅煮', gout, 'イワシ → 鰯'],
+    ['いわしの蒲焼き', gout, 'イワシ via hiragana'],
+    ['鯵の南蛮漬け', gout, 'アジ → 鯵'],
+    ['海老フライ', gout, 'エビ → 海老'],
+    ['えびチリ', gout, 'エビ via hiragana'],
+    ['ｴﾋﾞﾌﾗｲ', gout, 'エビ via half-width'],
+    ['鰹のたたき', gout, 'カツオ → 鰹'],
+    ['梅干入りおにぎり', htn, '梅干し → 梅干'],
+    ['漬け物盛り合わせ', htn, '漬物 → 漬け物'],
+    ['ドーナッツ', dm, 'ドーナツ → ドーナッツ'],
+  ];
+
+  it.each(cases)('%s matches (%s)', (name, prof) => {
+    expect(screenFood(name, prof).notes.length).toBeGreaterThan(0);
+  });
+
+  it('every TERM_VARIANTS key is a live rule term (a typo would silently drop its variants)', () => {
+    const everyone = profile({
+      healthConditions: ['腎臓病', '痛風', '高血圧', '心臓病', '糖尿病'],
+      medications: ['ワーファリン', 'リピトール', 'アムロジピン'],
+    });
+    for (const key of Object.keys(TERM_VARIANTS)) {
+      expect(screenFood(key, everyone).notes.length, key).toBeGreaterThan(0);
+    }
+  });
+
+  it.each(['グレフルジュース', 'grapefruit juice', 'グレープ・フルーツ'])(
+    'blocks grapefruit spelled %s for a statin user', name => {
+      expect(screenFood(name, profile({ medications: ['リピトール'] })).allowed).toBe(false);
+    },
+  );
+
+  it('blocks 納豆 when warfarin is entered in hiragana', () => {
+    expect(screenFood('納豆', profile({ medications: ['わーふぁりん'] })).allowed).toBe(false);
+  });
+
+  it('blocks a kana-variant contraindicated food (warfarin + なっとう)', () => {
+    expect(screenFood('なっとう', wf).allowed).toBe(false);
+  });
+
+  it('does not match a variant when the rule does not apply', () => {
+    expect(screenFood('鶏胸肉のソテー', profile()).notes).toHaveLength(0);
   });
 });
 
@@ -232,6 +329,19 @@ describe('filterRecommendation', () => {
     const out = filterRecommendation(raw, profile({ medications: ['ワーファリン'] }), 60);
     expect(out.foods.map(f => f.name)).toEqual(['焼き鮭']);
     expect(out.warnings.some(w => w.includes('納豆ごはん') && w.includes('除外'))).toBe(true);
+  });
+
+  it('removes a kana-variant contraindicated food (なっとう) for a warfarin user', () => {
+    const raw = rawRec({ foods: [food('なっとうご飯'), food('焼き鮭')] });
+    const out = filterRecommendation(raw, profile({ medications: ['ワーファリン'] }), 60);
+    expect(out.foods.map(f => f.name)).toEqual(['焼き鮭']);
+    expect(out.warnings.some(w => w.includes('なっとうご飯') && w.includes('除外'))).toBe(true);
+  });
+
+  it('annotates 鶏胸肉 with the CKD caution', () => {
+    const raw = rawRec({ foods: [food('鶏胸肉のグリル')] });
+    const out = filterRecommendation(raw, profile({ healthConditions: ['腎臓病'] }), 60);
+    expect(out.foods[0].safetyNotes?.[0].ref).toBe('腎臓病');
   });
 
   it('keeps caution foods but annotates them with safetyNotes', () => {
