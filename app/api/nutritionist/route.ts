@@ -3,7 +3,7 @@ import { GoogleGenAI, Type, type Schema } from '@google/genai';
 import { GEMINI_MODEL, generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
-import { buildHealthContextPrompt } from '@/lib/medication-rules';
+import { buildHealthContextPrompt, capGoalsForConditions } from '@/lib/medication-rules';
 import { parseBody, type ParsedBody } from '@/lib/nutritionist-request';
 import { screenSuggestions } from '@/lib/recommend-safety';
 import type { UserHealthProfile } from '@/lib/types';
@@ -92,9 +92,12 @@ export async function POST(request: Request): Promise<NextResponse> {
     const ai = new GoogleGenAI({ apiKey });
     const { healthConditions, medications, weightKg } = parsedBody;
     const healthCtx = buildHealthContextPrompt(healthConditions, medications, weightKg);
+    // Server-side cap too (defense in depth): an old cached bundle or a direct
+    // caller may send an uncapped goal next to the CKD context.
+    const goals = capGoalsForConditions(parsedBody.goals, healthConditions, weightKg);
     const payload = JSON.stringify({
       todayMeals: parsedBody.entries,
-      dailyGoals: parsedBody.goals,
+      dailyGoals: goals,
     });
     const userPrompt = healthCtx ? `【ユーザーの健康状態】\n${healthCtx}\n\n${payload}` : payload;
 
@@ -116,7 +119,9 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     // Deterministic post-filter: the prompt asks the model to avoid
-    // contraindicated foods; this guarantees it. Only the fields screenFood
+    // contraindicated foods; this guarantees no contraindicated food name
+    // reaches the user. It does NOT catch caution-level advice (e.g. "add a
+    // protein shake" for CKD) — that still rests on the prompt's cap line. Only the fields screenFood
     // reads are needed, so the profile is built from the request.
     const profile: UserHealthProfile = {
       age: null,

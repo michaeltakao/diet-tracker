@@ -20,9 +20,10 @@ import type { DailyGoals } from '@/lib/types';
 // ── Read ──────────────────────────────────────────────────────
 
 /**
- * Current daily goals, exactly as stored (uncapped). Only the settings form
- * should read this — it edits the stored value. Everything that displays or
- * sends goals uses getRealGoals(), which applies condition caps.
+ * Current daily goals, exactly as stored (uncapped). The settings form reads
+ * the raw value (it edits it); displays and AI routes should use
+ * getRealGoals(), which applies condition caps. Note: ProfileContext's
+ * resolved `goals` is also uncapped (no current consumer reads it).
  */
 export function getGoals(): DailyGoals {
   return _getAll().goals;

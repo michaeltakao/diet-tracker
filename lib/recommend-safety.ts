@@ -196,7 +196,9 @@ export interface TextSuggestion {
  * Deterministic post-filter for free-text LLM suggestions (/api/nutritionist).
  * Each suggestion's title + detail is run through `screenFood`; any
  * contraindicated hit replaces that suggestion with a fixed placeholder, so
- * the route's exactly-N contract holds and no unsafe text reaches the user.
+ * the route's exactly-N contract holds and no contraindicated food name
+ * reaches the user. Caution-level matches (e.g. CKD + プロテイン) pass
+ * unchanged — this is not a check on quantity advice.
  *
  * Known limitation: substring matching cannot read negation, so
  * 「納豆は控えましょう」 is also replaced — a false block, never a false pass.

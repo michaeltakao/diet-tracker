@@ -210,9 +210,8 @@ export default function SettingsPage() {
   const recommendReady = ageBand(healthProfile.age) !== null;
   // Display-only: getRealGoals() applies this cap at read time; the stored
   // goal stays the user's value (no blocking, no auto-rewrite).
-  const proteinCapG = isProteinCapped(healthProfile.healthConditions ?? [])
-    ? ckdProteinCapG(latestWeightKg)
-    : null;
+  const proteinCapped = isProteinCapped(healthProfile.healthConditions ?? []);
+  const proteinCapG = proteinCapped ? ckdProteinCapG(latestWeightKg) : null;
 
   const applyRecommendedGoals = () => {
     const rec = recommendedGoals(healthProfile, getLatestWeightEntry()?.weight ?? null);
@@ -480,10 +479,16 @@ export default function SettingsPage() {
               min="0"
               className={`${inputCls} ${accent}`}
             />
-            {field === 'protein' && proteinCapG != null && (
-              <p className="text-xs text-muted mt-1.5">
-                腎臓病のため、表示・AIでは上限 {proteinCapG}g（{CKD_PROTEIN_G_PER_KG} g/kg）を適用します
-              </p>
+            {field === 'protein' && proteinCapped && (
+              proteinCapG == null ? (
+                <p className="text-xs text-muted mt-1.5">
+                  腎臓病のため、体重を記録すると表示・AIでタンパク質の上限（{CKD_PROTEIN_G_PER_KG} g/kg）を適用します
+                </p>
+              ) : Number(form.protein) > proteinCapG ? (
+                <p className="text-xs text-muted mt-1.5">
+                  腎臓病のため、表示・AIでは上限 {proteinCapG}g（{CKD_PROTEIN_G_PER_KG} g/kg）を適用します
+                </p>
+              ) : null
             )}
           </div>
         ))}

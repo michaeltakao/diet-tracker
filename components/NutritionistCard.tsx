@@ -48,7 +48,10 @@ export function NutritionistCard() {
     setLoading(true);
     setError(null);
     try {
+      // Re-read at click time so goals (capped from the CURRENT profile and
+      // weight) and the health context sent below can't disagree.
       const profile = getHealthProfile();
+      const currentGoals = getRealGoals() ?? goals;
       const res = await postJson<{ suggestions: Suggestion[] }>('/api/nutritionist', {
         entries: entries.map((e) => ({
           name: e.name,
@@ -60,10 +63,10 @@ export function NutritionistCard() {
           ...(e.fiberG != null ? { fiberG: e.fiberG } : {}),
         })),
         goals: {
-          calories: goals.calories,
-          protein: goals.protein,
-          fat: goals.fat,
-          carbs: goals.carbs,
+          calories: currentGoals.calories,
+          protein: currentGoals.protein,
+          fat: currentGoals.fat,
+          carbs: currentGoals.carbs,
         },
         // Health context (2026-11-17): same fields as RecommendationCard.
         // `goals` is already CKD-capped by getRealGoals().
