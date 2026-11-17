@@ -19,7 +19,7 @@
  */
 
 import type { AppData, StreakState } from './types';
-import { todayJst } from './format-date';
+import { shiftDate, todayJst } from './format-date';
 
 const DAY_MS = 86_400_000;
 
@@ -31,12 +31,8 @@ export function jstToday(): string {
   return todayJst();
 }
 
-/** Calendar-day arithmetic on YYYY-MM-DD strings (handles month/year/leap). */
-export function shiftDate(date: string, days: number): string {
-  const d = new Date(`${date}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
+/** Re-exported for existing callers; lives in lib/format-date.ts. */
+export { shiftDate };
 
 /** ISO-8601 week key (e.g. "2026-W29") of a YYYY-MM-DD date. */
 export function isoWeekKey(date: string): string {

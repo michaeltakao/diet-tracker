@@ -3,7 +3,7 @@
  *
  * Runs once per account on first authenticated login.
  * Migrates all historical data: food logs, workout logs, weight logs,
- * water logs, badges, personal records, and goal settings.
+ * water logs, personal records, and goal settings.
  *
  * Design properties:
  * - Idempotent   : safe to call multiple times (local flag + DB flag guard)
@@ -28,12 +28,11 @@ import type {
   WorkoutLogInsert,
   WeightLogInsert,
   WaterLogInsert,
-  BadgeInsert,
   PersonalRecordInsert,
   CheckinInsert,
   TrainingProgramInsert,
 } from '@/lib/database.types';
-import type { MealTypeEnum, WorkoutCatEnum, MusclePartEnum, BadgeTypeEnum, Json } from '@/lib/database.types';
+import type { MealTypeEnum, WorkoutCatEnum, MusclePartEnum, Json } from '@/lib/database.types';
 import type { DailyCheckIn, TrainingProgram } from '@/lib/types';
 
 function readCheckIns(): DailyCheckIn[] {
@@ -83,7 +82,6 @@ export interface MigrationSummary {
   workoutLogs: number;
   weightLogs: number;
   waterLogs: number;
-  badges: number;
   checkins: number;
   trainingPrograms: number;
 }
@@ -94,7 +92,6 @@ export interface LocalDataInfo {
   workoutLogs: number;
   weightLogs: number;
   waterLogs: number;
-  badges: number;
   personalRecords: number;
 }
 
@@ -110,11 +107,6 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const VALID_MEAL_TYPES  = new Set<string>(['breakfast', 'lunch', 'dinner', 'snack']);
 const VALID_WORKOUT_CATS = new Set<string>(['strength', 'cardio', 'flexibility', 'other']);
 const VALID_MUSCLE_PARTS = new Set<string>(['chest', 'back', 'legs', 'shoulders', 'arms', 'abs']);
-const VALID_BADGE_TYPES  = new Set<string>([
-  'streak3', 'streak7', 'streak30',
-  'water_goal', 'calorie_goal',
-  'workout_master', 'pr_achieved',
-]);
 
 function isValidDate(d: unknown): d is string {
   return typeof d === 'string' && DATE_RE.test(d);
@@ -246,33 +238,6 @@ function buildWaterRow(date: string, totalMl: unknown, userId: string): WaterLog
   return { user_id: userId, logged_date: date, total_ml };
 }
 
-function buildBadgeRow(raw: unknown, userId: string): BadgeInsert | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const b = raw as Record<string, unknown>;
-
-  if (!VALID_BADGE_TYPES.has(String(b['type'] ?? ''))) {
-    console.warn('[MIGRATION_ERROR] badge: invalid type — skipping', b['type']);
-    return null;
-  }
-  const name        = String(b['name']        ?? '').trim();
-  const description = String(b['description'] ?? '').trim();
-  const icon        = String(b['icon']        ?? '').trim();
-  if (!name || !description || !icon) {
-    console.warn('[MIGRATION_ERROR] badge: missing required fields — skipping', b['id']);
-    return null;
-  }
-
-  return {
-    id:          ensureUUID(b['id']),
-    user_id:     userId,
-    type:        b['type'] as BadgeTypeEnum,
-    name,
-    description,
-    icon,
-    earned_at:   isValidIso(b['earnedAt']) ? b['earnedAt'] as string : new Date().toISOString(),
-  };
-}
-
 function buildPRRow(raw: unknown, userId: string): PersonalRecordInsert | null {
   if (!raw || typeof raw !== 'object') return null;
   const pr = raw as Record<string, unknown>;
@@ -380,24 +345,6 @@ async function upsertWaterLogs(
   return count;
 }
 
-async function upsertBadges(
-  supabase: SupabaseClient,
-  rows: BadgeInsert[],
-): Promise<number> {
-  let count = 0;
-  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-    const chunk = rows.slice(i, i + BATCH_SIZE);
-    const { error } = await supabase.from('badges').upsert(chunk, { onConflict: 'id' });
-    if (error) {
-      console.warn(`[MIGRATION_ERROR] badges batch ${i}:`, error.message);
-    } else {
-      count += chunk.length;
-      console.info(`[MIGRATION] badges: ${count}/${rows.length}`);
-    }
-  }
-  return count;
-}
-
 async function upsertPersonalRecords(
   supabase: SupabaseClient,
   rows: PersonalRecordInsert[],
@@ -429,7 +376,7 @@ export function detectLocalData(): LocalDataInfo {
     return {
       hasData: false,
       foodLogs: 0, workoutLogs: 0, weightLogs: 0,
-      waterLogs: 0, badges: 0, personalRecords: 0,
+      waterLogs: 0, personalRecords: 0,
     };
   }
   try {
@@ -441,7 +388,6 @@ export function detectLocalData(): LocalDataInfo {
       workoutLogs:    data.workoutEntries?.length ?? 0,
       weightLogs:     data.weightEntries?.length  ?? 0,
       waterLogs,
-      badges:         data.badges?.length         ?? 0,
       personalRecords,
       hasData: false,
     };
@@ -450,14 +396,13 @@ export function detectLocalData(): LocalDataInfo {
       info.workoutLogs > 0 ||
       info.weightLogs  > 0 ||
       info.waterLogs   > 0 ||
-      info.badges      > 0 ||
       info.personalRecords > 0;
     return info;
   } catch {
     return {
       hasData: false,
       foodLogs: 0, workoutLogs: 0, weightLogs: 0,
-      waterLogs: 0, badges: 0, personalRecords: 0,
+      waterLogs: 0, personalRecords: 0,
     };
   }
 }
@@ -584,7 +529,7 @@ export async function executeMigration(
 ): Promise<MigrationResult> {
   const start = Date.now();
   const summary: MigrationSummary = {
-    foodLogs: 0, workoutLogs: 0, weightLogs: 0, waterLogs: 0, badges: 0,
+    foodLogs: 0, workoutLogs: 0, weightLogs: 0, waterLogs: 0,
     checkins: 0, trainingPrograms: 0,
   };
 
@@ -626,15 +571,6 @@ export async function executeMigration(
       .filter((r): r is WaterLogInsert => r !== null);
     console.info(`[MIGRATION] water_logs: ${rows.length} valid records`);
     summary.waterLogs = await upsertWaterLogs(supabase, rows);
-  }
-
-  // ── 5. Badges ───────────────────────────────────────────────────────────────
-  {
-    const rows = (appData.badges ?? [])
-      .map(b => buildBadgeRow(b, userId))
-      .filter((r): r is BadgeInsert => r !== null);
-    console.info(`[MIGRATION] badges: ${rows.length} valid records`);
-    summary.badges = await upsertBadges(supabase, rows);
   }
 
   // ── 6. Personal records ─────────────────────────────────────────────────────
@@ -717,7 +653,6 @@ export async function executeMigration(
     summary.workoutLogs +
     summary.weightLogs +
     summary.waterLogs +
-    summary.badges +
     summary.checkins +
     summary.trainingPrograms;
 

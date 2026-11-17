@@ -29,8 +29,6 @@ import {
   addWater,
   getStreak,
   getStreakState,
-  checkAndAwardBadges,
-  getBadges,
 } from '../storage';
 import type { FoodEntry, StreakState, WeightEntry, WorkoutEntry } from '../types';
 
@@ -247,23 +245,4 @@ describe('storage integration (any-log streak + first-log badges)', () => {
     expect(s2.longest).toBeGreaterThanOrEqual(2);
   });
 
-  it('awards first_food and first_workout exactly once', () => {
-    const today = jstToday();
-    addFoodEntry(food(today));
-    let earned = checkAndAwardBadges(today).map((b) => b.type);
-    expect(earned).toContain('first_food');
-    expect(earned).not.toContain('first_workout');
-
-    addWorkoutEntry(workout(today));
-    earned = checkAndAwardBadges(today).map((b) => b.type);
-    expect(earned).toContain('first_workout');
-    expect(earned).not.toContain('first_food'); // idempotent
-
-    // Third pass awards neither again
-    earned = checkAndAwardBadges(today).map((b) => b.type);
-    expect(earned).not.toContain('first_food');
-    expect(earned).not.toContain('first_workout');
-    expect(getBadges().filter((b) => b.type === 'first_food')).toHaveLength(1);
-    expect(getBadges().filter((b) => b.type === 'first_workout')).toHaveLength(1);
-  });
 });

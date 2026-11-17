@@ -74,3 +74,10 @@ export function jstTimestamp(date: string, time: string): string {
 export function todayStr(): string {
   return todayJst();
 }
+
+/** Calendar-day arithmetic on YYYY-MM-DD strings (handles month/year/leap). */
+export function shiftDate(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}

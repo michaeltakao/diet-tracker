@@ -1,4 +1,3 @@
-import type { RankId } from './rank';
 
 /** Where a food entry's nutrition values came from. */
 export type FoodSource = 'manual' | 'ai' | 'db' | 'barcode';
@@ -170,13 +169,6 @@ export interface DailyGoals {
   goalWeight?: number; // kg target
 }
 
-export type BadgeType =
-  | 'streak3' | 'streak7' | 'streak30'
-  | 'water_goal' | 'calorie_goal'
-  | 'workout_master' | 'pr_achieved'
-  | 'first_food' | 'first_workout'
-  | 'vitals_week';
-
 /**
  * Per-device streak bookkeeping (localStorage-only — per-device UX state,
  * not study data; server persistence of `longest` is a documented follow-up).
@@ -190,15 +182,6 @@ export interface StreakState {
    * bridging the same gaps (see lib/streak.ts).
    */
   repairedDates: string[];
-}
-
-export interface Badge {
-  id: string;
-  type: BadgeType;
-  name: string;
-  description: string;
-  icon: string;
-  earnedAt: string; // ISO
 }
 
 export interface PersonalRecord {
@@ -216,7 +199,6 @@ export interface AppData {
   weightEntries: WeightEntry[];
   goals: DailyGoals;
   waterByDate: Record<string, number>; // date -> ml consumed
-  badges: Badge[];
   personalRecords: Record<string, PersonalRecord>; // exercise name -> best PR
   recommendationFeedback: RecommendationFeedback[]; // Phase B: preference signals
   favoriteFoods: FavoriteFood[];   // ♡ foods (Phase B signal + quick-add pills)
@@ -224,16 +206,6 @@ export interface AppData {
   streakState: StreakState;        // longest streak + repair-ticket memory (device-local)
   vitalEntries: VitalEntry[];      // BP / glucose measurements (record-only)
   symptomEntries: SymptomEntry[];  // symptom log (record-only, non-diagnostic)
-  xp: number;                      // Solo Leveling rank system (Phase 1): cumulative XP, never decreases
-  highestRank: RankId;             // ratchet — highest rank ever reached, independent of current XP
-  earnedTitles: string[];          // Solo Leveling titles (Phase 4): TitleKey[], stored untyped here to avoid a types.ts <-> titles.ts import cycle
-  exerciseRanks: Record<string, ExerciseRankState>; // per-exercise strength rank (Liftoff-inspired), keyed by ExerciseDef.id — only the 10 curated rankable lifts ever get an entry
-}
-
-/** Stored per-exercise rank state — the achieved tier + when it was reached. */
-export interface ExerciseRankState {
-  rank: 'novice' | 'intermediate' | 'advanced' | 'expert' | 'elite'; // 'unranked' is never persisted (absence of a row = unranked, mirrors PersonalRecord's "no row = no PR yet")
-  achievedAt: string; // ISO
 }
 
 // ── Health Profile (stored in localStorage + profiles table) ──

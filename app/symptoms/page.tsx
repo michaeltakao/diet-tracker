@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { Stethoscope, Trash2 } from 'lucide-react';
 import {
   addSymptomEntry, removeSymptomEntry, getAllSymptomEntries,
-  getFoodEntriesForDate, getWorkoutEntriesForDate, checkAndAwardBadges,
+  getFoodEntriesForDate, getWorkoutEntriesForDate,
 } from '@/lib/data';
 import type { SymptomEntry } from '@/lib/types';
 import { COMMON_SYMPTOMS, SYMPTOM_TRIGGERS, SEVERITY_MIN, SEVERITY_MAX, DURATION_MAX_MINUTES, isValidSymptomInput } from '@/lib/symptoms';
@@ -92,7 +92,6 @@ export default function SymptomsPage() {
       addedAt: new Date().toISOString(),
     };
     await addSymptomEntry(entry);
-    await checkAndAwardBadges(getTodayDate());
     setName(''); setDuration(''); setSeverity(5); setTrigger(null);
     setAction(''); setNote(''); setMealLink(''); setWorkoutLink('');
     setOnset(nowLocalInput());

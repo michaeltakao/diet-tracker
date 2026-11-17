@@ -8,9 +8,8 @@ import { saveMealTemplate } from '@/lib/data/meal-templates';
 import { FoodEntry, DailyGoals, MealTemplate } from '@/lib/types';
 import MealCard from '@/components/MealCard';
 import CalorieBar from '@/components/CalorieBar';
-import { MonthCalendar } from '@/components/MonthCalendar';
+import { MonthCalendar, type DayCategory } from '@/components/MonthCalendar';
 import { shiftDate, weekStartOf } from '@/lib/streak';
-import type { CategoryKey } from '@/lib/dashboard-data';
 import WeeklyReportCard from '@/components/WeeklyReportCard';
 import SusSurveyCard from '@/components/SusSurveyCard';
 import BottomNav from '@/components/BottomNav';
@@ -147,8 +146,8 @@ interface HabitReport {
 
 type LogView = 'weekly' | 'month' | 'trends';
 
-const EMPTY_DAY_SETS: Record<CategoryKey, Set<string>> = {
-  meal: new Set(), exercise: new Set(), vital: new Set(), symptom: new Set(),
+const EMPTY_DAY_SETS: Record<DayCategory, Set<string>> = {
+  meal: new Set(), workout: new Set(), weight: new Set(),
 };
 
 export default function LogPage() {
@@ -160,9 +159,8 @@ export default function LogPage() {
   const [allEntries, setAllEntries]     = useState<FoodEntry[]>([]);
   // null = no real goals set → goal-colored UI hidden, AI features gated
   const [goals, setGoals]               = useState<DailyGoals | null>(null);
-  // Per-category logged-day sets for the month calendar dots (phase C) —
-  // same derivation as lib/dashboard-data.ts computeCategoryStats.
-  const [daySets, setDaySets]           = useState<Record<CategoryKey, Set<string>>>(EMPTY_DAY_SETS);
+  // Per-category logged-day sets for the month calendar dots.
+  const [daySets, setDaySets]           = useState<Record<DayCategory, Set<string>>>(EMPTY_DAY_SETS);
 
   // Habit report state
   const [habitReport, setHabitReport]     = useState<HabitReport | null>(null);
@@ -179,10 +177,9 @@ export default function LogPage() {
     setAllEntries(data.foodEntries);
     setGoals(getRealGoals());
     setDaySets({
-      meal:     new Set(data.foodEntries.map((e) => e.date)),
-      exercise: new Set(data.workoutEntries.map((e) => e.date)),
-      vital:    new Set(data.vitalEntries.map((e) => e.date)),
-      symptom:  new Set(data.symptomEntries.map((e) => e.date)),
+      meal:    new Set(data.foodEntries.map((e) => e.date)),
+      workout: new Set(data.workoutEntries.map((e) => e.date)),
+      weight:  new Set(data.weightEntries.map((e) => e.date)),
     });
   }, []);
 

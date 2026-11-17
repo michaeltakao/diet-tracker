@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { HeartPulse, Trash2, Droplet } from 'lucide-react';
-import { addVitalEntry, removeVitalEntry, getAllVitalEntries, checkAndAwardBadges } from '@/lib/data';
+import { addVitalEntry, removeVitalEntry, getAllVitalEntries } from '@/lib/data';
 import type { VitalEntry, GlucoseContext } from '@/lib/types';
 import BottomNav from '@/components/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -94,7 +94,6 @@ export default function VitalsPage() {
           }
         : { ...base, kind, hba1cPercent: Math.round(parseFloat(hba1c) * 10) / 10 };
     await addVitalEntry(entry);
-    await checkAndAwardBadges(getTodayDate());
     setSystolic(''); setDiastolic(''); setGlucose('');
     setTotalChol(''); setLdl(''); setHdl(''); setTriglycerides(''); setHba1c('');
     setNotes('');

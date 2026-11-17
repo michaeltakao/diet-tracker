@@ -1,90 +1,59 @@
 'use client';
 
-import { shiftDate } from '@/lib/streak';
+/**
+ * Home — the core loop on one screen (ADR-011):
+ *   today's kcal vs goal → today's meals → one-tap weight → recommendation
+ *   → water → push opt-in.
+ *
+ * Gamification (XP / rank / quests / badges / streak UI), AI cards, TDEE,
+ * steps and health-log cards were deleted; see
+ * docs/reviews/RADICAL_CRITIQUE_2026-11.md for the rationale and the
+ * before/after measurements.
+ */
+
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Settings, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import {
   getAppData, removeFoodEntry, updateFoodEntry, addWater, getWaterForDate,
-  checkAndAwardBadges, getBadges, addFoodEntry, getRealGoals, getHealthProfile,
-  getStepsForDate, setSteps,
+  addFoodEntry, getRealGoals,
 } from '@/lib/data';
-import { evaluateDailyQuests, generateDailyQuests, type Quest } from '@/lib/daily-quests';
-import { getTodayQuestState, recordQuestCompletion } from '@/lib/data/quests';
-import DailyQuests from '@/components/DailyQuests';
-import DailyChallengeCard from '@/components/DailyChallengeCard';
-import { sumSodiumFiber, sodiumMgToSaltG, saltTargetG, fiberTargetG } from '@/lib/micros';
-import { FoodEntry, DailyGoals, Badge } from '@/lib/types';
-import CalorieBar from '@/components/CalorieBar';
-import PFCDonut from '@/components/PFCDonut';
-import MacroBar from '@/components/MacroBar';
+import { FoodEntry, DailyGoals } from '@/lib/types';
 import MealCard from '@/components/MealCard';
 import WaterTracker from '@/components/WaterTracker';
-import StepsTracker from '@/components/StepsTracker';
-import BadgeShelf from '@/components/BadgeShelf';
-import BadgeCelebration from '@/components/BadgeCelebration';
-import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
-import { StreakHeader } from '@/components/dashboard/StreakHeader';
-import StatusBar from '@/components/StatusBar';
-import SystemPanel from '@/components/SystemPanel';
-import RankBadge from '@/components/RankBadge';
-import XpProgressBar from '@/components/XpProgressBar';
-import { getRankForXp, type RankId } from '@/lib/rank';
-import RankUpCelebration from '@/components/RankUpCelebration';
-import { hasCelebrated, markCelebrated } from '@/lib/celebrate-once';
-import { ProgressRing } from '@/components/dashboard/ProgressRing';
-import { CategoryBadges } from '@/components/dashboard/CategoryBadges';
-import NudgeBanner from '@/components/NudgeBanner';
+import QuickWeightCard from '@/components/QuickWeightCard';
 import PushPermissionCard from '@/components/PushPermissionCard';
-import RecentSymptomsCard from '@/components/RecentSymptomsCard';
 import RecommendationCard from '@/components/RecommendationCard';
-import WorkoutGeneratorCard from '@/components/WorkoutGeneratorCard';
-import { NutritionistCard } from '@/components/NutritionistCard';
-import TdeeCard from '@/components/TdeeCard';
 import BottomNav from '@/components/BottomNav';
 import { Toast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
-import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { getStoredEasyMode } from '@/lib/easy-mode';
+import { fmtMonthDayDowShortJa, shiftDate, todayJst } from '@/lib/format-date';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
-function getTodayDate(): string {
-  return todayJst();
-}
-
-import { fmtMonthDayDowShortJa, todayJst } from '@/lib/format-date';
-
-function formatDate(dateStr: string): string {
-  return fmtMonthDayDowShortJa(dateStr);
-}
+const ICON_BTN = `
+  w-11 h-11 rounded-2xl
+  bg-card shadow-card border border-line
+  flex items-center justify-center
+  text-faint hover:text-fg
+  active:scale-95
+  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+  transition-all duration-200
+`;
 
 export default function HomePage() {
   const { t } = useLanguage();
   const [entries, setEntries]   = useState<FoodEntry[]>([]);
   // null = "no real goals set" (un-onboarded / skip path) → empty-state card.
-  // Typing as nullable forces every goal-render site into a guarded branch.
   const [goals, setGoals]       = useState<DailyGoals | null>(null);
   // Gates first paint so we never flash fabricated numbers OR the empty card
   // before the client-only data load resolves.
   const [goalsReady, setGoalsReady] = useState(false);
   const [water, setWater]       = useState(0);
-  const [steps, setStepsState]  = useState(0);
-  const [today]                 = useState(getTodayDate());
-  const [celebrationBadges, setCelebrationBadges] = useState<Badge[]>([]);
-  const [earnedBadges, setEarnedBadges]           = useState<Badge[]>([]);
-  const [collapsedMeals, setCollapsedMeals]       = useState<Set<string>>(new Set());
-  const [copyToast, setCopyToast]                 = useState<string | null>(null);
-  const [sex, setSex]                             = useState<'male' | 'female' | null>(null);
-  const [xpState, setXpState] = useState({ xp: 0, highestRank: 'E' as RankId });
-  const [quests, setQuests]   = useState<Quest[]>([]);
-  const [rankUpEvent, setRankUpEvent] = useState<{ oldRank: RankId; newRank: RankId } | null>(null);
-  // Easy Mode (accessibility 5-pack, feature backlog — see FTUE roadmap §8):
-  // SSR renders false; the real stored value is applied client-only, same
-  // hydration-safe pattern as lib/easy-mode.ts / TextScaleInit.
-  const [easyMode, setEasyModeState] = useState(false);
-  const [easyModeDetailsOpen, setEasyModeDetailsOpen] = useState(false);
+  const [today]                 = useState(todayJst());
+  const [collapsedMeals, setCollapsedMeals] = useState<Set<string>>(new Set());
+  const [copyToast, setCopyToast]           = useState<string | null>(null);
 
   const loadData = () => {
     const data = getAppData();
@@ -92,69 +61,11 @@ export default function HomePage() {
     setGoals(getRealGoals());
     setGoalsReady(true);
     setWater(getWaterForDate(today));
-    setStepsState(getStepsForDate(today));
-    setEarnedBadges(getBadges());
-    setSex(getHealthProfile().sex ?? null);
-    setXpState({ xp: data.xp, highestRank: data.highestRank });
-    setQuests(generateDailyQuests(data, today, { goalsAreReal: getRealGoals() !== null }));
-  };
-
-  /**
-   * Evaluate today's quests against current data; record + XP any
-   * newly-completed ones, then refresh local state.
-   *
-   * Re-reads getTodayQuestState() before EACH recordQuestCompletion call
-   * (not just once upfront) so two concurrent/duplicate invocations of this
-   * function (React StrictMode double-invokes effects in dev; a user could
-   * also trigger two call sites in quick succession) can't both observe the
-   * same "not yet completed" snapshot and double-award XP for the same quest.
-   */
-  const runQuestCheck = async () => {
-    // Read pre-award XP from storage (NOT the xpState React variable — that's
-    // still the initial {xp:0} default when this is called synchronously
-    // after loadData() in the mount effect, since setXpState hasn't
-    // committed yet; storage always reflects the true current value).
-    const xpBeforeAward = getAppData().xp;
-
-    const goalsAreReal = getRealGoals() !== null;
-    const candidates = evaluateDailyQuests(getAppData(), today, getTodayQuestState(today), { goalsAreReal });
-
-    const newlyCompleted: typeof candidates = [];
-    for (const quest of candidates) {
-      if (getTodayQuestState(today).has(quest.type)) continue; // already recorded by a concurrent call
-      await recordQuestCompletion(null, today, quest);
-      newlyCompleted.push(quest);
-    }
-
-    if (newlyCompleted.length > 0) {
-      const oldRank = getRankForXp(xpBeforeAward).rank;
-      const refreshed = getAppData();
-      const newRank = getRankForXp(refreshed.xp).rank;
-
-      setXpState({ xp: refreshed.xp, highestRank: refreshed.highestRank });
-      setQuests(generateDailyQuests(refreshed, today, { goalsAreReal }));
-
-      // Rank is derived (not a one-time award like a badge), so it needs an
-      // explicit celebrate-once gate keyed by the destination rank —
-      // otherwise a reload while still at that rank would re-fire the modal.
-      if (newRank !== oldRank) {
-        const celebrateKey = `diet-tracker-rankup-celebrated:${newRank}`;
-        if (!hasCelebrated(celebrateKey)) {
-          markCelebrated(celebrateKey);
-          setRankUpEvent({ oldRank, newRank });
-        }
-      }
-    }
   };
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
     loadData();
-    setEasyModeState(getStoredEasyMode());
-    void checkAndAwardBadges(getTodayDate()).then(newBadges => {
-      if (newBadges.length > 0) setCelebrationBadges(newBadges);
-    });
-    void runQuestCheck();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -164,21 +75,10 @@ export default function HomePage() {
   const handleAddWater = async (ml: number) => {
     await addWater(today, ml);
     setWater(getWaterForDate(today));
-    const newBadges = await checkAndAwardBadges(today);
-    if (newBadges.length > 0) { setCelebrationBadges(newBadges); setEarnedBadges(getBadges()); }
-    await runQuestCheck();
-  };
-
-  // Steps do NOT join the any-log streak or badge checks (scope cut, phase D).
-  const handleSetSteps = async (n: number) => {
-    await setSteps(today, n);
-    setStepsState(n);
   };
 
   const handleCopyYesterday = async () => {
-    const yesterdayStr = shiftDate(todayJst(), -1);
-    const data = getAppData();
-    const yesterdayEntries = data.foodEntries.filter((e) => e.date === yesterdayStr);
+    const yesterdayEntries = getAppData().foodEntries.filter((e) => e.date === shiftDate(today, -1));
     if (yesterdayEntries.length === 0) {
       setCopyToast(t.noYesterdayData);
       setTimeout(() => setCopyToast(null), 2000);
@@ -202,19 +102,17 @@ export default function HomePage() {
 
   const totals = entries.reduce(
     (acc, e) => ({ calories: acc.calories + e.calories, protein: acc.protein + e.protein, fat: acc.fat + e.fat, carbs: acc.carbs + e.carbs }),
-    { calories: 0, protein: 0, fat: 0, carbs: 0 }
+    { calories: 0, protein: 0, fat: 0, carbs: 0 },
   );
-
-  // Sodium/fiber day sums — lower bound over entries carrying data (barcode /
-  // label sources); hidden entirely when no entry has data.
-  const micros = sumSodiumFiber(entries);
+  const hasMacros = totals.protein + totals.fat + totals.carbs > 0;
 
   const remaining = goals ? Math.max(0, goals.calories - totals.calories) : 0;
   const over      = goals ? totals.calories > goals.calories : false;
+  const pct       = goals && goals.calories > 0 ? Math.min(100, Math.round((totals.calories / goals.calories) * 100)) : 0;
 
   const grouped = MEAL_TYPES.reduce(
     (acc, type) => { acc[type] = entries.filter((e) => e.mealType === type); return acc; },
-    {} as Record<string, FoodEntry[]>
+    {} as Record<string, FoodEntry[]>,
   );
 
   const MEAL_LABELS: Record<string, string> = {
@@ -226,364 +124,87 @@ export default function HomePage() {
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
-      {/* Badge Celebration */}
-      {celebrationBadges.length > 0 && (
-        <BadgeCelebration badges={celebrationBadges} onClose={() => setCelebrationBadges([])} />
-      )}
-
-      {/* Solo Leveling rank-up celebration (Phase 4) */}
-      {rankUpEvent && (
-        <RankUpCelebration
-          oldRank={rankUpEvent.oldRank}
-          newRank={rankUpEvent.newRank}
-          xp={xpState.xp}
-          onClose={() => setRankUpEvent(null)}
-        />
-      )}
-
-      {/* Copy-yesterday toast */}
       <Toast message={copyToast} variant="neutral" />
 
       {/* ── Header ─────────────────────────────────── */}
       <div className="flex items-center justify-between pt-6 pb-4">
         <div>
           <h1 className="text-2xl font-black text-fg tracking-tight">{t.appName}</h1>
-          <p className="text-xs text-faint mt-0.5 font-medium">{formatDate(today)}</p>
+          <p className="text-xs text-faint mt-0.5 font-medium">{fmtMonthDayDowShortJa(today)}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => void handleCopyYesterday()}
             title={t.copyYesterdayDesc}
             aria-label={t.copyYesterdayDesc}
-            className="
-              w-11 h-11 rounded-2xl
-              bg-card shadow-card border border-line
-              flex items-center justify-center
-              text-faint
-              hover:text-brand-600 dark:hover:text-brand-400
-              hover:scale-[1.04] active:scale-95
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-              transition-all duration-200
-            "
+            className={ICON_BTN}
           >
             <Copy size={16} aria-hidden="true" />
           </button>
-          <Link
-            href="/settings"
-            aria-label={t.settings}
-            className="
-              w-11 h-11 rounded-2xl
-              bg-card shadow-card border border-line
-              flex items-center justify-center
-              text-faint
-              hover:text-fg
-              hover:scale-[1.04] active:scale-95
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-              transition-all duration-200
-            "
-          >
+          <Link href="/settings" aria-label={t.settings} className={ICON_BTN}>
             <Settings size={18} aria-hidden="true" />
           </Link>
         </div>
       </div>
 
-      {/* ── Easy Mode: gamification layer collapsed behind a disclosure
-          (accessibility 5-pack — non-gamer users profile in the FTUE
-          roadmap; opt-in, not a removal of the layer). Standard mode
-          renders it inline as before. ────── */}
-      {easyMode ? (
-        <div className="mb-3">
-          <button
-            type="button"
-            onClick={() => setEasyModeDetailsOpen((v) => !v)}
-            aria-expanded={easyModeDetailsOpen}
-            className="w-full flex items-center justify-between text-xs font-bold text-faint hover:text-fg py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] rounded"
+      {/* ── 1. Today's kcal vs goal ─────────────────── */}
+      {goalsReady && (goals ? (
+        <div className={`
+          rounded-2xl p-5 mb-3 shadow-elevated
+          ${over ? 'bg-gradient-to-br from-amber-500 to-red-600' : 'bg-gradient-to-br from-brand-500 to-brand-600'}
+        `}>
+          <p className="text-xs font-bold uppercase tracking-widest text-white/85 mb-1">
+            {over ? '⚠️ オーバー' : t.remaining}
+          </p>
+          <div className="flex items-end gap-2 mb-2">
+            <span className="text-5xl font-black text-white tracking-tight leading-none tabular-nums">
+              {over ? `+${(totals.calories - goals.calories).toLocaleString()}` : remaining.toLocaleString()}
+            </span>
+            <span className="text-lg text-white/85 font-medium mb-1">kcal</span>
+          </div>
+          <div
+            className="h-2 rounded-full bg-white/25 overflow-hidden mb-2"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={pct}
+            aria-label={t.consumed}
           >
-            <span>{easyModeDetailsOpen ? t.easyModeHideDetails : t.easyModeShowDetails}</span>
-            {easyModeDetailsOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-          </button>
-          {easyModeDetailsOpen && (
-            <>
-              <div className="mb-3">
-                <StatusBar xp={xpState.xp} highestRank={xpState.highestRank} />
-              </div>
-              <div className="mb-3">
-                <SystemPanel className="rounded-2xl p-4">
-                  <div className="flex items-center gap-4">
-                    <RankBadge xp={xpState.xp} size="md" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="text-[10px] font-bold text-[var(--sys-text-muted)] uppercase tracking-wide">XP</span>
-                        <InfoTooltip label={t.infoXpTitle}>
-                          <p className="font-bold text-fg mb-0.5">{t.infoXpTitle}</p>
-                          <p>{t.infoXpBody}</p>
-                        </InfoTooltip>
-                      </div>
-                      <XpProgressBar xp={xpState.xp} />
-                      {xpState.highestRank !== getRankForXp(xpState.xp).rank && (
-                        <p className="mt-1.5 text-[10px] text-[var(--sys-text-muted)]">
-                          {t.statusBarHighest.replace(
-                            '{rank}',
-                            t[`rankName${xpState.highestRank}` as keyof typeof t] as string,
-                          )}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </SystemPanel>
-              </div>
-              <div className="mb-3">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <InfoTooltip label={t.infoQuestTitle}>
-                    <p className="font-bold text-fg mb-0.5">{t.infoQuestTitle}</p>
-                    <p>{t.infoQuestBody}</p>
-                  </InfoTooltip>
-                </div>
-                <DailyQuests quests={quests} />
-              </div>
-              <DailyChallengeCard />
-              <StreakHeader />
-            </>
-          )}
+            <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+          </div>
+          <p className="text-xs text-white/80 font-medium tabular-nums">
+            {totals.calories.toLocaleString()} / {goals.calories.toLocaleString()} kcal {t.consumed}
+            {hasMacros && (
+              <span className="ml-2">
+                · P {Math.round(totals.protein)}g · F {Math.round(totals.fat)}g · C {Math.round(totals.carbs)}g
+              </span>
+            )}
+          </p>
         </div>
       ) : (
-        <>
-          {/* ── Solo Leveling rank/XP status strip (Phase 1) ────── */}
-          <div className="mb-3">
-            <StatusBar xp={xpState.xp} highestRank={xpState.highestRank} />
-          </div>
-
-          {/* ── Solo Leveling detailed rank panel (Phase 2) ────── */}
-          <div className="mb-3">
-            <SystemPanel className="rounded-2xl p-4">
-              <div className="flex items-center gap-4">
-                <RankBadge xp={xpState.xp} size="md" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-[10px] font-bold text-[var(--sys-text-muted)] uppercase tracking-wide">XP</span>
-                    <InfoTooltip label={t.infoXpTitle}>
-                      <p className="font-bold text-fg mb-0.5">{t.infoXpTitle}</p>
-                      <p>{t.infoXpBody}</p>
-                    </InfoTooltip>
-                  </div>
-                  <XpProgressBar xp={xpState.xp} />
-                  {xpState.highestRank !== getRankForXp(xpState.xp).rank && (
-                    <p className="mt-1.5 text-[10px] text-[var(--sys-text-muted)]">
-                      {t.statusBarHighest.replace(
-                        '{rank}',
-                        t[`rankName${xpState.highestRank}` as keyof typeof t] as string,
-                      )}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </SystemPanel>
-          </div>
-
-          {/* ── Solo Leveling daily quests (Phase 3) ────── */}
-          <div className="mb-3">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <InfoTooltip label={t.infoQuestTitle}>
-                <p className="font-bold text-fg mb-0.5">{t.infoQuestTitle}</p>
-                <p>{t.infoQuestBody}</p>
-              </InfoTooltip>
-            </div>
-            <DailyQuests quests={quests} />
-          </div>
-
-          {/* ── Shadow Training Grounds (daily challenge) ────── */}
-          <DailyChallengeCard />
-
-          {/* ── Streak banner + stats pill (phase 5) ────── */}
-          <StreakHeader />
-        </>
-      )}
-
-      {/* ── Streak nudge (max 1/day, dismissible) ───── */}
-      <NudgeBanner />
-
-      {/* ── Web Push opt-in (authed users, sticky dismissal) ───── */}
-      <PushPermissionCard />
-
-      {/* ── Goal-dependent section (real goals vs empty state) ───────────
-          Gated on goalsReady so the first paint never flashes fabricated
-          numbers or the empty card before the client-only load resolves. */}
-      {goalsReady && (goals ? (
-        <>
-          {/* ── Hero calorie card ──────────────────────── */}
-          <div className={`
-            rounded-2xl p-5 mb-3
-            ${over
-              ? 'bg-gradient-to-br from-amber-500 to-red-600'
-              : 'bg-gradient-to-br from-brand-500 to-brand-600'}
-            shadow-elevated
-          `}>
-            <p className="text-xs font-bold uppercase tracking-widest text-white/85 mb-1">
-              {over ? '⚠️ オーバー' : t.remaining}
-            </p>
-            <div className="flex items-end gap-2 mb-1">
-              <span className="text-5xl font-black text-white tracking-tight leading-none tabular-nums">
-                {over ? `+${(totals.calories - goals.calories).toLocaleString()}` : remaining.toLocaleString()}
-              </span>
-              <span className="text-lg text-white/85 font-medium mb-1">kcal</span>
-            </div>
-            <p className="text-xs text-white/75 font-medium tabular-nums">
-              {totals.calories.toLocaleString()} / {goals.calories.toLocaleString()} kcal {t.consumed}
-            </p>
-          </div>
-
-          {/* ── Calorie bar ─────────────────────────────── */}
-          <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
-            <CalorieBar current={totals.calories} goal={goals.calories} />
-          </div>
-
-          {/* ── PFC Donut ───────────────────────────────── */}
-          <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
-            <div className="flex items-center gap-1.5 mb-2">
-              <h2 className="text-sm font-bold text-muted">{t.macroBreakdown}</h2>
-              <InfoTooltip label={t.infoPfcTitle}>
-                <p className="font-bold text-fg mb-0.5">{t.infoPfcTitle}</p>
-                <p>{t.infoPfcBody}</p>
-              </InfoTooltip>
-            </div>
-            <PFCDonut
-              protein={totals.protein} fat={totals.fat} carbs={totals.carbs}
-              goalProtein={goals.protein} goalFat={goals.fat} goalCarbs={goals.carbs}
-            />
-          </div>
-
-          {/* ── Macro bars ──────────────────────────────── */}
-          <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
-            <h2 className="text-sm font-bold text-muted mb-3">{t.macros}</h2>
-            <MacroBar
-              protein={totals.protein} fat={totals.fat} carbs={totals.carbs}
-              goalProtein={goals.protein} goalFat={goals.fat} goalCarbs={goals.carbs}
-            />
-          </div>
-        </>
-      ) : (
-        /* ── Empty state: no real goals set ─────────────── */
-        <div className="bg-card rounded-2xl shadow-card border border-line p-10 text-center mb-3">
-          <p className="text-4xl mb-3" aria-hidden="true">🎯</p>
+        <div className="bg-card rounded-2xl shadow-card border border-line p-6 text-center mb-3">
           <p className="text-sm font-semibold text-muted">{t.noGoalsTitle}</p>
           <p className="text-xs text-faint mt-1 mb-4">{t.noGoalsSub}</p>
-          <Button href="/onboarding" size="lg">
-            {t.noGoalsCta}
-          </Button>
+          <Button href="/onboarding" size="lg">{t.noGoalsCta}</Button>
           <div className="mt-3">
-            <Link
-              href="/settings"
-              className="text-xs text-faint underline underline-offset-2 hover:text-fg transition-colors"
-            >
+            <Link href="/settings" className="text-xs text-faint underline underline-offset-2 hover:text-fg transition-colors">
               {t.noGoalsSettingsLink}
             </Link>
           </div>
         </div>
       ))}
 
-      {/* ── Sodium / fiber day row (with-data days only) ── */}
-      {micros.entriesWithData > 0 && (
-        <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <p className="text-xs font-bold text-faint mb-0.5">🧂 {t.sodiumLabel}</p>
-              <p className="text-sm font-bold text-fg tabular-nums">
-                {sodiumMgToSaltG(micros.sodiumMg)}g
-                <span className="text-[10px] font-medium text-faint ml-1.5">
-                  {t.sodiumTarget.replace('{n}', String(saltTargetG(sex)))}
-                </span>
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-faint mb-0.5">🌾 {t.fiberLabel}</p>
-              <p className="text-sm font-bold text-fg tabular-nums">
-                {micros.fiberG}g
-                <span className="text-[10px] font-medium text-faint ml-1.5">
-                  {t.fiberTarget.replace('{n}', String(fiberTargetG(sex)))}
-                </span>
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Personalized Recommendation (today's recommended workout —
-          closest existing surface to that concept; kept visible in Easy
-          Mode as one of the "just what to do today" essentials) ─── */}
-      <RecommendationCard />
-
-      {/* ── Easy Mode: everything below that isn't Food Log / Water /
-          Steps / Recommendation collapses behind the same disclosure
-          toggled above (ring, AI nutritionist, TDEE, weekly badges). ── */}
-      {easyMode && !easyModeDetailsOpen ? null : (
-        <>
-          {/* ── Daily 4-category progress ring (phase 5) ── */}
-          <ProgressRing />
-
-          {/* ── AI nutritionist (今日の食事チェック) ─────── */}
-          <NutritionistCard />
-
-          {/* ── AI Personal Trainer (on-demand full plan generator; distinct
-              from RecommendationCard's always-on affinity ranking — see
-              WorkoutGeneratorCard's doc comment) ──────────────────────── */}
-          <WorkoutGeneratorCard />
-
-          {/* ── Adaptive TDEE ───────────────────────────── */}
-          <TdeeCard />
-        </>
-      )}
-
-      {/* ── Water Tracker ───────────────────────────── */}
-      <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
-        <WaterTracker current={water} goal={goals?.water ?? 2000} onAdd={handleAddWater} />
-      </div>
-
-      {/* ── Steps Tracker (manual, phase D) ─────────── */}
-      <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
-        <StepsTracker current={steps} onChange={(n) => void handleSetSteps(n)} />
-      </div>
-
-      {/* ── Weekly challenge (any-log, both goal states) ── */}
-      <WeeklyChallengeCard />
-
-      {/* ── Per-category weekly badges (phase 5) ────── */}
-      {(!easyMode || easyModeDetailsOpen) && <CategoryBadges />}
-
-      {/* ── Recent symptoms (renders only when any exist) ── */}
-      <RecentSymptomsCard />
-
-      {/* ── Badge shelf ─────────────────────────────── */}
-      {earnedBadges.length > 0 && (!easyMode || easyModeDetailsOpen) && (
-        <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
-          <BadgeShelf badges={earnedBadges} title="🏅 獲得バッジ" />
-        </div>
-      )}
-
-      {/* ── Meal list ───────────────────────────────── */}
-      <h2 className="text-sm font-bold text-muted mb-3 mt-1">{t.todayMeals}</h2>
+      {/* ── 2. Today's meals ───────────────────────── */}
+      <h2 className="text-sm font-bold text-muted mb-2 mt-1">{t.todayMeals}</h2>
 
       {entries.length === 0 ? (
-        <div className="bg-card rounded-2xl shadow-card border border-line p-10 text-center">
-          <p className="text-4xl mb-3" aria-hidden="true">🍽️</p>
+        <div className="bg-card rounded-2xl shadow-card border border-line p-6 text-center mb-3">
           <p className="text-sm font-semibold text-muted">{t.noMeals}</p>
           <p className="text-xs text-faint mt-1 mb-4">{t.noMealsSub}</p>
-          <Link
-            href="/add"
-            className="
-              inline-flex items-center justify-center
-              px-5 py-2.5 rounded-2xl
-              bg-gradient-to-br from-brand-500 to-brand-600 text-white
-              text-sm font-bold
-              shadow-card hover:scale-[1.03] active:scale-95
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-              transition-all duration-200
-            "
-          >
-            {t.noMealsCta}
-          </Link>
+          <Button href="/add" size="lg">{t.noMealsCta}</Button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 mb-3">
           {MEAL_TYPES.map((type) => {
             const typeEntries = grouped[type];
             if (typeEntries.length === 0) return null;
@@ -599,8 +220,7 @@ export default function HomePage() {
                   <div className="flex items-center gap-2">
                     {collapsed
                       ? <ChevronRight size={14} className="text-faint" aria-hidden="true" />
-                      : <ChevronDown size={14} className="text-faint" aria-hidden="true" />
-                    }
+                      : <ChevronDown size={14} className="text-faint" aria-hidden="true" />}
                     <span className="text-xs font-black text-faint uppercase tracking-widest">
                       {MEAL_LABELS[type]}
                     </span>
@@ -621,6 +241,20 @@ export default function HomePage() {
           })}
         </div>
       )}
+
+      {/* ── 3. One-tap weight ──────────────────────── */}
+      <QuickWeightCard />
+
+      {/* ── 4. Safe recommendation (thesis artifact) ─ */}
+      <RecommendationCard />
+
+      {/* ── 5. Water ───────────────────────────────── */}
+      <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
+        <WaterTracker current={water} goal={goals?.water ?? 2000} onAdd={handleAddWater} />
+      </div>
+
+      {/* ── Web Push opt-in (authed users, sticky dismissal) ── */}
+      <PushPermissionCard />
 
       {/* ── FAB ─────────────────────────────────────── */}
       <Link

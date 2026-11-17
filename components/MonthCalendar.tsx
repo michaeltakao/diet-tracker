@@ -3,23 +3,30 @@
 /**
  * Month calendar with per-day category dots (phase C).
  *
- * A day shows up to 4 dots — meal / exercise / vital / symptom — colored by
- * CATEGORY_META.ring, from the same per-category date-set derivation as
- * lib/dashboard-data.ts. Tapping a day hands the date to the parent, which
- * reuses the weekly view's selected-day rendering.
+ * A day shows up to 3 dots — meal / workout / weight (the study's outcome
+ * logs, ADR-011). Tapping a day hands the date to the parent, which reuses
+ * the weekly view's selected-day rendering.
  */
 
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { monthGrid, shiftMonth } from '@/lib/calendar';
-import { jstToday } from '@/lib/streak';
-import { CATEGORY_KEYS, type CategoryKey } from '@/lib/dashboard-data';
-import { CATEGORY_META } from '@/components/dashboard/category-meta';
+import { todayJst } from '@/lib/format-date';
 import { useLanguage } from '@/contexts/LanguageContext';
+
+export type DayCategory = 'meal' | 'workout' | 'weight';
+
+export const DAY_CATEGORIES: readonly DayCategory[] = ['meal', 'workout', 'weight'];
+
+const DOT_COLOR: Record<DayCategory, string> = {
+  meal: '#58cc02',
+  workout: '#f97316',
+  weight: '#6366f1',
+};
 
 export interface MonthCalendarProps {
   /** Per-category sets of YYYY-MM-DD days with at least one entry. */
-  daySets: Record<CategoryKey, ReadonlySet<string>>;
+  daySets: Record<DayCategory, ReadonlySet<string>>;
   onSelectDay: (date: string) => void;
 }
 
@@ -28,7 +35,7 @@ const DOW_EN = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 export function MonthCalendar({ daySets, onSelectDay }: MonthCalendarProps) {
   const { lang } = useLanguage();
-  const today = jstToday();
+  const today = todayJst();
   const [ym, setYm] = useState(() => ({
     year: Number(today.slice(0, 4)),
     month: Number(today.slice(5, 7)),
@@ -76,7 +83,7 @@ export function MonthCalendar({ daySets, onSelectDay }: MonthCalendarProps) {
             {week.map((date) => {
               const inMonth = date.startsWith(monthPrefix);
               const isToday = date === today;
-              const dots = CATEGORY_KEYS.filter((k) => daySets[k].has(date));
+              const dots = DAY_CATEGORIES.filter((k) => daySets[k].has(date));
               return (
                 <button
                   key={date}
@@ -97,7 +104,7 @@ export function MonthCalendar({ daySets, onSelectDay }: MonthCalendarProps) {
                       <span
                         key={k}
                         className="w-1.5 h-1.5 rounded-full"
-                        style={{ backgroundColor: CATEGORY_META[k].ring, opacity: inMonth ? 1 : 0.35 }}
+                        style={{ backgroundColor: DOT_COLOR[k], opacity: inMonth ? 1 : 0.35 }}
                       />
                     ))}
                   </span>

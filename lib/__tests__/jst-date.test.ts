@@ -13,9 +13,9 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { jstTimestamp, nowJstTime, todayJst, toJstDate, todayStr } from '../format-date';
-import { jstToday, shiftDate } from '../streak';
-import { addFoodEntry, addWater, addWeightEntry, addWorkoutEntry, checkAndAwardBadges, getAppData } from '../storage';
-import type { FoodEntry, WeightEntry, WorkoutEntry } from '../types';
+import { jstToday } from '../streak';
+import { addFoodEntry, addWater, addWeightEntry, getAppData } from '../storage';
+import type { FoodEntry, WeightEntry } from '../types';
 
 const BOUNDARIES = [
   { utc: '2026-10-28T14:59:00Z', jstDate: '2026-10-28', jstTime: '23:59' },
@@ -111,19 +111,4 @@ describe('stored dates at 08:59 JST (the B1 window)', () => {
     expect(toJstDate(new Date(data.foodEntries[0].addedAt))).toBe(data.foodEntries[0].date);
   });
 
-  it.each([
-    { offsets: [-6, -5, -4, -3, -2], awarded: true },  // 5 days inside [today-6, today]
-    { offsets: [-7, -5, -4, -3, -2], awarded: false }, // today-7 is outside the window
-  ])('workout_master window: $offsets → $awarded', ({ offsets, awarded }) => {
-    const today = todayJst();
-    for (const o of offsets) {
-      const w: WorkoutEntry = {
-        id: `w${o}`, date: shiftDate(today, o), name: 'squat', category: 'strength',
-        addedAt: jstTimestamp(shiftDate(today, o), '07:00'),
-      };
-      addWorkoutEntry(w);
-    }
-    const types = checkAndAwardBadges(today).map((b) => b.type);
-    expect(types.includes('workout_master')).toBe(awarded);
-  });
 });

@@ -12,7 +12,7 @@ export * from './food';
 export * from './workout';
 export * from './weight';
 export * from './water';
-export * from './badges';
+export * from './streak';
 export * from './profile';
 export * from './goal-history';
 // Compatibility shim: getAppData() for pages needing full AppData snapshot
@@ -22,9 +22,7 @@ export * from './health-profile';
 export * from './recommendation-feedback';
 export * from './favorites';
 export * from './meal-templates';
-export * from './weekly-challenge';
 export * from './vitals';
 export * from './symptoms';
 export * from './workout-prefs';
 export * from './steps';
-export * from './exercise-rank';

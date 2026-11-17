@@ -3,14 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Save, Check, Upload, Trash2, Database, FileJson, FileSpreadsheet, User, Pill, Plus, X, Sparkles } from 'lucide-react';
-import { getAppData, updateGoals, recordGoalSnapshot, isPurposeChosen, markPurposeChosen, getHealthProfile, updateHealthProfile, getLatestWeightEntry, getStreakState } from '@/lib/data';
-import { getEarnedTitleKeys } from '@/lib/data/titles';
-import { evaluateTitles, awardTitle, type TitleKey } from '@/lib/titles';
-import TitleDisplay from '@/components/TitleDisplay';
+import { getAppData, updateGoals, recordGoalSnapshot, isPurposeChosen, markPurposeChosen, getHealthProfile, updateHealthProfile, getLatestWeightEntry } from '@/lib/data';
 import { DailyGoals, UserHealthProfile, FitnessGoal, ActivityLevel } from '@/lib/types';
 import { recommendedGoals, ageBand } from '@/lib/nutrition-standards';
 import { getTextScale, setTextScale, type TextScale } from '@/components/TextScaleInit';
-import { getStoredEasyMode, setEasyMode } from '@/lib/easy-mode';
 import {
   getStorageStats, exportDataAsJSON, exportDataAsCSV,
   importFromFile, clearAllData, StorageStats,
@@ -96,8 +92,6 @@ export default function SettingsPage() {
   const [medInput, setMedInput] = useState('');
   const [textScale, setTextScaleState] = useState<TextScale>('standard');
   const [purposeTouched, setPurposeTouched] = useState(false);
-  const [easyMode, setEasyModeState] = useState(false);
-  const [earnedTitles, setEarnedTitles] = useState<Set<TitleKey>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -114,28 +108,6 @@ export default function SettingsPage() {
     setStats(getStorageStats());
     setHealthProfile(getHealthProfile());
     setTextScaleState(getTextScale());
-    setEasyModeState(getStoredEasyMode());
-
-    // Solo Leveling titles (Phase 4) — evaluate + award any newly-earned
-    // titles, then reflect the (possibly updated) earned set in state.
-    void (async () => {
-      const alreadyEarned = getEarnedTitleKeys();
-      const streakState = getStreakState();
-      const waterLogDayCount = Object.values(data.waterByDate).filter((ml) => ml > 0).length;
-      const ctx = {
-        streak: streakState.current,
-        longestStreak: streakState.longest,
-        mealCount: data.foodEntries.length,
-        workoutCount: data.workoutEntries.length,
-        waterLogDayCount,
-        highestRank: data.highestRank,
-      };
-      const newlyEarned = evaluateTitles(ctx, alreadyEarned);
-      for (const def of newlyEarned) {
-        await awardTitle(null, def.key);
-      }
-      setEarnedTitles(getEarnedTitleKeys());
-    })();
   }, []);
 
   const refreshStats = () => setStats(getStorageStats());
@@ -229,11 +201,6 @@ export default function SettingsPage() {
     setTextScaleState(scale);
   };
 
-  const changeEasyMode = (on: boolean) => {
-    setEasyMode(on);
-    setEasyModeState(on);
-  };
-
   const cardCls = 'bg-card rounded-2xl shadow-card border border-line p-4';
 
   return (
@@ -263,11 +230,6 @@ export default function SettingsPage() {
 
       {/* ── Account ───────────────────────────── */}
       <AccountSection cardCls={cardCls} />
-
-      {/* ── Solo Leveling titles (Phase 4) ───────────────── */}
-      <div className="mb-3">
-        <TitleDisplay earned={earnedTitles} />
-      </div>
 
       {/* ── Web Push (authed users only; hidden for guests) ── */}
       <PushSettingsRow cardCls={cardCls} />
@@ -368,38 +330,6 @@ export default function SettingsPage() {
           {lang === 'en'
             ? 'Larger text across the whole app.'
             : 'アプリ全体の文字を大きく表示します。'}
-        </p>
-      </div>
-
-      {/* ── Easy Mode ─────────────────────────── */}
-      <div className={`${cardCls} mb-3`}>
-        <label className="block text-xs font-black text-faint uppercase tracking-widest mb-3">
-          {t.easyModeLabel}
-        </label>
-        <div className="flex gap-2">
-          {([
-            { on: false, label: lang === 'en' ? 'Off' : 'オフ' },
-            { on: true,  label: lang === 'en' ? 'On'  : 'オン' },
-          ]).map(({ on, label }) => (
-            <button
-              key={String(on)}
-              onClick={() => changeEasyMode(on)}
-              aria-pressed={easyMode === on}
-              className={`
-                flex-1 py-3 rounded-2xl text-sm font-bold
-                transition-all duration-200 hover:scale-[1.02] active:scale-95
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-                ${easyMode === on
-                  ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-[0_4px_12px_rgba(88,204,2,0.35)]'
-                  : 'bg-surface-2 text-muted hover:bg-line'}
-              `}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <p className="text-[11px] text-faint mt-2">
-          {t.easyModeDesc}
         </p>
       </div>
 
