@@ -79,7 +79,31 @@ and after the deploy of this change come from different models. Analyses of
 study data must split or adjust on the deploy timestamp, which is to be
 recorded in STATUS.md when it reaches production.
 
-**Open.** Safety regression (contraindicated foods surfacing in raw output,
-JSON parse failures) old vs new model on ~10 contraindicated personas —
-pending owner approval of its API cost.
+**Safety regression (run 2026-11-17).** The script is
+`scripts/gemini-safety-regression.ts`. Results are in
+`docs/eval/gemini-pin-2026-11-17.{md,json}`.
+
+Setup:
+- Prompt and schema: the production ones (`lib/recommend-prompt.ts`).
+- Personas: 10 synthetic, of which 6 carry contraindication rules.
+- 3 reps per model, interleaved.
+
+Answered calls: `gemini-2.5-flash` 24/30 (6× 429 quota),
+`gemini-3.5-flash-lite` 29/30 (1× 503 after retries).
+
+Approved blocking criteria, all met:
+- 0 contraindicated foods after the gate
+- 0 parse failures (baseline 0)
+- mandatory warnings 81/81
+
+Diagnostics:
+- Raw contraindicated foods before the gate: 0/112 for 2.5-flash and 0/105
+  for 3.5-flash-lite. With n=29 calls, that bounds the per-call rate at
+  ≤ 11.7% (Wilson 95% upper). No difference between the models is claimed.
+- 3.5-flash-lite emitted 0 thinking tokens per call (2.5-flash: mean 4,512).
+- Median latency: 2.8 s vs 22.1 s.
+- Estimated cost per call: $0.0016 vs $0.013.
+
+The thinking default therefore differs by model, as the "Unchanged" note
+anticipated.
 
