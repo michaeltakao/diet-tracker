@@ -251,59 +251,7 @@ export interface RecommendationFeedback {
   createdAt:       string;              // ISO timestamp
 }
 
-// ── Weekly Report (AI-generated, cached in DB) ────────────────
-
-export type ReportAssessment = 'excellent' | 'good' | 'neutral' | 'warning';
-
-export interface ReportSection {
-  summary: string;
-  assessment: ReportAssessment;
-}
-
-export interface WeeklyReport {
-  weekStart:          string;          // YYYY-MM-DD (Monday)
-  weightDelta:        number | null;   // kg change (negative = loss)
-  avgCalories:        number;
-  calorieGoal:        number;
-  calorieAdherence:   number;          // % of days within ±200 kcal
-  avgProtein:         number;
-  proteinGoal:        number;
-  proteinAdherence:   number;          // % of days hitting protein goal
-  workoutDays:        number;
-  hydrationScore:     number;          // % of days hitting water goal
-  strengths:          string[];
-  frictions:          string[];
-  nextWeekTarget:     string;
-  motivationMessage:  string;
-  generatedAt:        string;          // ISO timestamp
-}
-
-// ── Daily Aggregation (server-side only, never stored) ────────
-
-export interface DailyStat {
-  date:             string;
-  hasData:          boolean;
-  totalCalories:    number;
-  totalProtein:     number;
-  calorieHit:       boolean;
-  proteinHit:       boolean;
-  waterHit:         boolean;
-  workoutCount:     number;
-  lateNightMeals:   number;  // meals after 21:00
-  noBreakfast:      boolean;
-  earliestMealHour: number | null;
-  latestMealHour:   number | null;
-}
-
 // ── Analytics ─────────────────────────────────────────────────
-
-export interface AdherenceScore {
-  total:      number;  // 0-100 composite
-  calorie:    number;  // sub-score contribution
-  protein:    number;
-  workout:    number;
-  hydration:  number;
-}
 
 export interface WeightTrend {
   slope:              number;   // kg/day (negative = losing)
