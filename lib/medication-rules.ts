@@ -28,6 +28,31 @@ export function isFluidNeutral(healthConditions: readonly string[]): boolean {
 export const CKD_FLUID_PROMPT =
   '■ 腎臓病のため、水分摂取を増やす・減らす提案はしないこと。水分に触れる場合は「主治医の指示に従う」とだけ述べること';
 
+/**
+ * CKD protein policy (2026-11-17). Single source for the renal protein cap —
+ * used by recommend's clamp, every AI prompt that carries the health context,
+ * and the weekly-report score. Conservative end of the 0.6–0.8 g/kg range.
+ */
+export const CKD_PROTEIN_G_PER_KG = 0.8;
+export function isProteinCapped(healthConditions: readonly string[]): boolean {
+  return healthConditions.includes('腎臓病');
+}
+/** Daily CKD protein cap in grams, or null when body weight is unknown. */
+export function ckdProteinCapG(weightKg: number | null | undefined): number | null {
+  return weightKg != null && weightKg > 0 ? Math.round(CKD_PROTEIN_G_PER_KG * weightKg) : null;
+}
+/** Prompt line for the CKD protein cap (weight-specific when known). */
+export function ckdProteinPrompt(weightKg: number | null | undefined): string {
+  const cap = ckdProteinCapG(weightKg);
+  return cap != null
+    ? `■ 腎臓病のためタンパク質は1日 ${cap}g（${CKD_PROTEIN_G_PER_KG} g/kg）以下に抑えること。ユーザーの目標値がこれより高くても上限を優先し、上限を超える摂取を勧めないこと`
+    : `■ 腎臓病のためタンパク質は体重1kgあたり${CKD_PROTEIN_G_PER_KG}g以下に抑えること（具体量は主治医の指示に従う）。目標値より上限を優先すること`;
+}
+/** Validate a client-sent body weight: finite, 0 < w < 500 kg, else null. */
+export function parseWeightKg(x: unknown): number | null {
+  return typeof x === 'number' && Number.isFinite(x) && x > 0 && x < 500 ? x : null;
+}
+
 export interface ConditionRule {
   condition: string;
   workoutWarnings: string[];
@@ -300,6 +325,7 @@ export function getNutritionWarnings(healthConditions: string[], medications: st
 export function buildHealthContextPrompt(
   healthConditions: string[],
   medications: string[],
+  weightKg: number | null = null,
 ): string {
   if (!healthConditions.length && !medications.length) return '';
   const parts: string[] = [];
@@ -319,5 +345,8 @@ export function buildHealthContextPrompt(
   // fluid instruction from here; listing the condition by name alone let the
   // model invent "drink more for kidney protection" (route smoke, 2026-11-17).
   if (isFluidNeutral(healthConditions)) parts.push(CKD_FLUID_PROMPT);
+  // Same for protein: with only the condition name, coach and weekly-report
+  // pushed CKD users toward their uncapped goal (99g→105g at a 58g cap).
+  if (isProteinCapped(healthConditions)) parts.push(ckdProteinPrompt(weightKg));
   return parts.join('\n');
 }

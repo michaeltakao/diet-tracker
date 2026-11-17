@@ -4,6 +4,7 @@ import { GEMINI_MODEL, generateWithRetry, jsonConfig, parseGeminiJson } from '@/
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildSafetyReport, filterRecommendation } from '@/lib/recommend-safety';
+import { parseWeightKg } from '@/lib/medication-rules';
 import { buildRecommendPrompt, RESPONSE_SCHEMA, type RecommendRequest } from '@/lib/recommend-prompt';
 import type { Recommendation } from '@/lib/types';
 
@@ -28,7 +29,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     const body = await request.json() as RecommendRequest;
     const { profile } = body;
-    const weightKg = body.weightKg ?? null;
+    // Validated: an absurd weight (1e9, Infinity) would lift the CKD protein cap.
+    const weightKg = parseWeightKg(body.weightKg);
 
     // Deterministic safety context: injected into the prompt (defense at source)
     // and re-applied to the LLM output below (defense-in-depth).

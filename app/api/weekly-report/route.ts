@@ -3,7 +3,15 @@ import { GoogleGenAI, Type, type Schema } from '@google/genai';
 import { GEMINI_MODEL, generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
-import { buildHealthContextPrompt, CKD_FLUID_PROMPT, isFluidNeutral } from '@/lib/medication-rules';
+import {
+  buildHealthContextPrompt,
+  CKD_FLUID_PROMPT,
+  ckdProteinCapG,
+  ckdProteinPrompt,
+  isFluidNeutral,
+  isProteinCapped,
+  parseWeightKg,
+} from '@/lib/medication-rules';
 import { runParallelAgents } from '@/lib/parallel-agents';
 import { computeWeekScore } from '@/lib/week-score';
 
@@ -35,6 +43,8 @@ interface WeeklyReportRequest {
   streak:           number;
   healthConditions?: string[];
   medications?:     string[];
+  /** Latest logged body weight (kg, any date); drives the CKD protein cap. */
+  weightKg?:        number | null;
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -77,7 +87,16 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     // CKD: fluid needs depend on stage (restriction is common), so the report
     // neither scores nor comments on water — see CKD_FLUID_GUIDANCE.
-    const fluidNeutral = isFluidNeutral(body.healthConditions ?? []);
+    const conditions   = body.healthConditions ?? [];
+    const fluidNeutral = isFluidNeutral(conditions);
+
+    // CKD: protein is capped at 0.8 g/kg. Prefer the latest logged weight,
+    // fall back to this week's entries; unknown → protein leaves the score.
+    const proteinCapped = isProteinCapped(conditions);
+    const weightKg = parseWeightKg(body.weightKg)
+      ?? parseWeightKg(body.weightEnd)
+      ?? parseWeightKg(body.weightStart);
+    const proteinCapG = proteinCapped ? ckdProteinCapG(weightKg) : null;
 
     // Week score (0–100)
     const weekScore = computeWeekScore({
@@ -89,22 +108,30 @@ export async function POST(request: Request): Promise<NextResponse> {
       loggedDays:    datadays.length,
       streak:        body.streak,
       fluidNeutral,
+      proteinCapped,
+      proteinCapG,
     });
 
     const weightChange = body.weightStart != null && body.weightEnd != null
       ? +(body.weightEnd - body.weightStart).toFixed(1)
       : null;
 
-    const healthCtx = buildHealthContextPrompt(
-      body.healthConditions ?? [],
-      body.medications ?? [],
-    );
+    const healthCtx = buildHealthContextPrompt(conditions, body.medications ?? [], weightKg);
+
+    // CKD: show the cap instead of the (uncapped) goal, or nothing if unknown.
+    const proteinTarget = !proteinCapped
+      ? `（目標: ${body.proteinGoal}g）`
+      : proteinCapG != null ? `（腎臓病の上限目安: ${proteinCapG}g）` : '';
+    const constraints = [
+      ...(fluidNeutral ? [CKD_FLUID_PROMPT] : []),
+      ...(proteinCapped ? [ckdProteinPrompt(weightKg)] : []),
+    ];
 
     const healthSection = healthCtx ? `【ユーザーの健康状態】\n${healthCtx}\n\n` : '';
     const periodLine = `【対象期間】${body.startDate} ～ ${body.endDate}`;
     const nutritionSection = `■ 栄養摂取（データあり: ${datadays.length}/7日）
 - 平均カロリー: ${avgCalories} kcal（目標: ${body.calorieGoal} kcal、達成率: ${calorieCompliance}%）
-- 平均タンパク質: ${avgProtein}g（目標: ${body.proteinGoal}g）
+- 平均タンパク質: ${avgProtein}g${proteinTarget}
 - 平均脂質: ${avgFat}g（目標: ${body.fatGoal}g）
 - 平均炭水化物: ${avgCarbs}g（目標: ${body.carbsGoal}g）${fluidNeutral ? '' : `
 - 水分目標達成日: ${waterGoalDays}/${datadays.length}日`}
@@ -179,7 +206,7 @@ ${resultMap['behavior'] || '（分析なし）'}
 【目標設定専門家の提案】
 ${resultMap['goal'] || '（提案なし）'}
 
-【週スコア】${weekScore}/100${fluidNeutral ? `\n\n【制約】\n${CKD_FLUID_PROMPT}` : ''}`;
+【週スコア】${weekScore}/100${constraints.length ? `\n\n【制約】\n${constraints.join('\n')}` : ''}`;
 
     // Orchestrator only gets the schema — the 4 parallel specialists above
     // stay free-prose (their text is intermediate input, never client-facing).

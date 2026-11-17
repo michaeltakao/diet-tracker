@@ -9,6 +9,9 @@
  * 2026-11-17 (CKD fluid-neutral): senior-warfarin-ckd.golden.txt was
  * hand-edited — +CKD_FLUID_PROMPT line, −the senior "drink often" phrase,
  * −the water goal / water intake lines (fluid-neutral users).
+ * 2026-11-17 (CKD protein cap): hand-edited again — the CKD protein line
+ * moved from after the 禁忌 line into the health-context block (after the
+ * fluid line) and gained the "cap beats the user's goal" sentence.
  * The other two fixtures (non-CKD) still match the pre-refactor template.
  */
 import { describe, expect, it } from 'vitest';

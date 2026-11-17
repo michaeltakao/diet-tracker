@@ -72,3 +72,18 @@ These are read by eye from one sample each; they are not a quality evaluation.
 - coach praises 95 g
 - **Cause (fact):** `buildHealthContextPrompt` carries no protein limit; only recommend injects the CKD protein cap.
 - The weekly report also wrote 「週4回のトレーニング」 although `workoutDays` = 3 (`totalWorkouts` = 4). This is a minor slip.
+
+## Addendum — CKD protein cap re-check (round 5, branch `fix/ckd-protein-cap`)
+
+- **Command:** `CKD=1 ROUTES=weekly-report,coach node scripts/route-smoke.mjs route-smoke-2026-11-17-ckd-protein.json`. Same setup as round 4 (dev :3100, anonymous, compiled first with GET). The CKD persona now also sends `weightKg: 72`, so the cap is 0.8 × 72 ≈ 58 g.
+- **Raw data:** `route-smoke-2026-11-17-ckd-protein.json`.
+
+| Route | Status | Latency | Protein mentions (grep タンパク, then read by eye) |
+|---|---|---|---|
+| coach | 200 | 2 646 ms | 1: 「タンパク質が95gと腎臓病の上限目安である58gを大幅に超えてしまっています」, flagged as over the cap, not praised |
+| weekly-report | 200 | 3 980 ms | 3: summary 「…99gとなり腎臓病の上限目安である58gを大幅に超過」, improvement 「…抑えること」, nextWeekGoal 「1日のタンパク質摂取量を上限の58g以下に抑えつつ…」 |
+
+- weekScore 65 = (30 + 0 + 18.75 + 10) / 0.9. Over-cap protein earns 0; round 4 scored the same week 88.
+- **Pass:** neither route advised raising protein or praised over-cap intake. Round 4 had 「99g→105gに増やす」 and praise for 95 g.
+- **Limit:** n = 1 per route. This is not proof that the model never does so.
+- Fluid policy still held: the only water mention was 「水分摂取については主治医の指示に従ってください」.
