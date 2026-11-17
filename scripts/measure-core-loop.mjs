@@ -57,7 +57,7 @@ taps = 0;
 await tap(page.locator('a[href="/add"]').last()); // FAB
 await page.waitForURL('**/add');
 route = '/add'; await page.waitForTimeout(600);
-const manualTab = page.getByRole('button', { name: /手動入力|Manual/ });
+const manualTab = page.getByRole('button', { name: /手動入力|手入力|Manual/ });
 const nameField = page.getByPlaceholder(/例：|e\.g\./).first();
 if (!(await nameField.isVisible().catch(() => false))) await tap(manualTab);
 await tap(nameField); await nameField.fill('テスト定食');

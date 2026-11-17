@@ -56,9 +56,9 @@ export const translations = {
     dinner: '夕食',
     snack: '間食',
     addMeal: '食事を追加',
-    tabPhoto: '📷 写真',
-    tabManual: '✏️ 手動入力',
-    tabRecent: '🕐 最近',
+    tabPhoto: '写真',
+    tabManual: '手入力',
+    tabRecent: '最近',
     mealType: '食事タイプ',
     foodName: '食品名',
     foodNamePlaceholder: '例：鶏むね肉サラダ',
@@ -218,7 +218,7 @@ export const translations = {
     speedModeDesc: '追加後もこの画面を維持します',
     // Meal section
     // Barcode scan (phase A)
-    tabBarcode: '🏷️ バーコード',
+    tabBarcode: 'バーコード',
     scanBarcode: 'バーコードを枠内にかざしてください',
     barcodeRescan: 'もう一度スキャン',
     barcodeNotFound: '商品が見つかりませんでした（データベース未登録の可能性があります）',
@@ -370,9 +370,9 @@ export const translations = {
     dinner: 'Dinner',
     snack: 'Snack',
     addMeal: 'Add Meal',
-    tabPhoto: '📷 Photo',
-    tabManual: '✏️ Manual',
-    tabRecent: '🕐 Recent',
+    tabPhoto: 'Photo',
+    tabManual: 'Manual',
+    tabRecent: 'Recent',
     mealType: 'Meal Type',
     foodName: 'Food Name',
     foodNamePlaceholder: 'e.g. Chicken breast salad',
@@ -532,7 +532,7 @@ export const translations = {
     speedModeDesc: 'Stay on this page after adding',
     // Meal section
     // Barcode scan (phase A)
-    tabBarcode: '🏷️ Barcode',
+    tabBarcode: 'Barcode',
     scanBarcode: 'Point the camera at a barcode',
     barcodeRescan: 'Scan again',
     barcodeNotFound: 'Product not found (it may not be in the database)',

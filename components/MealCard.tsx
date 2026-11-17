@@ -70,6 +70,12 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
       fat:      Math.max(0, Math.round(Number(draft.fat)     * 10) / 10 || 0),
       carbs:    Math.max(0, Math.round(Number(draft.carbs)   * 10) / 10 || 0),
     };
+    // A kcal-only entry becomes "entered" once the user types any P/F/C in
+    // the edit form (Assumption: an edit that leaves all three at 0 is still
+    // kcal-only rather than a meal with truly zero macros).
+    if (entry.macrosEntered === false && updated.protein + updated.fat + updated.carbs > 0) {
+      updated.macrosEntered = true;
+    }
     onEdit?.(updated);
     setDraft(updated);
     setEditing(false);
@@ -266,11 +272,14 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
           <span className="text-sm font-bold text-fg tabular-nums">
             {entry.calories.toLocaleString()} kcal
           </span>
-          <div className="flex gap-2 text-xs">
-            <span className="font-medium text-brand-600 dark:text-brand-400">P {entry.protein}g</span>
-            <span className="font-medium text-warning">F {entry.fat}g</span>
-            <span className="font-medium text-blue-600 dark:text-blue-400">C {entry.carbs}g</span>
-          </div>
+          {/* kcal-only entries: P/F/C are 0 placeholders, not measurements (029) */}
+          {entry.macrosEntered !== false && (
+            <div className="flex gap-2 text-xs">
+              <span className="font-medium text-brand-600 dark:text-brand-400">P {entry.protein}g</span>
+              <span className="font-medium text-warning">F {entry.fat}g</span>
+              <span className="font-medium text-blue-600 dark:text-blue-400">C {entry.carbs}g</span>
+            </div>
+          )}
         </div>
 
         {/* Sodium (as 食塩相当量) / fiber — barcode & label entries only */}
