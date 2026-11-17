@@ -6,6 +6,18 @@ Keep this file under 200 lines: Now (latest 3) / Next / Blockers / Key
 decisions / Last verified (latest 2) — move older entries to the archive.
 
 ## Now
+- **2026-11-17 ADR-011 core-loop cut** (`refactor/core-loop`, stacked on
+  `fix/study-p0` @ `dc99005`; vault ADR-011, proposed). Deleted instead of
+  hidden (supersedes ADR-008 P1): gamification, form checker, health logs
+  + doctor report, 6 Gemini features, `/plan`, steps/TDEE. Non-test LOC
+  35,721 → 20,202 (−43%), pages 16 → 10, API routes 21 → 13 (Gemini 9 → 3),
+  tables written 30 → 17, vitest 748 → 473. Meal log 8 → 4 taps, home cards
+  above the meal list 16 → 1 (`scripts/measure-core-loop.mjs`). Activity =
+  food/workout/weight; 2-step onboarding; FAB in BottomNav; P/F/C optional
+  via `029` (`macros_entered`). Critique + table:
+  `docs/reviews/RADICAL_CRITIQUE_2026-11.md`. Thesis re-scope (4 options,
+  recommends offline safety eval of the recommender):
+  `~/大学院/研究室/thesis-pivot-2026-11/thesis-pivot.md`.
 - **2026-11-13 security: Next 16.3.8 → 16.4.1 merged** (PR #23, `main`
   `20c1275`; GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr, GHSA-p3m5-59mp-jv5r).
   Production `/` and `/login` return 200 after the deploy. `main` merged
@@ -13,21 +25,16 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   `fix/study-p0` (`019d5bd`, PR #22) the same day; #21's `npm audit`
   check is green again. **Outbox run: still open** — the sign-in link now
   reaches localhost but was opened in another browser (PKCE); 0 rows.
-- **2026-11-12 ADR-008 P0 code complete** (`fix/study-p0`, draft PR #22,
-  pushed): P0-2 `0f8fbe6`, P0-4 `cc1baa1`, P0-3 `d809549` + `5100946`
-  (install banner also covered the FAB — found in the browser check), P0-8
-  `962d598`, P0-6 outbox + `028` `19fec03`, P0-7 `9e893ad`, docs + P0-13
-  draft `30e9dd8`; review fixes `7d686f4` (outbox) + `c38166d`. Commit-level
-  detail: vault ADR-008 Progress. Evidence:
-  `~/大学院/研究室/app-analysis-2026-10/remeasure-2026-11-12/`.
-  **11-12 later: `027` + `028` applied to prod (rows unchanged, no new
-  advisor finding). `025` + `026` held — see Blockers.** Also: W6 query +
-  time-zone / sync-health rules decided, weekly
-  `.github/workflows/freeze-check.yml`.
-- **2026-11-04 ADR-008 P0-9 / P0-10 / P0-11** (`fix/study-p0`): day 0, no
-  guest mode in the study build, build stamp. Full entry: archive (11-12).
+- **2026-11-12 ADR-008 P0 code complete** (`fix/study-p0`, draft PR #22):
+  P0-2…P0-13; `027` + `028` applied to prod, `025` + `026` held (Blockers).
+  Commit list + evidence: archive (11-17) and vault ADR-008 Progress.
 
 ## Next
+- **ADR-011 (`refactor/core-loop`)**: `/code-review high` done (`ef2b403`);
+  draft PR stacked on #22; advisor meeting with `thesis-pivot.md` (Q1–Q4 there) → ADR-011
+  accepted; at the analysis-plan freeze decide S5 `planned_per_week` /
+  adherence (NULL now that `/plan` is gone; `training_programs` kept out
+  of 030). No new features until there is usage data.
 - **ADR-008 P0: all done in code** (P0-13 = draft only). Before merging
   #22: [🔒user] Vercel Production env `NEXT_PUBLIC_STUDY_BUILD=1` (else prod
   builds fail); signed-in outbox run (offline log → online → rows + one
@@ -35,10 +42,10 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   → `026` right after #21 is live on production, not before**; then the
   freeze setup in `docs/trial/freeze-check.md` (`study-v1` tag, `study`
   branch) and the analysis-plan freeze
-  (`docs/trial/analysis-plan-freeze.md`; 2 of 4 open items decided 11-12). P/F/C optional + `029` only after
-  the advisor's answer. Deferred review items: copy-yesterday still does one
+  (`docs/trial/analysis-plan-freeze.md`; 2 of 4 open items decided 11-12). P/F/C optional + `029` are now in
+  `refactor/core-loop` (ADR-011). Deferred review items: copy-yesterday still does one
   getUser() per copied entry; AI routes still take anonymous callers
-  (`lib/api-guard.ts`). P1 flags wait for the advisor's Q1.
+  (`lib/api-guard.ts`). P1 flags: superseded by ADR-011 (delete, not hide).
 - **Six-month study, 10–30 family and acquaintances (plan 2026-10-14):**
   1. [🔒user] Show the slides to the advisor; settle ethics review, pilot vs
      plan revision, and the Gemini tier. **No URL goes out before that.**
@@ -96,29 +103,27 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   superseded.
 - **[auto] Supabase → local hydration** — no read-back path exists, so a
   second device sees an empty app (biggest sign-in value gap). Food / workout /
-  weight first, vitals / symptoms second. Architecture change: ADR +
+  weight only (health logs deleted in ADR-011). Architecture change: ADR +
   `reviewer` pass before implementing; reuse the merge rules in
   `lib/export.ts`, do not invent new ones.
 - **[auto] Observability** — one Playwright guest-mode E2E in CI; telemetry
   Supabase dual-write (needs its own migration + consent gating); error
   monitoring (dependency → `/sec`). Hold new features until usage is measurable.
-- **[auto] Web Push server cron** — Vercel Cron + `CRON_SECRET` route so
-  nudges fire without the app being open; the client-triggered send mostly
-  mirrors in-app banners.
-- **[auto] JP food text search** — MEXT 成分表, top ~500 washoku + `pg_trgm`;
-  also grounds photo-AI v2 numbers.
 - **[auto] Dev-only `npm audit` highs**: 5 remain on `braces`
   (GHSA-vfj7-8cjw-p6xm) via `eslint-config-next`; no patched release yet.
   When one ships, update and restore the full-tree audit gate.
-- **[auto] Health-log follow-ups**: symptom↔meal correlation analysis; CSV
-  import for old symptom-memo-app data.
 - **[auto] Small fixes**: MealCard edit coerces empty fields to 0; favorites
   quick-add ignores the servings stepper; STEP-7 bulk-migration rows leave
   `servings`/`source` NULL (backfill or accept).
-- Backlog: recipes, micronutrient UI, weight SVG → recharts, AccountSection
-  i18n; research ideas: adherence prediction, habit phenotyping, TDEE goals.
-
 ## Blockers
+- **[🔒user] Apply `029` (`food_logs.macros_entered`) to prod BEFORE
+  `refactor/core-loop` reaches production** — otherwise food inserts fail
+  (PGRST204, non-permanent) and the outbox stops flushing, which also holds
+  back weight rows.
+- **[🔒user] `supabase/drafts/030` (drop 13 tables) is a draft**: run its
+  row-count step, export any rows, then approve; not applied.
+- Next 16.4.1 moderate advisory GHSA-mfr8-8qww-v76h (fixed 16.4.6); app uses
+  no `'use cache'` / `unstable_cache` (grep 11-17). Separate upgrade PR, as #23.
 - **Migration `025` must not reach prod before PR #21 is deployed**
   (found 2026-11-12): `main`'s `/api/consent` writes `consented_at` with
   the user's own client and `proxy.ts` sends unconsented users to
@@ -127,10 +132,14 @@ decisions / Last verified (latest 2) — move older entries to the archive.
 - Authed E2E blocked on the [🔒user] public-login items 1–4 above.
 
 ## Key decisions
+- **Delete, don't hide** (vault ADR-011, 2026-11-17, proposed; supersedes
+  ADR-008 P1): only the core loop + safe recommender stay; git history is the
+  undo. kcal-only meals carry `macros_entered=false` (029) — P/F/C sums must
+  use `lib/macros.ts` `sumIntake`, never raw sums. `next` pinned exactly.
 - Guest mode in production = explicit per-device opt-in via `dt-guest=1` cookie
   (set client-side by the login page; honored by proxy.ts auth guard). AI routes
   still gated by `APP_ACCESS_CODE` in `lib/api-guard.ts` (2026-07-05).
-- Phase A safety layer wired into `/api/recommend` (`lib/recommend-safety.ts`, 19 tests)
+- Phase A safety layer wired into `/api/recommend` (`lib/recommend-safety.ts`, 31 tests)
   — commit `84ba7dd`, 2026-06-03.
 - Semantic token design system + WCAG-AA (use tokens, not `gray-*`); AI features use the
   `--ai` violet family (2026-07-03).
@@ -146,15 +155,9 @@ decisions / Last verified (latest 2) — move older entries to the archive.
 - Repo is the Master's research vehicle — see vault `ADR-001`.
 - `postcss` overridden to `^8.5.10` (CVE-2026-41305, MEDIUM).
 - CI workflows hardened against script injection (`cac19bf`, 2026-06-12) — see vault `ADR-003`.
-- **Duolingo phase 7 (hero gradient) = stay flat, no change** (2026-07-21):
-  the `StreakHeader.tsx` flat `bg-fox` banner is intentional; older ad-hoc
-  `bg-gradient-*` uses (e.g. workout hero) are style debt, not retrofit targets.
 - **Deploy scope = 家族・知人限定** (user-confirmed 2026-08-09), superseding the
   07-24 "general public" framing; the research-disclosure footer stays off
   `app/page.tsx` for that reason. Re-decide before any wider opening.
-- `/api/suggest-workout` + `WorkoutSuggestionCard` are caller-less since
-  2026-09-18 but retained on purpose — adjusting an already-scheduled session
-  is a separate job from generation.
 - **No age gate in code** (18+ attestation removed 2026-07-22, `5f20d39`).
   Under-18 participation is handled on the paper form (guardian signature)
   and is subject to the ethics review and Google's API terms.
@@ -176,10 +179,15 @@ decisions / Last verified (latest 2) — move older entries to the archive.
 - **`npm audit` gate = production dependencies only** (`--omit=dev
   --audit-level=high`, 2026-10-13). The full-tree audit still runs with
   `continue-on-error`; revert to a full-tree gate once `braces` ships a fix.
-- `next` is pinned exactly; 16.3.8 was chosen over 16.4.0 as the smallest
-  jump clear of every advisory (2026-10-13).
-
 ## Last verified state
+- 2026-11-17: `refactor/core-loop` @ `ef2b403` (after `/code-review high`:
+  10 findings, 9 fixed, 1 = documented gate for 029) — lint 0, `tsc` 0,
+  vitest **480/480** (43 files; legacy-key test fails on the unfixed code),
+  study `next build` exit 0 unsandboxed (one run first stopped on Next's
+  advisory notice for 16.4.1; the re-run passed). Core-loop probe vs the
+  pre-review `after/`: no change (meal 4 taps, weight 2, home 1,034 px,
+  1 card above the meal list) — `core-loop-2026-11-17/after-review-fixes/`.
+  NOT verified: 029 on any database, outbox with 029, Vercel preview.
 - 2026-11-13: `fix/study-p0` @ `019d5bd` (merge of `main` via
   `feat/trial-data-notice` `559e8f5`) — lint 0 errors (3 warnings), vitest
   **748/748** (66 files), study `next build` exit 0 (unsandboxed), `tsc` 0,
@@ -190,11 +198,3 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   #23. Later: Supabase Redirect URLs + `http://localhost:3000/**` (4
   entries, Site URL unchanged). NOT verified: outbox against Supabase,
   PR #22's Vercel previews (pending at push time), 025/026.
-- 2026-11-12 (later): `fix/study-p0` — lint 0 errors (3 warnings), `tsc` 0,
-  vitest **748/748**, study `next build` OK (unsandboxed). Prod Supabase:
-  `list_migrations` ends 024, 027, 028; rows before = after (profiles 2,
-  food 0, weight 1, workout 0); 8 `build_sha`/`study_build` columns;
-  security advisors: nothing on `client_sync_health`. W6 ran on prod
-  (with `created_at` standing in for `study_start_at`, which needs 026):
-  2 rows, 0 reports. Freeze script vs prod: exit 2 (no `study-v1` tag);
-  prod `/api/build-info` = 404 (ships with #22). `/sec` OK.

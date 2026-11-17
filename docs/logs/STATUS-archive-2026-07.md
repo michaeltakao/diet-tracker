@@ -1238,3 +1238,50 @@ anyway since it was cheap alongside the lipid/HbA1c work).
   /api/generate-workout (200) + plan; /login Japanese. `/code-review medium`
   10 findings: 9 fixed, 1 partly (copy-yesterday). NOT verified: outbox
   against Supabase (needs sign-in + 028), migrations on prod, Vercel.
+
+## Moved from STATUS.md Now (2026-11-17)
+- **2026-11-04 ADR-008 P0-9 / P0-10 / P0-11** (`fix/study-p0`): day 0, no
+  guest mode in the study build, build stamp. Full entry: archive (11-12).
+
+## Moved from STATUS.md Last verified (2026-11-17)
+- 2026-11-12 (later): `fix/study-p0` — lint 0 errors (3 warnings), `tsc` 0,
+  vitest **748/748**, study `next build` OK (unsandboxed). Prod Supabase:
+  `list_migrations` ends 024, 027, 028; rows before = after (profiles 2,
+  food 0, weight 1, workout 0); 8 `build_sha`/`study_build` columns;
+  security advisors: nothing on `client_sync_health`. W6 ran on prod
+  (with `created_at` standing in for `study_start_at`, which needs 026):
+  2 rows, 0 reports. Freeze script vs prod: exit 2 (no `study-v1` tag);
+  prod `/api/build-info` = 404 (ships with #22). `/sec` OK.
+
+## Moved from STATUS.md (2026-11-17 trim: stale after ADR-011 / older Now detail)
+- **[auto] Web Push server cron** — Vercel Cron + `CRON_SECRET` route so
+  nudges fire without the app being open; the client-triggered send mostly
+  mirrors in-app banners.
+- **[auto] JP food text search** — MEXT 成分表, top ~500 washoku + `pg_trgm`;
+  also grounds photo-AI v2 numbers.
+- **[auto] Health-log follow-ups**: symptom↔meal correlation analysis; CSV
+  import for old symptom-memo-app data.
+- Backlog: recipes, micronutrient UI, weight SVG → recharts, AccountSection
+  i18n; research ideas: adherence prediction, habit phenotyping, TDEE goals.
+
+- **Duolingo phase 7 (hero gradient) = stay flat, no change** (2026-07-21):
+  the `StreakHeader.tsx` flat `bg-fox` banner is intentional; older ad-hoc
+  `bg-gradient-*` uses (e.g. workout hero) are style debt, not retrofit targets.
+- `/api/suggest-workout` + `WorkoutSuggestionCard` are caller-less since
+  2026-09-18 but retained on purpose — adjusting an already-scheduled session
+  is a separate job from generation.
+- `next` is pinned exactly; 16.3.8 was chosen over 16.4.0 as the smallest
+  jump clear of every advisory (2026-10-13).
+
+- **2026-11-12 ADR-008 P0 code complete** (`fix/study-p0`, draft PR #22,
+  pushed): P0-2 `0f8fbe6`, P0-4 `cc1baa1`, P0-3 `d809549` + `5100946`
+  (install banner also covered the FAB — found in the browser check), P0-8
+  `962d598`, P0-6 outbox + `028` `19fec03`, P0-7 `9e893ad`, docs + P0-13
+  draft `30e9dd8`; review fixes `7d686f4` (outbox) + `c38166d`. Commit-level
+  detail: vault ADR-008 Progress. Evidence:
+  `~/大学院/研究室/app-analysis-2026-10/remeasure-2026-11-12/`.
+  **11-12 later: `027` + `028` applied to prod (rows unchanged, no new
+  advisor finding). `025` + `026` held — see Blockers.** Also: W6 query +
+  time-zone / sync-health rules decided, weekly
+  `.github/workflows/freeze-check.yml`.
+
