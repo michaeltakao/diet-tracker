@@ -22,7 +22,5 @@ export * from './health-profile';
 export * from './recommendation-feedback';
 export * from './favorites';
 export * from './meal-templates';
-export * from './vitals';
-export * from './symptoms';
 export * from './workout-prefs';
 export * from './steps';

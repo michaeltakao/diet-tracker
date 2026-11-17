@@ -603,12 +603,6 @@ export default function SettingsPage() {
               <Pill size={12} />
               <span>服薬中の薬（任意）</span>
             </label>
-            <button
-              onClick={() => router.push('/meds')}
-              className="text-[10px] font-bold text-violet-500 dark:text-violet-400 hover:underline"
-            >
-              服薬管理を開く →
-            </button>
           </div>
           {/* Tag list */}
           {(healthProfile.medications ?? []).length > 0 && (

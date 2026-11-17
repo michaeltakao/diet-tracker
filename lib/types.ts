@@ -100,66 +100,6 @@ export interface WeightEntry {
   addedAt: string;
 }
 
-// ── Vitals (record only — the app never interprets these values) ──────────
-
-export type GlucoseContext = 'fasting' | 'postprandial' | 'random';
-
-interface VitalEntryBase {
-  id: string;
-  date: string;    // YYYY-MM-DD (JST day)
-  addedAt: string; // ISO
-  notes?: string;
-}
-
-export interface BloodPressureEntry extends VitalEntryBase {
-  kind: 'blood_pressure';
-  systolic: number;  // mmHg, plausibility bounds 50–300 (matches SQL CHECK)
-  diastolic: number; // mmHg, plausibility bounds 30–200
-}
-
-export interface BloodGlucoseEntry extends VitalEntryBase {
-  kind: 'blood_glucose';
-  glucoseMgDl: number; // mg/dL, plausibility bounds 20–600
-  glucoseContext: GlucoseContext;
-}
-
-/** Lipid panel (脂質検査) — total cholesterol required, the rest lab-dependent. */
-export interface LipidPanelEntry extends VitalEntryBase {
-  kind: 'lipid';
-  totalMgDl: number;          // 総コレステロール, bounds 50–500 (matches SQL CHECK)
-  ldlMgDl?: number;           // bounds 20–400
-  hdlMgDl?: number;           // bounds 10–150
-  triglyceridesMgDl?: number; // 中性脂肪, bounds 20–2000
-}
-
-export interface Hba1cEntry extends VitalEntryBase {
-  kind: 'hba1c';
-  hba1cPercent: number; // %, bounds 3.0–20.0
-}
-
-export type VitalEntry = BloodPressureEntry | BloodGlucoseEntry | LipidPanelEntry | Hba1cEntry;
-
-// ── Symptom log (record + display only — never diagnostic) ────────────────
-
-export interface SymptomEntry {
-  id: string;
-  date: string;               // YYYY-MM-DD (JST day of onset)
-  onsetAt: string;            // ISO
-  name: string;               // e.g. 頭痛
-  durationMin?: number;       // 1–10080 (one week), matches SQL CHECK
-  severity: number;           // 1–10 self-rating (recorded, not judged)
-  trigger?: string;           // free chip value: 食事/運動/ストレス/天候/睡眠不足/不明
-  actionTaken?: string;
-  note?: string;
-  // Plain id links (no FK — client-generated ids + guest mode); names are
-  // denormalized at link time so the doctor report survives log deletion.
-  relatedMealId?: string;
-  relatedMealName?: string;
-  relatedWorkoutId?: string;
-  relatedWorkoutName?: string;
-  addedAt: string;            // ISO
-}
-
 export interface DailyGoals {
   calories: number;
   protein: number;
@@ -204,8 +144,6 @@ export interface AppData {
   favoriteFoods: FavoriteFood[];   // ♡ foods (Phase B signal + quick-add pills)
   mealTemplates: MealTemplate[];   // saved meals for one-tap re-log
   streakState: StreakState;        // longest streak + repair-ticket memory (device-local)
-  vitalEntries: VitalEntry[];      // BP / glucose measurements (record-only)
-  symptomEntries: SymptomEntry[];  // symptom log (record-only, non-diagnostic)
 }
 
 // ── Health Profile (stored in localStorage + profiles table) ──
@@ -236,11 +174,6 @@ export interface UserHealthProfile {
   fitnessGoal:         FitnessGoal;
   activityLevel:       ActivityLevel;
   experience?:         ExperienceLevel | null;    // localStorage-only — no profiles column
-}
-
-export interface MedLogEntry {
-  date:      string;    // YYYY-MM-DD
-  takenMeds: string[];  // medication names taken today
 }
 
 // ── XAI Explanation ───────────────────────────────────────────

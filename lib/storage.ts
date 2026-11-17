@@ -1,4 +1,4 @@
-import { AppData, DailyGoals, FavoriteFood, FoodEntry, MealTemplate, PersonalRecord, RecommendationFeedback, SymptomEntry, VitalEntry, WeightEntry, WorkoutEntry } from './types';
+import { AppData, DailyGoals, FavoriteFood, FoodEntry, MealTemplate, PersonalRecord, RecommendationFeedback, WeightEntry, WorkoutEntry } from './types';
 import { activityDaysFrom, computeStreak, jstToday } from './streak';
 
 const STORAGE_KEY = 'diet-tracker-v1';
@@ -39,8 +39,6 @@ const DEFAULT_DATA: AppData = {
   favoriteFoods: [],
   mealTemplates: [],
   streakState: { longest: 0, repairedDates: [] },
-  vitalEntries: [],
-  symptomEntries: [],
 };
 
 /**
@@ -72,8 +70,6 @@ export function getAppData(): AppData {
         longest: parsed.streakState?.longest ?? 0,
         repairedDates: parsed.streakState?.repairedDates ?? [],
       },
-      vitalEntries: parsed.vitalEntries ?? [],
-      symptomEntries: parsed.symptomEntries ?? [],
     };
   } catch {
     return freshDefaultData();
@@ -274,44 +270,6 @@ export function getWeightEntries(days = 30): WeightEntry[] {
 export function getLatestWeight(): WeightEntry | undefined {
   const data = getAppData();
   return data.weightEntries.at(-1);
-}
-
-// ── Vitals (per-measurement rows — record only, never interpreted) ──
-export function addVitalEntry(entry: VitalEntry): void {
-  const data = getAppData();
-  data.vitalEntries.push(entry);
-  saveAppData(data);
-}
-
-export function removeVitalEntry(id: string): void {
-  const data = getAppData();
-  data.vitalEntries = data.vitalEntries.filter((e) => e.id !== id);
-  saveAppData(data);
-}
-
-export function getAllVitalEntries(): VitalEntry[] {
-  return getAppData().vitalEntries;
-}
-
-export function getVitalEntriesForDate(date: string): VitalEntry[] {
-  return getAppData().vitalEntries.filter((e) => e.date === date);
-}
-
-// ── Symptoms (per-event rows — record + display only, never diagnostic) ──
-export function addSymptomEntry(entry: SymptomEntry): void {
-  const data = getAppData();
-  data.symptomEntries.push(entry);
-  saveAppData(data);
-}
-
-export function removeSymptomEntry(id: string): void {
-  const data = getAppData();
-  data.symptomEntries = data.symptomEntries.filter((e) => e.id !== id);
-  saveAppData(data);
-}
-
-export function getAllSymptomEntries(): SymptomEntry[] {
-  return getAppData().symptomEntries;
 }
 
 // ── Water ────────────────────────────────────────────────

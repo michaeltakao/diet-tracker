@@ -54,23 +54,17 @@ export function weekStartOf(date: string): string {
 }
 
 /**
- * Union of activity days across all log types ("any-log" definition).
- * Water only counts when > 0 ml (a zeroed-out day is not activity).
- * Vitals and symptoms count too: recording a measurement or a symptom is
- * logging activity.
+ * Union of activity days across the outcome logs ("any-log" definition,
+ * ADR-011): food, workout and weight — the same tables the cohort analysis
+ * unions (docs/trial/cohort-queries.sql `act`) and the push cron reads.
  */
 export function activityDaysFrom(
-  data: Pick<AppData, 'foodEntries' | 'workoutEntries' | 'weightEntries' | 'waterByDate' | 'vitalEntries' | 'symptomEntries'>,
+  data: Pick<AppData, 'foodEntries' | 'workoutEntries' | 'weightEntries'>,
 ): Set<string> {
   const days = new Set<string>();
   for (const e of data.foodEntries) days.add(e.date);
   for (const e of data.workoutEntries) days.add(e.date);
   for (const e of data.weightEntries) days.add(e.date);
-  for (const e of data.vitalEntries) days.add(e.date);
-  for (const e of data.symptomEntries) days.add(e.date);
-  for (const [date, ml] of Object.entries(data.waterByDate)) {
-    if (ml > 0) days.add(date);
-  }
   return days;
 }
 

@@ -40,13 +40,14 @@ function jstHour(now: number = Date.now()): number {
   return new Date(now + JST_OFFSET_MS).getUTCHours();
 }
 
-/** Log tables unconditionally counted as "any-log" activity (see streak.ts activityDaysFrom). */
+/**
+ * Tables counted as activity for the nudge decision — the study's outcome
+ * logs only (ADR-011), matching the cohort analysis. Water no longer counts.
+ */
 const UNCONDITIONAL_LOG_TABLES = [
   'food_logs',
   'workout_logs',
   'weight_logs',
-  'vital_logs',
-  'symptom_logs',
 ] as const;
 
 interface LogDateRow {
@@ -93,7 +94,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const hour = jstHour();
 
   // ④ batched fetch: one query per table, bounded to subscriber ids
-  const [logsByTable, waterRes, profilesRes, sentTodayRes] = await Promise.all([
+  const [logsByTable, profilesRes, sentTodayRes] = await Promise.all([
     Promise.all(
       UNCONDITIONAL_LOG_TABLES.map((table) =>
         supabase
@@ -102,11 +103,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           .in('user_id', subscriberIds),
       ),
     ),
-    supabase
-      .from('water_logs')
-      .select('user_id, logged_date, total_ml')
-      .in('user_id', subscriberIds)
-      .gt('total_ml', 0),
     supabase
       .from('profiles')
       .select('id, lang')
@@ -124,10 +120,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Send failed' }, { status: 500 });
     }
   }
-  if (waterRes.error) {
-    console.error('[PUSH_CRON_WATER_ERROR]', waterRes.error);
-    return NextResponse.json({ error: 'Send failed' }, { status: 500 });
-  }
   if (profilesRes.error) {
     console.error('[PUSH_CRON_PROFILES_ERROR]', profilesRes.error);
     return NextResponse.json({ error: 'Send failed' }, { status: 500 });
@@ -138,9 +130,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const allDateRows: LogDateRow[] = logsByTable.flatMap((res) => res.data ?? []);
-  for (const w of waterRes.data ?? []) {
-    allDateRows.push({ user_id: w.user_id, logged_date: w.logged_date });
-  }
   const activityByUser = groupActivityDaysByUser(allDateRows);
 
   const langByUser = new Map<string, 'ja' | 'en'>();
