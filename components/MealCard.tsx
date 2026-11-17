@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { partialMacroFields } from '@/lib/macros';
 import Image from 'next/image';
 import { Trash2, Pencil, Check, X, Heart } from 'lucide-react';
 import { FoodEntry } from '@/lib/types';
@@ -62,20 +63,36 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
     snack:     t.snack,
   };
 
+  // A kcal-only entry (029) holds 0 placeholders for P/F/C. In the edit form
+  // they show as blank; typed values arrive as strings, so a number 0 here
+  // means "still the untouched placeholder".
+  const kcalOnly = entry.macrosEntered === false;
+  const isPlaceholder = (field: 'protein' | 'fat' | 'carbs') =>
+    kcalOnly && (draft[field] as unknown) === 0;
+  const [macroError, setMacroError] = useState(false);
+
   const handleSave = () => {
+    let macrosEntered = entry.macrosEntered;
+    if (kcalOnly) {
+      const given = (f: 'protein' | 'fat' | 'carbs') =>
+        !isPlaceholder(f) && String(draft[f]).trim() !== '';
+      // Same all-or-nothing rule as /add: a partial edit would turn the
+      // untouched placeholders into "measured" zeros.
+      if (partialMacroFields({ protein: given('protein'), fat: given('fat'), carbs: given('carbs') })) {
+        setMacroError(true);
+        return;
+      }
+      macrosEntered = given('protein') ? true : false;
+    }
+    setMacroError(false);
     const updated: FoodEntry = {
       ...draft,
       calories: Math.max(0, Math.round(Number(draft.calories)    || 0)),
       protein:  Math.max(0, Math.round(Number(draft.protein) * 10) / 10 || 0),
       fat:      Math.max(0, Math.round(Number(draft.fat)     * 10) / 10 || 0),
       carbs:    Math.max(0, Math.round(Number(draft.carbs)   * 10) / 10 || 0),
+      ...(macrosEntered !== undefined ? { macrosEntered } : {}),
     };
-    // A kcal-only entry becomes "entered" once the user types any P/F/C in
-    // the edit form (Assumption: an edit that leaves all three at 0 is still
-    // kcal-only rather than a meal with truly zero macros).
-    if (entry.macrosEntered === false && updated.protein + updated.fat + updated.carbs > 0) {
-      updated.macrosEntered = true;
-    }
     onEdit?.(updated);
     setDraft(updated);
     setEditing(false);
@@ -83,6 +100,7 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
 
   const handleCancel = () => {
     setDraft(entry);
+    setMacroError(false);
     setEditing(false);
   };
 
@@ -139,7 +157,7 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
               <input
                 type="number"
                 min="0"
-                value={String(draft[field])}
+                value={field !== 'calories' && isPlaceholder(field) ? '' : String(draft[field])}
                 onChange={(e) => setDraft((p) => ({ ...p, [field]: e.target.value }))}
                 className={`${inputCls} w-full text-center`}
                 aria-label={label}
@@ -147,6 +165,9 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
             </div>
           ))}
         </div>
+        {macroError && (
+          <p role="alert" className="text-xs text-danger mb-2">{t.macrosAllOrNoneError}</p>
+        )}
 
         {/* Actions */}
         <div className="flex gap-2">

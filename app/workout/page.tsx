@@ -37,7 +37,8 @@ export default function WorkoutPage() {
   const [history, setHistory]           = useState<WorkoutEntry[]>([]);
   const [warnings, setWarnings]         = useState<string[]>([]);
   const [name, setName]                 = useState('');
-  const [part, setPart]                 = useState<MusclePart>('chest');
+  // No default part: an unknown or cardio entry must not be stored as 'chest'.
+  const [part, setPart]                 = useState<MusclePart | null>(null);
   const [weight, setWeight]             = useState('');
   const [reps, setReps]                 = useState('');
   const [sets, setSets]                 = useState('');
@@ -85,14 +86,17 @@ export default function WorkoutPage() {
       id: crypto.randomUUID(),
       date: today,
       name: trimmed,
-      category: 'strength',
-      musclePart: part,
+      // A body part means a strength exercise; otherwise the type is unknown
+      // ('other'), not a made-up 'strength'/'chest' (schema: muscle_part NULL).
+      category: part ? 'strength' : 'other',
+      ...(part ? { musclePart: part } : {}),
       ...(kg !== undefined ? { weight: kg } : {}),
       ...(Number.isFinite(r) && r > 0 ? { reps: r } : {}),
       ...(Number.isFinite(s) && s > 0 ? { sets: s } : {}),
       addedAt: new Date().toISOString(),
     });
     setName('');
+    setPart(null);
     setWeight('');
     setReps('');
     setSets('');
@@ -148,7 +152,7 @@ export default function WorkoutPage() {
                 type="button"
                 role="radio"
                 aria-checked={part === id}
-                onClick={() => setPart(id)}
+                onClick={() => setPart((cur) => (cur === id ? null : id))}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
                   part === id ? 'bg-brand-500 text-white' : 'bg-surface-2 text-muted hover:bg-line'
                 }`}

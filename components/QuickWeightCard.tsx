@@ -3,8 +3,9 @@
 /**
  * One-row weight logger on the dashboard (ADR-011 core loop).
  *
- * Prefilled with the latest weight so an unchanged day is a single tap on
- * "記録"; a changed day is focus + type + tap. Same-day entries replace the
+ * The input starts EMPTY, with the latest weight only as a placeholder: a
+ * prefilled value saved with one tap would store an unmeasured weight
+ * (ADR-008 B6). Logging = focus + type + tap. Same-day entries replace the
  * earlier one (lib/storage.ts addWeightEntry), so re-logging is safe.
  */
 
@@ -29,7 +30,6 @@ export default function QuickWeightCard() {
     const last = getLatestWeightEntry();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only read on mount
     setLatest(last);
-    if (last) setInput(String(last.weight));
   }, []);
 
   const today = todayJst();
@@ -84,7 +84,7 @@ export default function QuickWeightCard() {
             max={MAX_KG}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="65.0"
+            placeholder={latest ? String(latest.weight) : '65.0'}
             aria-invalid={error !== null}
             aria-describedby={error ? 'quick-weight-error' : undefined}
             className="w-full px-3 py-2.5 pr-10 rounded-xl border border-line-strong bg-surface-2 text-fg text-base font-bold tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"

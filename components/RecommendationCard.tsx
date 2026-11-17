@@ -12,6 +12,7 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { Recommendation, FeedbackKind, DailyGoals } from '@/lib/types';
 import { CARD_CLASS as CARD } from '@/components/ui/Card';
+import { sumIntake } from '@/lib/macros';
 
 function getTodayDate(): string {
   return todayJst();
@@ -175,10 +176,14 @@ export default function RecommendationCard() {
       const streak  = getStreak();
 
       const todayFood     = appData.foodEntries.filter(e => e.date === today);
-      const todayCalories = todayFood.reduce((s, e) => s + e.calories, 0);
-      const todayProtein  = todayFood.reduce((s, e) => s + e.protein,  0);
-      const todayFat      = todayFood.reduce((s, e) => s + e.fat,      0);
-      const todayCarbs    = todayFood.reduce((s, e) => s + e.carbs,    0);
+      // kcal-only meals have 0 placeholders for P/F/C (029): leave them out
+      // and tell the route the macro totals are incomplete.
+      const intake        = sumIntake(todayFood);
+      const todayCalories = intake.calories;
+      const todayProtein  = intake.protein;
+      const todayFat      = intake.fat;
+      const todayCarbs    = intake.carbs;
+      const macrosComplete = intake.kcalOnlyCount === 0;
 
       const recentFoodLog = [...appData.foodEntries]
         .sort((a, b) => b.addedAt.localeCompare(a.addedAt))
@@ -198,6 +203,7 @@ export default function RecommendationCard() {
         todayProtein,
         todayFat,
         todayCarbs,
+        macrosComplete,
         waterConsumed:    water,
         recentFoodLog,
         recentWorkoutLog,

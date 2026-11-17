@@ -29,6 +29,7 @@ import { Toast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { fmtMonthDayDowShortJa, shiftDate, todayJst } from '@/lib/format-date';
+import { sumIntake } from '@/lib/macros';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
@@ -100,11 +101,9 @@ export default function HomePage() {
     });
   };
 
-  const totals = entries.reduce(
-    (acc, e) => ({ calories: acc.calories + e.calories, protein: acc.protein + e.protein, fat: acc.fat + e.fat, carbs: acc.carbs + e.carbs }),
-    { calories: 0, protein: 0, fat: 0, carbs: 0 },
-  );
-  const hasMacros = totals.protein + totals.fat + totals.carbs > 0;
+  // P/F/C sums cover entered meals only; kcal-only meals are flagged (029).
+  const totals = sumIntake(entries);
+  const hasMacros = totals.enteredCount > 0;
 
   const remaining = goals ? Math.max(0, goals.calories - totals.calories) : 0;
   const over      = goals ? totals.calories > goals.calories : false;
@@ -177,6 +176,7 @@ export default function HomePage() {
             {hasMacros && (
               <span className="ml-2">
                 · P {Math.round(totals.protein)}g · F {Math.round(totals.fat)}g · C {Math.round(totals.carbs)}g
+                {totals.kcalOnlyCount > 0 && ` ${t.macrosPartialNote}`}
               </span>
             )}
           </p>

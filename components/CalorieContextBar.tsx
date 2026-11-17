@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { getAppData, getRealGoals } from '@/lib/data';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { sumIntake } from '@/lib/macros';
 
 // Pages that already show a full calorie breakdown
 const HIDDEN_PATHS = new Set(['/', '/dashboard', '/settings']);
@@ -27,18 +28,11 @@ function readSnapshot(): Snapshot {
     const data = getAppData();
     const today = todayJst();
     const entries = data.foodEntries.filter((e) => e.date === today);
-    const agg = entries.reduce(
-      (acc, e) => ({
-        calories: acc.calories + e.calories,
-        protein:  acc.protein  + e.protein,
-        fat:      acc.fat      + e.fat,
-        carbs:    acc.carbs    + e.carbs,
-      }),
-      { calories: 0, protein: 0, fat: 0, carbs: 0 },
-    );
     // kcal-only entries (macrosEntered === false) carry 0 placeholders, not
-    // measurements — hide the pills unless some entry has real P/F/C.
-    const hasMacros = entries.some((e) => e.macrosEntered !== false);
+    // measurements: sumIntake leaves them out of P/F/C (shared with home).
+    const { calories, protein, fat, carbs, enteredCount } = sumIntake(entries);
+    const agg = { calories, protein, fat, carbs };
+    const hasMacros = enteredCount > 0;
     return { ...agg, goal: getRealGoals()?.calories ?? null, hasMacros };
   } catch {
     return ZERO;

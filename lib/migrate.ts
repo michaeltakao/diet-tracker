@@ -141,6 +141,8 @@ function buildFoodRow(raw: unknown, userId: string): FoodLogInsert | null {
     protein_g:   Number(clampPositive(e['protein']).toFixed(1)),
     fat_g:       Number(clampPositive(e['fat']).toFixed(1)),
     carbs_g:     Number(clampPositive(e['carbs']).toFixed(1)),
+    // 029: kcal-only guest meals keep their flag; absent = pre-029 (entered).
+    macros_entered: e['macrosEntered'] === false ? false : true,
     photo_url:   photoUrl,
     logged_at:   isValidIso(e['addedAt']) ? e['addedAt'] as string : new Date().toISOString(),
   };

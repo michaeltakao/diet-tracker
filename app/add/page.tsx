@@ -17,6 +17,7 @@ import { Toast } from '@/components/ui/Toast';
 import MedWarning from '@/components/MedWarning';
 import { getNutritionWarnings } from '@/lib/medication-rules';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { partialMacroFields } from '@/lib/macros';
 
 type MealType = FoodEntry['mealType'];
 type Tab = 'photo' | 'manual' | 'recent' | 'barcode';
@@ -196,6 +197,10 @@ export default function AddPage() {
     if (form.protein !== '' && isInvalidNutrition(form.protein)) newErrors.protein = t.numberRequiredError;
     if (form.fat     !== '' && isInvalidNutrition(form.fat))     newErrors.fat     = t.numberRequiredError;
     if (form.carbs   !== '' && isInvalidNutrition(form.carbs))   newErrors.carbs   = t.numberRequiredError;
+    // All-or-nothing (029): a partly typed P/F/C would be stored as
+    // placeholders, so the typed values would be lost. Ask for the rest.
+    const missing = partialMacroFields({ protein: form.protein !== '', fat: form.fat !== '', carbs: form.carbs !== '' });
+    for (const k of missing ?? []) newErrors[k] = t.macrosAllOrNoneError;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };

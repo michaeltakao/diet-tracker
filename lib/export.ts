@@ -8,7 +8,7 @@
 
 import { todayJst } from '@/lib/format-date';
 import { AppData } from './types';
-import { getAppData, saveAppData } from './storage';
+import { getAppData, readLegacyKeys, saveAppData } from './storage';
 
 const STORAGE_KEY = 'diet-tracker-v1';
 
@@ -61,7 +61,8 @@ export function exportDataAsJSON(): void {
   const payload: ExportPayload = {
     version: '1.0',
     exportedAt: new Date().toISOString(),
-    data: getAppData(),
+    // Legacy keys (records of features deleted in ADR-011) stay in the backup.
+    data: { ...readLegacyKeys(), ...getAppData() },
   };
 
   const json = JSON.stringify(payload, null, 2);
@@ -88,7 +89,9 @@ export function exportDataAsCSV(): void {
   ];
 
   for (const e of data.foodEntries) {
-    rows.push(`food,${e.date},"${e.name.replace(/"/g, '""')}",${e.calories},${e.protein},${e.fat},${e.carbs},${e.mealType},,, `);
+    // kcal-only meals (029): blank P/F/C, not 0 placeholders that read as measured.
+    const pfc = e.macrosEntered === false ? ',,' : `${e.protein},${e.fat},${e.carbs}`;
+    rows.push(`food,${e.date},"${e.name.replace(/"/g, '""')}",${e.calories},${pfc},${e.mealType},,, `);
   }
 
   for (const w of data.workoutEntries) {

@@ -114,7 +114,27 @@ export function safeSetItem(key: string, value: string): boolean {
 /** Persist the app blob. Returns false (and fires the notice) on failure. */
 export function saveAppData(data: AppData): boolean {
   if (typeof window === 'undefined') return false;
-  return safeSetItem(STORAGE_KEY, JSON.stringify(data));
+  return safeSetItem(STORAGE_KEY, JSON.stringify({ ...readLegacyKeys(), ...data }));
+}
+
+/**
+ * Keys in the stored blob that the current AppData no longer reads.
+ * ADR-011 deleted features (vitals, symptoms, badges, xp, ranks, titles), but
+ * their local records are the user's data: a save must not drop them. They
+ * are carried through unchanged and included in the JSON export
+ * (lib/export.ts).
+ */
+export function readLegacyKeys(): Record<string, unknown> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const known = new Set<string>(Object.keys(DEFAULT_DATA));
+    return Object.fromEntries(Object.entries(parsed).filter(([k]) => !known.has(k)));
+  } catch {
+    return {};
+  }
 }
 
 // ── Recommendation feedback (Phase B: preference signals) ──
