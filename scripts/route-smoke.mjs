@@ -59,6 +59,12 @@ const bodies = {
   },
 };
 const results = [];
+// CKD=1: CKD fluid-neutral re-check (2026-11-17 round 4). Uses '腎臓病', the
+// exact chip value the settings UI sends; round 3's '慢性腎臓病' matched no rule.
+if (process.env.CKD === '1') {
+  bodies.coach.healthConditions = ['腎臓病', '高血圧'];
+  bodies['weekly-report'].healthConditions = ['腎臓病'];
+}
 const only = process.env.ROUTES?.split(","); for (const [route, body] of Object.entries(bodies).filter(([r]) => !only || only.includes(r))) {
   const t0 = performance.now();
   let status = 0, json = null, err = null;

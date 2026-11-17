@@ -57,7 +57,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     };
 
     // Safety gate: remove contraindicated foods, clamp macros, guarantee warnings.
-    const safeRec = filterRecommendation(rawRec, profile, weightKg);
+    const safeRec = filterRecommendation(rawRec, profile, weightKg, body.goals.water);
     return NextResponse.json(safeRec);
 
   } catch (error) {

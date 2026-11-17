@@ -5,6 +5,11 @@
  * pre-refactor template (route.ts @ 8eb631c, extracted verbatim) on
  * PROMPT_FIXTURES, so any edit to the template fails here until the goldens
  * are deliberately regenerated.
+ *
+ * 2026-11-17 (CKD fluid-neutral): senior-warfarin-ckd.golden.txt was
+ * hand-edited — +CKD_FLUID_PROMPT line, −the senior "drink often" phrase,
+ * −the water goal / water intake lines (fluid-neutral users).
+ * The other two fixtures (non-CKD) still match the pre-refactor template.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';

@@ -9,6 +9,7 @@
  */
 import { Type, type Schema } from '@google/genai';
 import type { UserHealthProfile, DailyGoals } from '@/lib/types';
+import { isFluidNeutral } from '@/lib/medication-rules';
 
 export interface RecommendRequest {
   profile:          UserHealthProfile;
@@ -118,6 +119,8 @@ export const RESPONSE_SCHEMA: Schema = {
 export function buildRecommendPrompt(body: RecommendRequest, safetyPromptInjection: string): string {
   const { profile, goals, today } = body;
   const weightKg = body.weightKg ?? null;
+  // CKD: no water target or deficit in the prompt (CKD_FLUID_PROMPT governs).
+  const fluidNeutral = isFluidNeutral(profile.healthConditions);
 
   const remainingCalories = goals.calories - body.todayCalories;
   const remainingProtein  = goals.protein  - body.todayProtein;
@@ -137,14 +140,14 @@ ${weightKg != null ? `- 体重: ${weightKg}kg` : ''}
 ${safetyPromptInjection || '特記事項なし'}
 
 【今日の目標値】
-- カロリー目標: ${goals.calories}kcal / タンパク質: ${goals.protein}g / 脂質: ${goals.fat}g / 炭水化物: ${goals.carbs}g / 水分: ${goals.water}ml
+- カロリー目標: ${goals.calories}kcal / タンパク質: ${goals.protein}g / 脂質: ${goals.fat}g / 炭水化物: ${goals.carbs}g${fluidNeutral ? '' : ` / 水分: ${goals.water}ml`}
 
 【今日の摂取状況 (${today})】
 - 摂取済み: ${body.todayCalories}kcal（残り${remainingCalories}kcal）
 - タンパク質: ${body.todayProtein}g（残り${remainingProtein}g）
 - 脂質: ${body.todayFat}g（残り${remainingFat}g）
-- 炭水化物: ${body.todayCarbs}g（残り${remainingCarbs}g）
-- 水分: ${body.waterConsumed}ml / ${goals.water}ml
+- 炭水化物: ${body.todayCarbs}g（残り${remainingCarbs}g）${fluidNeutral ? '' : `
+- 水分: ${body.waterConsumed}ml / ${goals.water}ml`}
 - 連続ログイン記録: ${body.streak}日
 
 【直近の食事ログ（最新10件）】

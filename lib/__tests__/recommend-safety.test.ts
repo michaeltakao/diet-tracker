@@ -13,6 +13,8 @@ import type {
   Recommendation,
   RecommendedFood,
 } from '@/lib/types';
+// CKD fluid policy constants (kept apart from the imports above to avoid merge churn).
+import { CKD_FLUID_GUIDANCE, CKD_FLUID_PROMPT } from '@/lib/medication-rules';
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -222,6 +224,20 @@ describe('buildSafetyReport', () => {
     expect(report.promptInjection).not.toContain('以上を目安');
     expect(report.promptInjection).toContain('48g');
   });
+
+  it('drops the "drink often" nudge for a CKD senior and defers fluids to the doctor', () => {
+    const report = buildSafetyReport(profile({ age: 70, healthConditions: ['腎臓病'] }), 60);
+    expect(report.promptInjection).toContain('フレイル・サルコペニア予防');
+    expect(report.promptInjection).not.toContain('水分補給を毎回促し');
+    expect(report.promptInjection).toContain(CKD_FLUID_PROMPT);
+    expect(report.mandatoryWarnings).toContain(CKD_FLUID_GUIDANCE);
+  });
+
+  it('keeps fluid guidance out of non-CKD reports', () => {
+    const report = buildSafetyReport(profile({ age: 70, healthConditions: ['高血圧'] }), 60);
+    expect(report.promptInjection).not.toContain(CKD_FLUID_PROMPT);
+    expect(report.mandatoryWarnings).not.toContain(CKD_FLUID_GUIDANCE);
+  });
 });
 
 // ── filterRecommendation (the gate) ─────────────────────────────────────────
@@ -276,5 +292,27 @@ describe('filterRecommendation', () => {
     const out = filterRecommendation(raw, profile({ healthConditions: ['高血圧'] }), 60);
     const occurrences = out.warnings.filter(w => w === '塩分は1日6g未満を目標に').length;
     expect(occurrences).toBe(1);
+  });
+});
+
+// ── CKD fluid-neutral: AI may not move the water goal ───────────────────────
+
+describe('filterRecommendation — fluid-neutral water goal', () => {
+  const macros = { calories: 1800, protein: 40, fat: 50, carbs: 250, water: 2500 };
+
+  it('pins adjustedMacros.water back to the current goal for CKD and says why', () => {
+    const out = filterRecommendation(rawRec({ adjustedMacros: macros }), profile({ healthConditions: ['腎臓病'] }), 60, 1500);
+    expect(out.adjustedMacros?.water).toBe(1500);
+    expect(out.macroCapsApplied?.some(c => c.includes('水分目標はAIでは変更しません'))).toBe(true);
+  });
+
+  it('leaves the water proposal alone for non-CKD users', () => {
+    const out = filterRecommendation(rawRec({ adjustedMacros: macros }), profile({ healthConditions: ['高血圧'] }), 60, 1500);
+    expect(out.adjustedMacros?.water).toBe(2500);
+  });
+
+  it('adds no note when the AI kept the current water goal', () => {
+    const out = filterRecommendation(rawRec({ adjustedMacros: { ...macros, water: 1500 } }), profile({ healthConditions: ['腎臓病'] }), 60, 1500);
+    expect(out.macroCapsApplied?.some(c => c.includes('水分')) ?? false).toBe(false);
   });
 });

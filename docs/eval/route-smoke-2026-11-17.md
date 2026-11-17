@@ -52,3 +52,23 @@ These are read by eye from one sample each; they are not a quality evaluation.
 - The test sends no comparison to `gemini-2.5-flash`. A comparison needs a judging rubric, and the 2.5-flash quota was already returning 429s.
 - Only the anonymous path ran. Authenticated paths add Supabase reads (suggest-workout) and `recordAiUsage`. Unit tests cover those; this run did not.
 - Cost: about 14 model calls including retries, well under $0.05.
+
+## Addendum — CKD fluid-neutral re-check (round 4, branch `fix/ckd-fluid-neutral`)
+
+- **Command:** `CKD=1 ROUTES=weekly-report,coach node scripts/route-smoke.mjs route-smoke-2026-11-17-ckd.json`. The setup was otherwise the same as above (dev :3100, anonymous, compiled first with GET).
+- **Raw data:** `route-smoke-2026-11-17-ckd.json`.
+- **Persona fix:** round 3 sent `慢性腎臓病`. That string matches **no** rule, because the settings UI chips send exactly `腎臓病` (`app/settings/page.tsx:35`). So the round-3 CKD observation came from a prompt that listed the condition by name only, with no CKD guidance at all. `CKD=1` uses `腎臓病` (weekly-report) and `腎臓病, 高血圧` (coach).
+- **Code state:** the run used the first cut of this branch, with the fluid prompt, the senior/weekly-report changes and the score rescale. It came **before** the review follow-ups, which remove the water target and intake lines from the coach and recommend prompts. Those follow-ups only take water information away; they are covered by unit tests and goldens and were not re-run live.
+
+| Route | Status | Latency | Fluid mentions (grep 水分/水を/飲水/水分補給, then read by eye) |
+|---|---|---|---|
+| coach | 200 | 2 640 ms | 1: 「水分量については主治医の指示に従うようにお願いします。」, the exact intended policy wording |
+| weekly-report | 200 | 3 370 ms | 0. weekScore 88 = (30 + 20.6 + 18.75 + 10) / 0.9; with water scored it would have been 82 |
+
+**Pass:** neither route advised drinking more or less water. **Limit:** this is n = 1 per route, so it cannot prove the model never does so.
+
+**New finding (out of scope, follow-up):** both routes push **protein above the CKD cap** for this persona. The weight is 72 kg, so 0.8 g/kg ≈ 58 g.
+- weekly-report `nextWeekGoal`: 「タンパク質摂取量を…99gから105gに増やす」
+- coach praises 95 g
+- **Cause (fact):** `buildHealthContextPrompt` carries no protein limit; only recommend injects the CKD protein cap.
+- The weekly report also wrote 「週4回のトレーニング」 although `workoutDays` = 3 (`totalWorkouts` = 4). This is a minor slip.
