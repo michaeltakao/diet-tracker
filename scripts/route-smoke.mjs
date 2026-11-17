@@ -64,6 +64,9 @@ const results = [];
 if (process.env.CKD === '1') {
   bodies.coach.healthConditions = ['腎臓病', '高血圧'];
   bodies['weekly-report'].healthConditions = ['腎臓病'];
+  // Round 5 (CKD protein cap): latest body weight → cap 0.8 × 72 ≈ 58 g.
+  bodies.coach.weightKg = 72;
+  bodies['weekly-report'].weightKg = 72;
 }
 const only = process.env.ROUTES?.split(","); for (const [route, body] of Object.entries(bodies).filter(([r]) => !only || only.includes(r))) {
   const t0 = performance.now();

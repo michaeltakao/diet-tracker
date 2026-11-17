@@ -3,7 +3,13 @@ import { GoogleGenAI, Type, type Schema } from '@google/genai';
 import { GEMINI_MODEL, generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
-import { buildHealthContextPrompt, isFluidNeutral } from '@/lib/medication-rules';
+import {
+  buildHealthContextPrompt,
+  ckdProteinCapG,
+  isFluidNeutral,
+  isProteinCapped,
+  parseWeightKg,
+} from '@/lib/medication-rules';
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -25,6 +31,8 @@ interface CoachRequest {
   streak: number;
   healthConditions?: string[];
   medications?: string[];
+  /** Latest logged body weight (kg); drives the CKD protein cap. */
+  weightKg?: number | null;
 }
 
 const SYSTEM_PROMPT = `You are a friendly, encouraging Japanese personal health coach inside a diet tracking app.
@@ -69,17 +77,23 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     const body = await request.json() as CoachRequest;
 
-    const healthCtx = buildHealthContextPrompt(
-      body.healthConditions ?? [],
-      body.medications ?? [],
-    );
+    const conditions = body.healthConditions ?? [];
+    const weightKg = parseWeightKg(body.weightKg);
+    const healthCtx = buildHealthContextPrompt(conditions, body.medications ?? [], weightKg);
+
+    // CKD: never show the (uncapped) protein goal next to intake — it invited
+    // "eat more protein" advice above the renal cap (route smoke, 2026-11-17).
+    const proteinCap = ckdProteinCapG(weightKg);
+    const proteinTarget = !isProteinCapped(conditions)
+      ? ` / ${body.proteinGoal}g`
+      : proteinCap != null ? `（腎臓病の上限目安: ${proteinCap}g）` : '';
 
     const userMessage = `
 ${healthCtx ? `【ユーザーの健康状態】\n${healthCtx}\n\n` : ''}【今日の栄養データ (${body.today})】
 - カロリー: ${body.todayCalories} / ${body.calorieGoal} kcal (${Math.round((body.todayCalories / body.calorieGoal) * 100)}%)
-- タンパク質: ${body.todayProtein}g / ${body.proteinGoal}g
+- タンパク質: ${body.todayProtein}g${proteinTarget}
 - 脂質: ${body.todayFat}g / ${body.fatGoal}g
-- 炭水化物: ${body.todayCarbs}g / ${body.carbsGoal}g${isFluidNeutral(body.healthConditions ?? []) ? '' : `
+- 炭水化物: ${body.todayCarbs}g / ${body.carbsGoal}g${isFluidNeutral(conditions) ? '' : `
 - 水分: ${body.waterConsumed}ml / ${body.waterGoal}ml`}
 
 【今日のトレーニング】

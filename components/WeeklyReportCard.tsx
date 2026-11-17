@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CalendarDays, RefreshCw, Trophy, TrendingDown, TrendingUp } from 'lucide-react';
-import { getAppData, getStreak, getWeightEntries, getHealthProfile, getRealGoals } from '@/lib/data';
+import { getAppData, getStreak, getWeightEntries, getHealthProfile, getRealGoals, getLatestWeightEntry } from '@/lib/data';
 import { postJson, HttpError } from '@/lib/httpClient';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -105,6 +105,7 @@ export default function WeeklyReportCard() {
         streak,
         healthConditions: getHealthProfile().healthConditions,
         medications: getHealthProfile().medications ?? [],
+        weightKg: getLatestWeightEntry()?.weight ?? null,
       });
       setReport(report);
     } catch (err) {

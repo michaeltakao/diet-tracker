@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   getAppData, addWorkoutEntry, removeWorkoutEntry,
   checkAndUpdatePR, addBadge, checkAndAwardBadges, getStreak, getBadges,
-  getHealthProfile, getRealGoals,
+  getHealthProfile, getRealGoals, getLatestWeightEntry,
   recomputeAndPersistExerciseRank,
 } from '@/lib/data';
 import { isRankableExercise, type ExerciseRankId } from '@/lib/exercise-rank';
@@ -483,6 +483,7 @@ export default function WorkoutPage() {
         recentFoodLog, recentWorkoutLog, streak: getStreak(),
         healthConditions: getHealthProfile().healthConditions,
         medications: getHealthProfile().medications ?? [],
+        weightKg: getLatestWeightEntry()?.weight ?? null,
       });
       setAiAdvice(advice);
     } catch (err) {

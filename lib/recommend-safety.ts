@@ -26,7 +26,10 @@ import {
   getMedicationRules,
   buildHealthContextPrompt,
   isFluidNeutral,
+  isProteinCapped,
   CKD_FLUID_GUIDANCE,
+  CKD_PROTEIN_G_PER_KG,
+  ckdProteinCapG,
 } from '@/lib/medication-rules';
 import {
   isMinor,
@@ -34,11 +37,6 @@ import {
   estimatedEnergyRequirement,
   SENIOR_PROTEIN_G_PER_KG,
 } from '@/lib/nutrition-standards';
-
-// ── Renal protein cap ───────────────────────────────────────────────────────
-
-/** CKD protein restriction (g/kg/day). Conservative end of the 0.6–0.8 range. */
-const CKD_PROTEIN_G_PER_KG = 0.8;
 
 /** Mandatory warning shown to every growth-phase (12–17) user. */
 export const MINOR_GROWTH_WARNING =
@@ -227,8 +225,8 @@ export function clampMacros(
     }
   }
 
-  if (conditions.includes('腎臓病') && weightKg && weightKg > 0) {
-    const cap = Math.round(CKD_PROTEIN_G_PER_KG * weightKg);
+  const cap = isProteinCapped(conditions) ? ckdProteinCapG(weightKg) : null;
+  if (cap != null) {
     if (macros.protein > cap) {
       capsApplied.push(`腎臓病: タンパク質上限 ${cap}g/日（${CKD_PROTEIN_G_PER_KG} g/kg）を適用`);
       macros = { ...macros, protein: cap };
@@ -266,15 +264,12 @@ export function buildSafetyReport(
       .flatMap(rule => rule.terms),
   )];
 
-  // Prompt injection: existing health context + explicit ban list + renal cap.
+  // Prompt injection: health context (incl. the CKD protein cap) + ban list.
   const parts: string[] = [];
-  const healthCtx = buildHealthContextPrompt(conditions, medications);
+  const healthCtx = buildHealthContextPrompt(conditions, medications, weightKg);
   if (healthCtx) parts.push(healthCtx);
   if (contraindicatedTerms.length) {
     parts.push(`■ 絶対に推薦してはいけない食品（禁忌）: ${contraindicatedTerms.join('、')}`);
-  }
-  if (conditions.includes('腎臓病') && weightKg && weightKg > 0) {
-    parts.push(`■ 腎臓病のためタンパク質は1日 ${Math.round(CKD_PROTEIN_G_PER_KG * weightKg)}g（${CKD_PROTEIN_G_PER_KG} g/kg）以下に抑えること`);
   }
   if (isMinor(profile.age)) {
     parts.push(
@@ -288,7 +283,7 @@ export function buildSafetyReport(
     // Same for fluids: CKD may need fluid restriction, so the "drink often"
     // nudge is dropped and CKD_FLUID_PROMPT (via healthCtx) governs instead.
     const fluidNeutral = isFluidNeutral(conditions);
-    const proteinLine = conditions.includes('腎臓病')
+    const proteinLine = isProteinCapped(conditions)
       ? ''
       : weightKg && weightKg > 0
         ? `タンパク質は1日 ${Math.round(SENIOR_PROTEIN_G_PER_KG * weightKg)}g（${SENIOR_PROTEIN_G_PER_KG} g/kg）以上を目安にし、`

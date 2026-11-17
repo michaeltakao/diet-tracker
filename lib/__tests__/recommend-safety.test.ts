@@ -233,6 +233,13 @@ describe('buildSafetyReport', () => {
     expect(report.mandatoryWarnings).toContain(CKD_FLUID_GUIDANCE);
   });
 
+  it('emits exactly one CKD protein line (health context only, no duplicate)', () => {
+    const report = buildSafetyReport(profile({ age: 70, healthConditions: ['腎臓病'] }), 60);
+    const lines = report.promptInjection.split('\n').filter(l => l.includes('腎臓病のためタンパク質'));
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('48g');
+  });
+
   it('keeps fluid guidance out of non-CKD reports', () => {
     const report = buildSafetyReport(profile({ age: 70, healthConditions: ['高血圧'] }), 60);
     expect(report.promptInjection).not.toContain(CKD_FLUID_PROMPT);
