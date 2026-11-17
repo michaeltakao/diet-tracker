@@ -75,11 +75,13 @@
 
 ## training_programs(運動計画)
 
-書き込み: `lib/data/training-plan.ts`(upsert、送信キューなし)。`data -> 'weekSchedule'` の空でない曜日数 = 週あたりの予定回数。`is_active` の計画だけ使う。
+書き込み: **なし(2026-11-17 以降)**。運動計画の画面(`/plan`)と `lib/data/training-plan.ts` は ADR-011 で削除した。それまでの書き込みは `lib/data/training-plan.ts`(upsert、送信キューなし)。`data -> 'weekSchedule'` の空でない曜日数 = 週あたりの予定回数。`is_active` の計画だけ使う。
+
+**影響:** S5 の `planned_per_week` / `m1_adherence` / `m6_adherence` は、ADR-011 以降に始めた参加者では全員 NULL になる。S5 の主要値(1 か月目と 6 か月目の週あたり運動日数)には影響しない。分析計画の固定前に、この 3 列を残すか消すかを決める(`analysis-plan-freeze.md`)。テーブルは消さない(家族トライアル期の行がある)。
 
 ## ai_usage(AI 利用回数)
 
-書き込み: `lib/api-guard.ts` `recordAiUsage()`(サーバー側、AI が成功したときだけ)。`usage_date` = JST の日付、`route` = API 名、`calls` = 回数。AI が失敗した呼び出しは数えない。generate-workout は AI が使えないときも計画を返す(P0-4)ので、**運動計画の表示回数 ≠ ai_usage の generate-workout 回数**。
+書き込み: `lib/api-guard.ts` `recordAiUsage()`(サーバー側、AI が成功したときだけ)。`usage_date` = JST の日付、`route` = API 名、`calls` = 回数。AI が失敗した呼び出しは数えない。generate-workout は ADR-011(2026-11-17)で削除した。それより前の行に残っている。
 
 ## client_sync_health(端末の送信状況、migration 028 — 本番に適用済み 2026-11-12)
 
