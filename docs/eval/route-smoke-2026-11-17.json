@@ -1,0 +1,524 @@
+{
+  "base": "http://localhost:3100",
+  "model": "gemini-3.5-flash-lite (GEMINI_MODEL, PR #25)",
+  "note": "Synthetic inputs only. attempt=1 is the first run; attempt=2 re-ran only the routes that failed.",
+  "requests": {
+    "coach": {
+      "today": "2026-11-17",
+      "todayCalories": 1650,
+      "todayProtein": 95,
+      "todayFat": 50,
+      "todayCarbs": 190,
+      "calorieGoal": 2000,
+      "proteinGoal": 120,
+      "fatGoal": 60,
+      "carbsGoal": 250,
+      "waterConsumed": 1200,
+      "waterGoal": 2000,
+      "todayWorkouts": [
+        {
+          "name": "ベンチプレス",
+          "weight": 60,
+          "reps": 8,
+          "sets": 3
+        }
+      ],
+      "recentFoodLog": [
+        {
+          "date": "2026-11-17",
+          "time": "07:30",
+          "name": "納豆ご飯",
+          "calories": 400,
+          "mealType": "breakfast"
+        },
+        {
+          "date": "2026-11-17",
+          "time": "12:30",
+          "name": "鶏胸肉のサラダ",
+          "calories": 550,
+          "mealType": "lunch"
+        },
+        {
+          "date": "2026-11-17",
+          "time": "22:10",
+          "name": "ポテトチップス",
+          "calories": 330,
+          "mealType": "snack"
+        }
+      ],
+      "recentWorkoutLog": [
+        {
+          "date": "2026-11-15",
+          "name": "スクワット",
+          "weight": 80
+        }
+      ],
+      "streak": 5,
+      "healthConditions": [
+        "高血圧"
+      ],
+      "medications": [
+        "ワーファリン"
+      ]
+    },
+    "nutritionist": {
+      "entries": [
+        {
+          "name": "鮭おにぎり",
+          "calories": 200,
+          "protein": 6,
+          "fat": 2,
+          "carbs": 40,
+          "sodiumMg": 500
+        },
+        {
+          "name": "豚骨ラーメン",
+          "calories": 800,
+          "protein": 25,
+          "fat": 35,
+          "carbs": 90,
+          "sodiumMg": 3000
+        },
+        {
+          "name": "ヨーグルト",
+          "calories": 100,
+          "protein": 5,
+          "fat": 3,
+          "carbs": 12
+        }
+      ],
+      "goals": {
+        "calories": 2000,
+        "protein": 120,
+        "fat": 60,
+        "carbs": 250
+      }
+    },
+    "generate-workout": {
+      "goal": "hypertrophy",
+      "availableEquipment": [
+        "dumbbell",
+        "bodyweight"
+      ],
+      "timeAvailableMin": 30,
+      "targetBodyParts": [
+        "chest",
+        "arms"
+      ],
+      "sorenessAreas": [
+        "legs"
+      ],
+      "energyLevel": "medium",
+      "recentMuscleParts": [
+        {
+          "musclePart": "legs",
+          "daysAgo": 1
+        }
+      ]
+    },
+    "suggest-workout": {
+      "today": "2026-11-17",
+      "checkIn": {
+        "mood": 4,
+        "energy": 3,
+        "sleepHours": 6.5,
+        "sorenessAreas": [
+          "legs"
+        ]
+      },
+      "plannedSession": null,
+      "fitnessGoal": "muscle_gain",
+      "targetWeight": 70,
+      "recentWorkouts": [
+        {
+          "date": "2026-11-15",
+          "name": "スクワット",
+          "musclePart": "legs"
+        }
+      ],
+      "personalRecords": [
+        {
+          "name": "ベンチプレス",
+          "weight": 70,
+          "date": "2026-11-01"
+        }
+      ],
+      "location": "gym",
+      "duration": 45,
+      "equipment": [
+        "barbell",
+        "dumbbell",
+        "machine"
+      ]
+    },
+    "habit-report": {
+      "daysWithData": 6,
+      "totalDays": 7,
+      "avgDailyCalories": 1850,
+      "calorieGoal": 2000,
+      "lateNightEatingDays": 3,
+      "noBreakfastDays": 2,
+      "avgBreakfastHour": 8,
+      "workoutDays": 3,
+      "missedPostWorkoutDays": 1,
+      "streak": 6,
+      "dailySummary": [
+        {
+          "date": "2026-11-11",
+          "mealCount": 0,
+          "totalCalories": 0,
+          "earliestMealHour": null,
+          "latestMealHour": null,
+          "lateNightMeals": 0,
+          "workoutCount": 0,
+          "workoutHours": [],
+          "missedPostWorkoutWindow": false
+        },
+        {
+          "date": "2026-11-12",
+          "mealCount": 3,
+          "totalCalories": 1820,
+          "earliestMealHour": 8,
+          "latestMealHour": 21,
+          "lateNightMeals": 1,
+          "workoutCount": 1,
+          "workoutHours": [
+            18
+          ],
+          "missedPostWorkoutWindow": false
+        },
+        {
+          "date": "2026-11-13",
+          "mealCount": 3,
+          "totalCalories": 1840,
+          "earliestMealHour": 9,
+          "latestMealHour": 22,
+          "lateNightMeals": 0,
+          "workoutCount": 0,
+          "workoutHours": [],
+          "missedPostWorkoutWindow": false
+        },
+        {
+          "date": "2026-11-14",
+          "mealCount": 3,
+          "totalCalories": 1860,
+          "earliestMealHour": 7,
+          "latestMealHour": 20,
+          "lateNightMeals": 1,
+          "workoutCount": 1,
+          "workoutHours": [
+            18
+          ],
+          "missedPostWorkoutWindow": true
+        },
+        {
+          "date": "2026-11-15",
+          "mealCount": 3,
+          "totalCalories": 1880,
+          "earliestMealHour": 8,
+          "latestMealHour": 21,
+          "lateNightMeals": 0,
+          "workoutCount": 0,
+          "workoutHours": [],
+          "missedPostWorkoutWindow": false
+        },
+        {
+          "date": "2026-11-16",
+          "mealCount": 3,
+          "totalCalories": 1900,
+          "earliestMealHour": 9,
+          "latestMealHour": 22,
+          "lateNightMeals": 1,
+          "workoutCount": 1,
+          "workoutHours": [
+            18
+          ],
+          "missedPostWorkoutWindow": false
+        },
+        {
+          "date": "2026-11-17",
+          "mealCount": 3,
+          "totalCalories": 1920,
+          "earliestMealHour": 7,
+          "latestMealHour": 20,
+          "lateNightMeals": 0,
+          "workoutCount": 0,
+          "workoutHours": [],
+          "missedPostWorkoutWindow": false
+        }
+      ]
+    },
+    "weekly-report": {
+      "startDate": "2026-11-11",
+      "endDate": "2026-11-17",
+      "calorieGoal": 2000,
+      "proteinGoal": 120,
+      "fatGoal": 60,
+      "carbsGoal": 250,
+      "waterGoal": 2000,
+      "dailyNutrition": [
+        {
+          "date": "2026-11-11",
+          "calories": 1800,
+          "protein": 90,
+          "fat": 55,
+          "carbs": 220,
+          "water": 1500,
+          "mealCount": 3
+        },
+        {
+          "date": "2026-11-12",
+          "calories": 1830,
+          "protein": 93,
+          "fat": 55,
+          "carbs": 220,
+          "water": 1600,
+          "mealCount": 3
+        },
+        {
+          "date": "2026-11-13",
+          "calories": 1860,
+          "protein": 96,
+          "fat": 55,
+          "carbs": 220,
+          "water": 1700,
+          "mealCount": 3
+        },
+        {
+          "date": "2026-11-14",
+          "calories": 1890,
+          "protein": 99,
+          "fat": 55,
+          "carbs": 220,
+          "water": 1800,
+          "mealCount": 3
+        },
+        {
+          "date": "2026-11-15",
+          "calories": 1920,
+          "protein": 102,
+          "fat": 55,
+          "carbs": 220,
+          "water": 1900,
+          "mealCount": 3
+        },
+        {
+          "date": "2026-11-16",
+          "calories": 1950,
+          "protein": 105,
+          "fat": 55,
+          "carbs": 220,
+          "water": 2000,
+          "mealCount": 3
+        },
+        {
+          "date": "2026-11-17",
+          "calories": 1980,
+          "protein": 108,
+          "fat": 55,
+          "carbs": 220,
+          "water": 2100,
+          "mealCount": 3
+        }
+      ],
+      "workoutDays": 3,
+      "totalWorkouts": 4,
+      "weightStart": 72.4,
+      "weightEnd": 71.9,
+      "streak": 7,
+      "healthConditions": [
+        "慢性腎臓病"
+      ],
+      "medications": []
+    }
+  },
+  "results": [
+    {
+      "route": "coach",
+      "status": 200,
+      "ms": 5272,
+      "err": null,
+      "json": {
+        "todayAdvice": "今日はベンチプレス60kg×3セットのトレーニングお疲れ様でした！タンパク質も95gと頑張って摂れていますが、朝食の「納豆ご飯」はワーファリン服用中には禁忌となりますので、明日からは控えましょう。また、水分が1200mlと少なめなので、こまめな補給を意識してくださいね。",
+        "habitInsight": "直近のログを見ると、22:10にポテトチップスを食べるなど夜遅い間食の傾向があります。また、朝食に納豆を選んでしまっているため、お薬の効果に影響しないよう朝のメニューを見直すことが大切です。",
+        "tomorrowTip": "明日は納豆の代わりに卵やシャケなどを使った和朝食にし、水分をあと800ml多く摂ることを目標にしましょう。",
+        "motivationMessage": "5日連続の記録素晴らしいです！体調管理に気をつけながら、明日も一緒に一歩ずつ頑張りましょう！"
+      },
+      "attempt": 1
+    },
+    {
+      "route": "nutritionist",
+      "status": 500,
+      "ms": 6642,
+      "err": null,
+      "json": {
+        "error": "Suggestion generation failed. Please try again."
+      },
+      "attempt": 1
+    },
+    {
+      "route": "generate-workout",
+      "status": 200,
+      "ms": 22097,
+      "err": null,
+      "json": {
+        "plan": {
+          "exercises": [
+            {
+              "exercise": {
+                "id": "incline-dumbbell-press",
+                "nameJa": "インクラインダンベルプレス",
+                "nameEn": "Incline Dumbbell Press",
+                "musclePart": "chest",
+                "equipment": "dumbbell",
+                "isCompound": true,
+                "pattern": "h-push",
+                "video": {
+                  "type": "local-gif",
+                  "url": "/exercise-media/incline-dumbbell-press.jpg"
+                }
+              },
+              "sets": 3,
+              "reps": "10-12",
+              "restSec": 75
+            },
+            {
+              "exercise": {
+                "id": "farmers-carry-forearm",
+                "nameJa": "ファーマーズウォーク",
+                "nameEn": "Farmer's Walk (Forearm Focus)",
+                "musclePart": "arms",
+                "equipment": "dumbbell",
+                "isCompound": true,
+                "pattern": "carry"
+              },
+              "sets": 3,
+              "reps": "10-12",
+              "restSec": 75
+            },
+            {
+              "exercise": {
+                "id": "push-up",
+                "nameJa": "腕立て伏せ",
+                "nameEn": "Push-Up",
+                "musclePart": "chest",
+                "equipment": "bodyweight",
+                "isCompound": true,
+                "pattern": "h-push",
+                "video": {
+                  "type": "youtube-search",
+                  "url": "https://www.youtube.com/results?search_query=Push-Up%20exercise%20form",
+                  "title": "Push-Up"
+                }
+              },
+              "sets": 3,
+              "reps": "10-12",
+              "restSec": 75
+            }
+          ],
+          "estimatedDurationMin": 27
+        },
+        "narrative": {
+          "sessionName": "胸と腕を追い込むパンプアップセッション",
+          "notes": "最初は高重量のインクラインプレスで胸の上部を狙い、最後に自重の腕立て伏せで追い込みます。脚の疲労を避けて上半身に集中できるメニューです。",
+          "motivationMessage": "今日の調子は普通とのことですが、30分間で効率よく筋肉を大きくしていきましょう！しっかりと胸と腕の筋肉の収縮を感じながらやりきりましょう！"
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "route": "suggest-workout",
+      "status": 200,
+      "ms": 26385,
+      "err": null,
+      "json": {
+        "proceed": "alternative",
+        "sessionName": "上半身プッシュ＆プルバランスワークアウト",
+        "adjustments": [
+          "一昨日に脚のスクワットを行ったため、下半身を外し、本日は筋肉痛のない上半身（胸・背中）を中心に構成しました。",
+          "利用可能時間45分に合わせて、種目数を絞り効率的なスーパーセットを取り入れています。",
+          "ジムの環境を活かし、ダンベルとバーベルを活用したメニューに変更しました。"
+        ],
+        "intensityNote": "45分の限られた時間のため、セット間の休憩は短すぎず適切にとり、メイン種目の重量を維持して質の高い刺激を与えましょう。",
+        "motivationMessage": "素晴らしい気分ですね！脚の疲労を考慮して上半身を徹底的に鍛え、理想の体づくりに一歩近づきましょう。今日も頑張りましょう！",
+        "recoveryTips": [
+          "トレーニング後は炭水化物とタンパク質を素早く補給し、増量のための栄養を確保してください。",
+          "筋肉痛のある下半身の血流を促すために、軽いストレッチを行いましょう。"
+        ],
+        "generatedAt": "2026-11-17T09:55:41.541Z"
+      },
+      "attempt": 1
+    },
+    {
+      "route": "habit-report",
+      "status": 200,
+      "ms": 50901,
+      "err": null,
+      "json": {
+        "strengths": [
+          "6日間連続で記録を続けられており、素晴らしい習慣化ができています",
+          "平均カロリー摂取量が1850kcalと、目標の2000kcalに向けて非常に安定したコントロールができています"
+        ],
+        "frictions": [
+          "12日、14日、16日のように夜21時以降の遅い時間の食事が月3回発生しています",
+          "11日に食事の記録や摂取が全くできていない空白の日があります"
+        ],
+        "nextWeekTarget": "来週は夜21時以降の食事を週1回以内に抑え、体内時計を整えましょう"
+      },
+      "attempt": 1
+    },
+    {
+      "route": "weekly-report",
+      "status": 500,
+      "ms": 34397,
+      "err": null,
+      "json": {
+        "error": "Weekly report failed. Please try again."
+      },
+      "attempt": 1
+    },
+    {
+      "route": "nutritionist",
+      "status": 200,
+      "ms": 37521,
+      "err": null,
+      "json": {
+        "suggestions": [
+          {
+            "title": "豚骨ラーメンの汁を控えめに",
+            "detail": "豚骨ラーメンの塩分が少し高めなので、スープを残す工夫をすると塩分を抑えられます。"
+          },
+          {
+            "title": "ヨーグルトに野菜や果物をプラス",
+            "detail": "ヨーグルトに手元にあるカットフルーツなどを少し添えると、満足感とビタミンがアップします。"
+          },
+          {
+            "title": "鮭おにぎりにたんぱく質をもう一品",
+            "detail": "鮭おにぎりの食事の際にゆで卵などをプラスすると、目標のたんぱく質量に近づきやすくなります。"
+          }
+        ]
+      },
+      "attempt": 2
+    },
+    {
+      "route": "weekly-report",
+      "status": 200,
+      "ms": 34273,
+      "err": null,
+      "json": {
+        "summary": "今週は週スコア82点を獲得し、平均カロリー1890kcalを維持しながら体重が72.4kgから71.9kgへ0.5kg減少しました。週3回のトレーニングも一貫して実施できましたが、水分目標の達成が7日中2日と低調でした。",
+        "highlight": "週3回のトレーニングを継続し、体重を0.5kg減少させてアンダーカロリーの生活習慣を確立できたこと。",
+        "improvement": "腎機能保護のために不足している水分補給を意識し、リマインダー等を活用して摂取量を増やすこと。",
+        "nextWeekGoal": "水分目標の達成日数を今週の2日から4日以上に増やす。",
+        "weekScore": 82,
+        "avgCalories": 1890,
+        "avgProtein": 99,
+        "calorieCompliance": 100,
+        "workoutDays": 3,
+        "weightChange": -0.5,
+        "generatedAt": "2026-11-17T09:58:31.072Z"
+      },
+      "attempt": 2
+    }
+  ]
+}
