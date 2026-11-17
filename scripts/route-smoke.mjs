@@ -67,6 +67,17 @@ if (process.env.CKD === '1') {
   // Round 5 (CKD protein cap): latest body weight → cap floor(0.8 × 72) = 57 g.
   bodies.coach.weightKg = 72;
   bodies['weekly-report'].weightKg = 72;
+  // Round 6: nutritionist gets health context + post-filter. Goal protein is
+  // already capped by getRealGoals() on the client (120 → 57); meals = 95 g.
+  bodies.nutritionist = {
+    entries: [
+      { name: '鶏むね肉のグリル', calories: 350, protein: 45, fat: 8, carbs: 0, sodiumMg: 600 },
+      { name: '卵焼き定食', calories: 650, protein: 30, fat: 20, carbs: 85, sodiumMg: 1800 },
+      { name: 'プロテインシェイク', calories: 120, protein: 20, fat: 1, carbs: 3 },
+    ],
+    goals: { calories: 2000, protein: 57, fat: 60, carbs: 250 },
+    healthConditions: ['腎臓病'], medications: ['ワーファリン'], weightKg: 72,
+  };
 }
 const only = process.env.ROUTES?.split(","); for (const [route, body] of Object.entries(bodies).filter(([r]) => !only || only.includes(r))) {
   const t0 = performance.now();
