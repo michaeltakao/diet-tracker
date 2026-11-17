@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, BookOpen, PlusCircle, Dumbbell, Scale, Settings, ScanLine, CalendarDays, HeartPulse, Stethoscope, FileText } from 'lucide-react';
+import { Home, BookOpen, PlusCircle, Dumbbell, Scale, Settings, CalendarDays, HeartPulse, Stethoscope, FileText } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function SideNav() {
@@ -15,7 +15,6 @@ export default function SideNav() {
     { href: '/log',      label: t.navLog,     icon: BookOpen },
     { href: '/add',      label: t.navAdd,     icon: PlusCircle,  accent: true },
     { href: '/workout',  label: t.navWorkout, icon: Dumbbell },
-    { href: '/form',     label: 'フォーム',   icon: ScanLine },
     { href: '/plan',     label: t.navPlan,    icon: CalendarDays },
     { href: '/weight',   label: t.navWeight,  icon: Scale },
     { href: '/vitals',   label: t.navVitals,  icon: HeartPulse },
