@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type, type Schema } from '@google/genai';
-import { generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
+import { GEMINI_MODEL, generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildHealthContextPrompt } from '@/lib/medication-rules';
@@ -140,6 +140,19 @@ ${weightChange != null
       },
     ]);
 
+    // Surface specialist failures server-side (they no longer throw), and do
+    // not let the orchestrator write a report from placeholders alone.
+    const failed = agentResults.filter(r => r.error);
+    if (failed.length > 0) {
+      console.error('[WEEKLY_REPORT_SPECIALIST_ERROR]', failed.map(r => `${r.id}: ${r.error}`));
+    }
+    if (failed.length === agentResults.length) {
+      return NextResponse.json({ error: 'Weekly report failed. Please try again.' }, { status: 503 });
+    }
+
+    // A failed specialist comes back as text '' (with `error` set), so the
+    // fallbacks below use `||`, not `??`: an empty section must read as
+    // "no analysis" rather than invite the orchestrator to invent one.
     const resultMap = Object.fromEntries(agentResults.map(r => [r.id, r.text]));
 
     // Orchestrator: combine specialist outputs into final JSON
@@ -147,16 +160,16 @@ ${weightChange != null
     const orchestratorPrompt = `あなたは日本語の健康コーチです。以下の4人の専門家分析を統合して、週次レポートをJSON形式で作成してください。
 
 【栄養専門家の分析】
-${resultMap['nutrition'] ?? '（分析なし）'}
+${resultMap['nutrition'] || '（分析なし）'}
 
 【トレーニング専門家の分析】
-${resultMap['workout'] ?? '（分析なし）'}
+${resultMap['workout'] || '（分析なし）'}
 
 【行動変容専門家の分析】
-${resultMap['behavior'] ?? '（分析なし）'}
+${resultMap['behavior'] || '（分析なし）'}
 
 【目標設定専門家の提案】
-${resultMap['goal'] ?? '（提案なし）'}
+${resultMap['goal'] || '（提案なし）'}
 
 【週スコア】${weekScore}/100`;
 
@@ -174,14 +187,17 @@ ${resultMap['goal'] ?? '（提案なし）'}
     };
 
     const orchestratorResponse = await generateWithRetry(ai, {
-      model: 'gemini-2.5-flash',
+      model: GEMINI_MODEL,
       config: jsonConfig(orchestratorSchema),
       contents: [{ role: 'user', parts: [{ text: orchestratorPrompt }] }],
     });
 
     // One user action = one quota unit, even though this route fans out to
-    // 4 parallel agents + 1 orchestrator internally.
-    await recordAiUsage(guard.userId, 'weekly-report', orchestratorResponse.usageMetadata?.totalTokenCount);
+    // 4 parallel agents + 1 orchestrator internally. Tokens, however, cover
+    // all 5 calls so `ai_usage` reflects what Gemini actually bills.
+    const specialistTokens = agentResults.reduce((sum, r) => sum + r.tokens, 0);
+    const orchestratorTokens = orchestratorResponse.usageMetadata?.totalTokenCount ?? 0;
+    await recordAiUsage(guard.userId, 'weekly-report', orchestratorTokens + specialistTokens);
 
     const parsed = parseGeminiJson<{
       summary:      string;
