@@ -31,7 +31,7 @@ decisions / Last verified (latest 2) — move older entries to the archive.
 
 ## Next
 - **ADR-011 (`refactor/core-loop`)**: `/code-review high` done (`ef2b403`);
-  draft PR stacked on #22; advisor meeting with `thesis-pivot.md` (Q1–Q4 there) → ADR-011
+  draft PR #24 (base `fix/study-p0`); advisor meeting with `thesis-pivot.md` (Q1–Q4 there) → ADR-011
   accepted; at the analysis-plan freeze decide S5 `planned_per_week` /
   adherence (NULL now that `/plan` is gone; `training_programs` kept out
   of 030). No new features until there is usage data.
@@ -95,8 +95,6 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   items are a working translation, not back-translated; scores are not
   comparable to published SUS norms. Needs advisor/expert review before any
   score is reported as SUS in the thesis.
-- **[🔒user] Gemini CLI ineligible** (IneligibleTierError, noted 07-05) —
-  re-check; council loses its preferred cross-vendor reviewer otherwise.
 - **[🔒user] PR #2** (STEP 7 localStorage → Supabase migration utility,
   last updated 06-11) is the only open PR — close or keep. Branches of the
   closed #6/#7/#8 are kept (see Now); delete once their work is confirmed
@@ -116,6 +114,7 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   quick-add ignores the servings stepper; STEP-7 bulk-migration rows leave
   `servings`/`source` NULL (backfill or accept).
 ## Blockers
+- **`gemini-2.5-flash` shuts down 2026-12-01** (auto-routed to `gemini-3.5-flash-lite`; AI Studio deprecations, read 11-17) — all 3 Gemini routes use it. [🔒user] pick the model; re-check `/api/recommend` safety after.
 - **[🔒user] Apply `029` (`food_logs.macros_entered`) to prod BEFORE
   `refactor/core-loop` reaches production** — otherwise food inserts fail
   (PGRST204, non-permanent) and the outbox stops flushing, which also holds
