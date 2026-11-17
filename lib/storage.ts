@@ -1,4 +1,4 @@
-import { AppData, DailyGoals, FavoriteFood, FoodEntry, MealTemplate, PersonalRecord, RecommendationFeedback, WeightEntry, WorkoutEntry } from './types';
+import { AppData, DailyGoals, FavoriteFood, FoodEntry, MealTemplate, RecommendationFeedback, WeightEntry, WorkoutEntry } from './types';
 import { activityDaysFrom, computeStreak, jstToday } from './streak';
 
 const STORAGE_KEY = 'diet-tracker-v1';
@@ -295,42 +295,6 @@ export function updateGoals(goals: DailyGoals): void {
   const data = getAppData();
   data.goals = goals;
   saveAppData(data);
-}
-
-// ── Personal Records ─────────────────────────────────────
-export function getPersonalRecord(exerciseName: string): PersonalRecord | undefined {
-  const data = getAppData();
-  return (data.personalRecords ?? {})[exerciseName];
-}
-
-/**
- * Returns true if this is a new PR for the exercise.
- * Only tracks exercises with weight > 0. Weight remains the sole PR
- * criterion (and celebration trigger); est1RM is recorded alongside when
- * the session provided one (per-set logging, phase B).
- */
-export function checkAndUpdatePR(
-  exerciseName: string,
-  weight: number,
-  date: string,
-  est1RM?: number,
-): boolean {
-  if (weight <= 0) return false;
-  const data = getAppData();
-  if (!data.personalRecords) data.personalRecords = {};
-  const existing = data.personalRecords[exerciseName];
-  if (!existing || weight > existing.maxWeight) {
-    data.personalRecords[exerciseName] = {
-      exerciseName,
-      maxWeight: weight,
-      achievedAt: new Date().toISOString(),
-      date,
-      ...(est1RM != null && est1RM > 0 ? { est1RM } : {}),
-    };
-    saveAppData(data);
-    return true;
-  }
-  return false;
 }
 
 // ── Streak (any-log, JST boundary, weekly repair ticket) ─

@@ -30,7 +30,6 @@ vi.mock('@/lib/storage', () => ({
   getEntriesForDate: vi.fn(), getRecentFoods: vi.fn(),
   addWeightEntry: vi.fn(), removeWeightEntry: vi.fn(), getWeightEntries: vi.fn(), getLatestWeight: vi.fn(),
   addWorkoutEntry: vi.fn(), removeWorkoutEntry: vi.fn(), getWorkoutsForDate: vi.fn(),
-  checkAndUpdatePR: vi.fn(), getPersonalRecord: vi.fn(),
   getAppData: vi.fn(),
 }));
 

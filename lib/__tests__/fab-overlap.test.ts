@@ -1,5 +1,6 @@
 /**
- * ADR-008 P0-3: the feedback button must not overlap the dashboard FAB.
+ * ADR-008 P0-3: the feedback button must not overlap the add-meal FAB
+ * (in components/BottomNav.tsx since ADR-011, shown on every tabbed page).
  *
  * Node test env has no layout engine, so the mobile (< lg) boxes are
  * computed from the Tailwind classes in the source (1 unit = 0.25 rem =
@@ -42,7 +43,7 @@ const intersects = (a: Box, b: Box) =>
   a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
 describe('feedback button vs dashboard FAB (390×844)', () => {
-  const fab = mobileBox(classBlock('app/dashboard/page.tsx', /href="\/add"\s*className="\s*(fixed[^"]+)"/));
+  const fab = mobileBox(classBlock('components/BottomNav.tsx', /href="\/add"\s*className="\s*lg:hidden\s*(fixed[^"]+)"/));
   const feedback = mobileBox(classBlock('components/FeedbackButton.tsx', /className="\s*(fixed[^"]+)"/));
 
   it('parses both boxes', () => {
@@ -65,7 +66,7 @@ describe('PWA install banner vs FAB + feedback button (390×844)', () => {
     if (!t) throw new Error(`no mobile bottom- class: ${classes}`);
     return Number(t.slice('bottom-'.length)) * 4;
   };
-  const fab = mobileBox(classBlock('app/dashboard/page.tsx', /href="\/add"\s*className="\s*(fixed[^"]+)"/));
+  const fab = mobileBox(classBlock('components/BottomNav.tsx', /href="\/add"\s*className="\s*lg:hidden\s*(fixed[^"]+)"/));
   const feedback = mobileBox(classBlock('components/FeedbackButton.tsx', /className="\s*(fixed[^"]+)"/));
 
   it('banner bottom edge is above both buttons', () => {

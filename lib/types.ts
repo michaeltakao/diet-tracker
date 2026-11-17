@@ -82,17 +82,6 @@ export interface WorkoutEntry {
   addedAt: string;
 }
 
-export interface CoachMenu {
-  id: string;
-  name: string;
-  musclePart: MusclePart;
-  defaultWeight: number;
-  defaultReps: number;
-  defaultSets: number;
-  coachTip: string;
-  coachTipEn?: string;
-}
-
 export interface WeightEntry {
   id: string;
   date: string; // YYYY-MM-DD
@@ -269,57 +258,3 @@ export interface WeeklyAverage {
   avgWater:     number;
 }
 
-// ── Daily Check-in ────────────────────────────────────────────────────────
-
-export interface DailyCheckIn {
-  date:          string;                    // YYYY-MM-DD
-  mood:          1 | 2 | 3 | 4 | 5;        // 気分 (1=最悪 … 5=最高)
-  energy:        1 | 2 | 3 | 4 | 5;        // 体力 (1=消耗 … 5=絶好調)
-  sleepHours:    number;                    // 睡眠時間
-  sorenessAreas: MusclePart[];             // 筋肉痛部位
-  notes?:        string;
-  sleepQuality?: 1 | 2 | 3 | 4 | 5;        // 睡眠の質 (1=悪い … 5=良い)
-  stressLevel?:  1 | 2 | 3 | 4 | 5;        // ストレス (1=低い … 5=高い)
-  bedTime?:      string;                    // 'HH:MM', 24h
-  wakeTime?:     string;                    // 'HH:MM', 24h
-}
-
-export interface WorkoutSuggestion {
-  proceed:           'full' | 'reduced' | 'alternative' | 'rest';
-  sessionName:       string;
-  adjustments:       string[];    // 種目ごとの調整メモ
-  intensityNote:     string;      // 例: "今日は80%強度で"
-  motivationMessage: string;
-  recoveryTips:      string[];
-  generatedAt:       string;      // ISO
-}
-
-// ── Training Plan ─────────────────────────────────────────────────────────
-
-export interface PlannedExercise {
-  id:            string;
-  name:          string;
-  musclePart:    MusclePart;
-  sets:          number;
-  repsMin:       number;
-  repsMax:       number;
-  targetWeight?: number;   // kg (optional starting suggestion)
-  notes?:        string;
-}
-
-export interface TrainingSession {
-  id:        string;
-  name:      string;        // e.g. "Push Day", "Lower A"
-  exercises: PlannedExercise[];
-}
-
-export interface TrainingProgram {
-  id:           string;
-  name:         string;
-  description:  string;
-  sessions:     TrainingSession[];
-  /** dayOfWeek (0=Sun…6=Sat) → session id. Empty string = rest day. */
-  weekSchedule: Record<number, string>;
-  isActive:     boolean;
-  createdAt:    string;
-}

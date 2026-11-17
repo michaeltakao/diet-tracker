@@ -29,28 +29,8 @@ import type {
   WeightLogInsert,
   WaterLogInsert,
   PersonalRecordInsert,
-  CheckinInsert,
-  TrainingProgramInsert,
 } from '@/lib/database.types';
-import type { MealTypeEnum, WorkoutCatEnum, MusclePartEnum, Json } from '@/lib/database.types';
-import type { DailyCheckIn, TrainingProgram } from '@/lib/types';
-
-function readCheckIns(): DailyCheckIn[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem('diet-tracker-checkins');
-    return raw ? Object.values(JSON.parse(raw) as Record<string, DailyCheckIn>) : [];
-  } catch { return []; }
-}
-
-function readTrainingPrograms(): TrainingProgram[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem('diet-tracker-training-plans');
-    return raw ? (JSON.parse(raw) as TrainingProgram[]) : [];
-  } catch { return []; }
-}
-
+import type { MealTypeEnum, WorkoutCatEnum, MusclePartEnum } from '@/lib/database.types';
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const MIGRATION_FLAG_KEY = 'diet-tracker-migration-v1';
@@ -82,8 +62,6 @@ export interface MigrationSummary {
   workoutLogs: number;
   weightLogs: number;
   waterLogs: number;
-  checkins: number;
-  trainingPrograms: number;
 }
 
 export interface LocalDataInfo {
@@ -530,7 +508,6 @@ export async function executeMigration(
   const start = Date.now();
   const summary: MigrationSummary = {
     foodLogs: 0, workoutLogs: 0, weightLogs: 0, waterLogs: 0,
-    checkins: 0, trainingPrograms: 0,
   };
 
   console.info('[MIGRATION] starting migration for user:', userId);
@@ -583,55 +560,6 @@ export async function executeMigration(
     await upsertPersonalRecords(supabase, rows);
   }
 
-  // ── 7. Check-ins ────────────────────────────────────────────────────────────
-  {
-    const checkIns = readCheckIns();
-    const rows: CheckinInsert[] = checkIns
-      .filter(c => c.mood >= 1 && c.mood <= 5 && c.energy >= 1 && c.energy <= 5)
-      .map(c => ({
-        user_id:        userId,
-        logged_date:    c.date,
-        mood:           c.mood,
-        energy:         c.energy,
-        sleep_hours:    c.sleepHours,
-        soreness_areas: c.sorenessAreas ?? [],
-        notes:          c.notes ?? null,
-      }));
-    console.info(`[MIGRATION] checkins: ${rows.length} valid records`);
-    let count = 0;
-    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-      const chunk = rows.slice(i, i + BATCH_SIZE);
-      const { error } = await supabase
-        .from('checkins')
-        .upsert(chunk, { onConflict: 'user_id,logged_date' });
-      if (error) console.warn(`[MIGRATION_ERROR] checkins batch ${i}:`, error.message);
-      else count += chunk.length;
-    }
-    summary.checkins = count;
-  }
-
-  // ── 8. Training programs ─────────────────────────────────────────────────────
-  {
-    const programs = readTrainingPrograms();
-    const rows: TrainingProgramInsert[] = programs.map(p => ({
-      user_id:   userId,
-      client_id: p.id,
-      data:      p as unknown as Json,
-      is_active: p.isActive,
-    }));
-    console.info(`[MIGRATION] training_programs: ${rows.length} valid records`);
-    let count = 0;
-    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-      const chunk = rows.slice(i, i + BATCH_SIZE);
-      const { error } = await supabase
-        .from('training_programs')
-        .upsert(chunk, { onConflict: 'user_id,client_id' });
-      if (error) console.warn(`[MIGRATION_ERROR] training_programs batch ${i}:`, error.message);
-      else count += chunk.length;
-    }
-    summary.trainingPrograms = count;
-  }
-
   // ── 9. Goals → profiles UPDATE ──────────────────────────────────────────────
   {
     const goals = appData.goals;
@@ -652,9 +580,7 @@ export async function executeMigration(
     summary.foodLogs +
     summary.workoutLogs +
     summary.weightLogs +
-    summary.waterLogs +
-    summary.checkins +
-    summary.trainingPrograms;
+    summary.waterLogs;
 
   const duration = Date.now() - start;
 

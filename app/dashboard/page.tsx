@@ -13,7 +13,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Settings, ChevronDown, ChevronRight, Copy } from 'lucide-react';
+import { Settings, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import {
   getAppData, removeFoodEntry, updateFoodEntry, addWater, getWaterForDate,
   addFoodEntry, getRealGoals,
@@ -255,24 +255,6 @@ export default function HomePage() {
 
       {/* ── Web Push opt-in (authed users, sticky dismissal) ── */}
       <PushPermissionCard />
-
-      {/* ── FAB ─────────────────────────────────────── */}
-      <Link
-        href="/add"
-        className="
-          fixed bottom-20 right-4 z-40
-          w-14 h-14 rounded-full
-          bg-gradient-to-br from-brand-500 to-brand-600
-          shadow-[0_8px_24px_rgba(88,204,2,0.5)]
-          flex items-center justify-center text-white
-          hover:scale-110 active:scale-95
-          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
-          transition-all duration-200
-        "
-        aria-label={t.addMeal}
-      >
-        <Plus size={28} strokeWidth={2.5} aria-hidden="true" />
-      </Link>
 
       <BottomNav />
     </div>
