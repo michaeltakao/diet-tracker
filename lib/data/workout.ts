@@ -13,12 +13,9 @@ import {
   removeWorkoutEntry as _remove,
   getWorkoutsForDate as _getByDate,
   getAppData         as _getAll,
-  checkAndUpdatePR   as _checkPR,
-  getPersonalRecord  as _getPR,
 } from '@/lib/storage';
-import { getWriteContext } from './_write';
 import { write as outboxWrite, type RowFor } from './outbox';
-import type { WorkoutEntry, PersonalRecord } from '@/lib/types';
+import type { WorkoutEntry } from '@/lib/types';
 import type { MusclePartEnum, WorkoutCatEnum } from '@/lib/database.types';
 
 // ── Read (localStorage, synchronous) ──────────────────────────────────────────
@@ -38,16 +35,6 @@ export function getWorkoutEntriesForRange(startDate: string, endDate: string): W
   return _getAll().workoutEntries.filter(
     (e) => e.date >= startDate && e.date <= endDate,
   );
-}
-
-/** Current personal record for an exercise. */
-export function getPersonalRecord(exerciseName: string): PersonalRecord | undefined {
-  return _getPR(exerciseName);
-}
-
-/** All personal records keyed by exercise name. */
-export function getAllPersonalRecords(): Record<string, PersonalRecord> {
-  return _getAll().personalRecords ?? {};
 }
 
 // ── Write (localStorage + Supabase dual-write) ────────────────────────────────
@@ -82,42 +69,4 @@ export async function removeWorkoutEntry(id: string): Promise<void> {
   _remove(id);
   // Step 2: queued delete (cancels a still-queued upsert of the same row)
   await outboxWrite({ kind: 'delete', table: 'workout_logs', id });
-}
-
-/**
- * Check and update PR for an exercise.
- *
- * Returns true if this is a new PR. Weight stays the sole PR criterion
- * (and celebration trigger); est1RM (per-set sessions, phase B) is
- * persisted alongside for analytics.
- * localStorage update is synchronous; Supabase PR record is upserted async.
- */
-export async function checkAndUpdatePR(
-  exerciseName: string,
-  weight: number,
-  date: string,
-  est1RM?: number,
-): Promise<boolean> {
-  // Step 1: localStorage PR check (synchronous)
-  const isNewPR = _checkPR(exerciseName, weight, date, est1RM);
-
-  // Step 2: Supabase — upsert PR record if this is a new PR
-  if (isNewPR) {
-    const ctx = await getWriteContext();
-    if (ctx) {
-      const { error } = await ctx.supabase.from('personal_records').upsert({
-        user_id:       ctx.userId,
-        exercise_name: exerciseName,
-        max_weight_kg: weight,
-        achieved_date: date,
-        est_1rm:       est1RM != null && est1RM > 0 ? est1RM : null,
-      }, { onConflict: 'user_id,exercise_name' });
-
-      if (error) {
-        console.warn('[data/workout] Supabase checkAndUpdatePR failed:', error.message);
-      }
-    }
-  }
-
-  return isNewPR;
 }

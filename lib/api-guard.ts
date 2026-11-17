@@ -81,9 +81,8 @@ export type GuardResult =
       blocked: NextResponse;
       /**
        * Set only when the caller IS allowed in but its daily AI quota is used
-       * up (or the quota check failed). Routes with a non-AI fallback (e.g.
-       * generate-workout's deterministic plan) may serve that instead of
-       * `blocked`; every other route just returns `blocked`.
+       * up (or the quota check failed). A route with a non-AI fallback may
+       * serve that instead of `blocked`; no current route has one.
        */
       quotaOnly?: { clientId: string; userId: string };
     }

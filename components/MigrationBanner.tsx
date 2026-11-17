@@ -28,7 +28,7 @@ export default function MigrationBanner({ status, summary, onDismiss }: Props) {
 
   const totalRecords = summary
     ? summary.foodLogs + summary.workoutLogs + summary.weightLogs +
-      summary.waterLogs + summary.badges
+      summary.waterLogs
     : 0;
 
   const config: Record<

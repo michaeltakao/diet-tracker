@@ -1,6 +1,8 @@
 # diet-tracker 現行仕様書
 
-版: 2026-10-14。対象: ブランチ `feat/trial-data-notice`(`main` `f8a3d37` に、同意画面の削除・目標のサーバー保存・Gemini の上限表示を加えたもの)。
+版: 2026-11-17(3・4・6 章と 7 章の一部を ADR-011 の削減に合わせて更新)。対象: ブランチ `refactor/core-loop`(`fix/study-p0` から分岐)。それ以外の章は 2026-10-14 版(`feat/trial-data-notice`)のまま。
+
+**ADR-011(2026-11-17)で削除したもの:** ゲーム要素(ランク・XP・クエスト・バッジ・称号・チャレンジ・連続日数の表示)、`/form`・`/plan`・`/vitals`・`/symptoms`・`/meds`・`/report`、AI 栄養士・AI コーチ・AI トレーナー・習慣レポート・週次レポート、歩数、TDEE カード。理由と計測値は `docs/reviews/RADICAL_CRITIQUE_2026-11.md`。
 
 コードを読んで起こした「今の実際の仕様」です。各項目に根拠のファイルを付けています。コードで確かめていない点は **未確認** と書きました。本番(`main`)とこのブランチで違う点は、最後の「本番との差」にまとめています。
 
@@ -30,30 +32,26 @@
 - アプリ内の同意画面はない。ログインしただけでは調査の対象にならない(7 章)。
 - Supabase の環境変数がプレースホルダーのとき(ローカル開発)は、振り分けをすべて素通しする。
 
-## 3. 画面(16 ページ)
+## 3. 画面(10 ページ)
+
+下部ナビは 4 つ(ホーム / 記録 / 運動 / 体重)。食事追加のボタン(FAB)はナビと一緒にどのタブにも出る(`components/BottomNav.tsx`)。
 
 | パス | できること | 根拠 |
 |---|---|---|
 | `/` | 紹介ページ(未ログインの人だけに見える) | `app/page.tsx` |
 | `/login` | Google ログイン、メールのマジックリンク、ゲストで続ける | `app/login/page.tsx` |
-| `/onboarding` | 初期設定 4 問(目的/生年・性別・身長・体重/経験/今日の環境)。各問は飛ばせる。最後に 1 日のカロリー・PFC 目標を計算して表示。文言は日本語のみ | `app/onboarding/page.tsx` |
-| `/dashboard` | ランク・XP、今日のクエスト、連続日数、残りカロリー、PFC、AI 栄養士、AI トレーナー、水分、歩数、週間チャレンジ、おすすめ(ログイン時) | `app/dashboard/page.tsx` |
-| `/add` | 食事の追加。写真(料理/栄養成分表示)、バーコード、手入力、最近の記録。よく記録する食品のワンタップ追加、スピードモード | `app/add/page.tsx`、`components/PhotoUpload.tsx`、`components/BarcodeScanner.tsx` |
-| `/log` | 週・月の記録一覧、日ごとの合計、編集・削除、お気に入り、食事テンプレート、習慣レポート(AI)、推移 | `app/log/page.tsx`、`components/TrendsPanel.tsx` |
-| `/workout` | 今日の運動の開始(場所・時間・器具・体調・筋肉痛)→ メニュー生成(AI)、セットごとの記録、自己ベスト、AI コーチ | `app/workout/page.tsx`、`components/SessionStart.tsx` |
-| `/plan` | トレーニング計画。セッションを作り、曜日に割り当てる | `app/plan/page.tsx`、`lib/data/training-plan.ts` |
+| `/onboarding` | 初期設定 2 問(目的 / 生年・性別・身長・体重・目標体重)。各問は飛ばせる。最後に 1 日のカロリー・PFC 目標を表示し、最初の食事の記録へ進む | `app/onboarding/page.tsx` |
+| `/dashboard` | 上から: 今日の残りカロリー(目標比のバー、P/F/C は入力があるときだけ)→ 今日の食事 → 体重のワンタップ記録(前回値を入れておく)→ おすすめ(ログイン時)→ 水分 → 通知の案内 | `app/dashboard/page.tsx`、`components/QuickWeightCard.tsx` |
+| `/add` | 食事の追加。**手入力が最初のタブ**、写真(料理/栄養成分表示)とバーコードは 2 番目以降。よく記録する食品のワンタップ追加、スピードモード、食事テンプレート。**P/F/C は任意**(3 つ全部か kcal だけ) | `app/add/page.tsx`、`components/FoodEntryForm.tsx` |
+| `/log` | 週・月の記録一覧(月の点は食事・運動・体重)、日ごとの合計、編集・削除、お気に入り、食事テンプレート、SUS アンケート、推移(体重の傾向と kcal の目標達成のみ) | `app/log/page.tsx`、`components/TrendsPanel.tsx` |
+| `/workout` | 運動の簡易記録: 種目名(過去の記録と種目一覧から候補)、部位、任意の重量×回数×セット、今日の一覧と削除。持病・服薬の注意(MedWarning)を表示 | `app/workout/page.tsx` |
 | `/weight` | 体重の記録、推移グラフ、目標体重までの差、90 日の単純予測 | `app/weight/page.tsx` |
-| `/vitals` | 血圧・血糖などの記録。記録と表示のみで、判定や色分けをしない | `app/vitals/page.tsx` |
-| `/symptoms` | 症状のメモ。記録と表示のみ | `app/symptoms/page.tsx` |
-| `/meds` | 服薬のチェック(プロフィールに登録した薬) | `app/meds/page.tsx` |
-| `/form` | カメラでのフォーム確認(姿勢推定)。詳細は **未確認** | `app/form/page.tsx`、`lib/pose/` |
-| `/report` | 医師に見せるための記録のまとめ。期間と項目を選び、印刷(PDF 保存)。端末内のデータだけで作る。解釈はしない | `app/report/page.tsx` |
-| `/settings` | 栄養目標、目標体重、健康プロフィール(年齢・性別・身長・持病・服薬・食事制限・目的・活動量)、言語(日本語/英語)、単位(kg/lbs)、文字サイズ、称号、通知、データの書き出し・読み込み、アカウントとデータの削除 | `app/settings/page.tsx`、`components/AccountSection.tsx` |
+| `/settings` | 栄養目標、目標体重、健康プロフィール(年齢・性別・身長・持病・服薬・食事制限・目的・活動量)、言語、単位、文字サイズ、通知、データの書き出し・読み込み、アカウントとデータの削除 | `app/settings/page.tsx` |
 | `/research` | 研究者用の参加者一覧(`profiles.role = 'researcher'` のみ) | `app/research/page.tsx`、`app/api/research/` |
 
 `/auth/callback` はログイン後のコード交換用で、画面ではない。
 
-## 4. AI 機能(9 種)
+## 4. AI 機能(3 種)
 
 すべて `gemini-2.5-flash`、JSON の構造化出力。一時的な失敗(429・5xx)は最大 3 回まで再試行する(`lib/gemini.ts`)。
 
@@ -61,15 +59,9 @@
 |---|---|---|---|
 | `/api/analyze-food` | 料理の写真 → 料理名と kcal・PFC | `/add`(写真) | いいえ |
 | `/api/analyze-label` | 栄養成分表示の写真 → 数値 | `/add`(成分表示) | いいえ |
-| `/api/nutritionist` | 今日の食事への 3 つの提案 | ダッシュボード「AI 栄養士」 | いいえ(送る項目の全体は **未確認**) |
-| `/api/recommend` | 食事・運動のおすすめ(安全レイヤーを通す) | ダッシュボード(ログイン時) | **はい**(健康プロフィール全体) |
-| `/api/coach` | 今日の助言・習慣の指摘・明日のひとこと | `/workout` | **はい** |
-| `/api/generate-workout` | その日の運動メニュー | `/workout`、ダッシュボード「AI トレーナー」 | いいえ(目的・器具・時間・体調・筋肉痛) |
-| `/api/suggest-workout` | 予定済みセッションの調整 | 現在は呼び出し元なし(`STATUS.md` Key decisions) | **はい** |
-| `/api/habit-report` | 食事時刻などの習慣の分析 | `/log` | いいえ |
-| `/api/weekly-report` | 1 週間のまとめ | `components/WeeklyReportCard.tsx`(ログイン時) | **はい** |
+| `/api/recommend` | 食事・運動のおすすめ(安全レイヤーを通す)— **研究の対象** | ダッシュボード(ログイン時) | **はい**(健康プロフィール全体) |
 
-根拠: 各 `app/api/*/route.ts` のリクエスト型と `buildHealthContextPrompt` の使用箇所。
+削除(ADR-011): `/api/nutritionist`、`/api/coach`、`/api/generate-workout`、`/api/suggest-workout`、`/api/habit-report`、`/api/weekly-report`、`/api/tdee/*`。
 
 `/api/product-lookup` は AI ではなく、Open Food Facts へのバーコード照会(`lib/off.ts`)。
 
@@ -79,18 +71,12 @@
 |---|---|---|
 | analyze-food | 10 回 / 分 | 100 |
 | analyze-label | 10 回 / 分 | 50 |
-| nutritionist | 10 回 / 分 | 30 |
 | recommend | 10 回 / 分 | 100 |
-| coach | 20 回 / 分 | 200 |
-| generate-workout | 10 回 / 分 | 50 |
-| suggest-workout | 10 回 / 分 | 50 |
-| habit-report | 5 回 / 分 | 20 |
-| weekly-report | 3 回 / 時 | 20 |
 | product-lookup | 30 回 / 分 | 300 |
 
 - 全ルート合計で 1 人 1 日 400 回まで。1 日の上限はログイン利用者だけに適用され、`ai_usage` テーブルで数える。上限の確認に失敗したとき(DB 障害)は 503 で止める。
 - これとは別に、Gemini 側の上限がある。無料枠では API キーのプロジェクト単位で全利用者が共有し、1 日分は太平洋時間の午前 0 時に戻る(Google の公式ページ、2026-10-14 閲覧)。回数は AI Studio でしか確認できず、**未確認**。
-- Gemini が上限で断ったとき(429)は、9 ルートとも 429 と日英併記の文言(「AI機能が混み合っているか、本日の利用上限に達しました…」)を返す(`lib/gemini.ts` の `aiQuotaResponse`)。画面にその文言がそのまま出るかは、呼び出し元ごとには **未確認**。
+- Gemini が上限で断ったとき(429)は、3 ルートとも 429 と日英併記の文言(「AI機能が混み合っているか、本日の利用上限に達しました…」)を返す(`lib/gemini.ts` の `aiQuotaResponse`)。画面にその文言がそのまま出るかは、呼び出し元ごとには **未確認**。
 - AI の返答は、画面の言語を英語にしても日本語で返ることがある(AI 栄養士で 2026-10-14 に確認)。
 
 ## 5. 安全レイヤー
@@ -107,28 +93,22 @@
 
 ## 6. サーバーに保存されるデータ
 
-Supabase の `public` スキーマに 30 テーブル(`lib/database.types.ts`、`supabase/migrations/001`〜`025`)。すべて行単位のアクセス制御(RLS)で、利用者は自分の行だけを読み書きできる。
-
-利用者の操作で書かれるもの(22):
+アプリが書くテーブル(ADR-011 後):
 
 | テーブル | 内容 | 書き込み |
 |---|---|---|
 | `profiles` | 表示名、年齢、性別、身長、持病、服薬、食事制限、目的、活動量、栄養目標、目標体重、`role`、`consented_at`、`study_cohort` | `lib/data/health-profile.ts`、`lib/data/profile.ts` |
 | `goal_history` | 目的と目標の変更履歴(追記のみ) | `lib/data/goal-history.ts` |
-| `food_logs` | 食事の記録 | `lib/data/food.ts` |
+| `food_logs` | 食事の記録。`macros_entered`(migration 029、**本番未適用**)= false なら P/F/C は未入力の 0 | `lib/data/food.ts` |
 | `weight_logs` | 体重(1 人 1 日 1 件) | `lib/data/weight.ts` |
-| `workout_logs`、`personal_records` | 運動の記録、自己ベスト | `lib/data/workout.ts` |
-| `training_programs` | トレーニング計画(JSON) | `lib/data/training-plan.ts` |
-| `water_logs`、`steps_logs` | 水分、歩数 | `lib/data/water.ts`、`steps.ts` |
-| `checkins` | 体調チェック(睡眠・気分・ストレス・筋肉痛) | `lib/data/checkin.ts` |
-| `vital_logs`、`symptom_logs` | 血圧・血糖など、症状のメモ | `lib/data/vitals.ts`、`symptoms.ts` |
+| `workout_logs` | 運動の記録 | `lib/data/workout.ts` |
+| `water_logs` | 水分 | `lib/data/water.ts` |
 | `favorite_foods`、`meal_templates` | お気に入り、食事テンプレート | `lib/data/favorites.ts`、`meal-templates.ts` |
-| `recommendation_feedback` | おすすめへの反応(採用・却下・お気に入り) | `lib/data/recommendation-feedback.ts` |
-| `badges`、`user_ranks`、`user_quests`、`user_titles`、`user_challenges`、`weekly_challenges`、`exercise_ranks` | ゲーム要素の状態 | `lib/data/badges.ts`、`lib/xp.ts` ほか |
+| `recommendation_feedback` | おすすめへの反応 | `lib/data/recommendation-feedback.ts` |
+| `personal_records` | 端末に残っていた自己ベストの一括移行のみ | `lib/migrate.ts` |
+| `ai_usage`、`sus_responses`、`beta_feedback`、`push_subscriptions`、`push_send_log`、`researcher_access_log`、`client_sync_health` | サーバー側・調査用 | 各 API ルート、`lib/data/outbox.ts` |
 
-サーバー側の処理で書かれるもの(7): `ai_usage`(AI の利用回数)、`tdee_estimates`、`sus_responses`(アンケート)、`beta_feedback`、`push_subscriptions`、`push_send_log`、`researcher_access_log`(研究者のアクセス記録)。
-
-`weekly_reports` はテーブルがあるが、読み書きするコードはない。
+もう書かないテーブル: `training_programs`(cohort-queries S5 が読むので残す)、および `supabase/drafts/030_drop_unused_tables.sql`(**未適用**)で消す 13 テーブル(ゲーム要素 7、`vital_logs`、`symptom_logs`、`checkins`、`tdee_estimates`、`steps_logs`、`weekly_reports`)。
 
 サーバーに保存されないもの: 写真(Gemini に送るだけ)、初期設定の完了記録、運動の開始設定(場所・器具)、経験レベル、連続日数、利用イベント(`lib/telemetry.ts` は端末内のみ)。
 
@@ -140,8 +120,8 @@ Supabase の `public` スキーマに 30 テーブル(`lib/database.types.ts`、
 - 集計(`docs/trial/cohort-queries.sql`)と研究エクスポート(`app/api/research/`)は、`consented_at` が入っている人だけを読む。
 - SUS アンケートは、`consented_at` から 14 日たつと表示される(`lib/sus-gate.ts`、`components/SusSurveyCard.tsx`)。`consented_at` には同意書の署名日を入れるので、「使い始めて 14 日」ではなく「署名から 14 日」になる。研究者が記録するまでは表示されない。日本語訳は妥当性を確認していない(`STATUS.md`)。
 - 目標の履歴(`goal_history`): 初期設定を完了したときと、設定を保存したときに、前回と違えば 1 行足す。目的は、本人が選んだ場合だけ記録する(初期設定の目的の質問に答えた、または設定で目的をタップして保存した)。選んでいなければ目的は NULL で、集計では「目標未設定」になる。初期設定で体の入力を飛ばした場合、栄養目標は NULL で記録し、サーバーの `profiles` も書き換えない。目標体重は設定画面でしか入力できない。記録日時はサーバーが付け、利用者は指定できない。
-- 週あたりの運動の目標: 有効なトレーニング計画で、セッションを割り当てた曜日の数(`TrainingProgram.weekSchedule`)。計画を作っていない人にはない。計画の変更履歴はない。
-- `study_cohort`(2 群の割り付け)は、同意画面と一緒に割り付けの処理がなくなったため、今後の利用者では NULL のまま(`lib/cohort.ts` は残してある)。
+- 週あたりの運動の目標: 以前は `/plan` の計画(`TrainingProgram.weekSchedule`)から取っていたが、ADR-011 で `/plan` を削除したため、新しい参加者にはない(S5 の `planned_per_week` は NULL)。
+- `study_cohort`(2 群の割り付け)は今後の利用者では NULL のまま。`lib/cohort.ts` は ADR-011 で削除した(git の履歴にある)。
 
 ## 8. 既知の制約
 

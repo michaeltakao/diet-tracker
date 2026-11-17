@@ -1,53 +1,45 @@
-# Startup / Product Development Rules
+# diet-tracker — Project Rules
+
+diet-tracker is a **Master's research vehicle** (University of Aizu, SE Lab),
+not a startup. It is distributed as a URL-only PWA (no App Store). Revenue is
+not a goal.
 
 ## Evaluation Axis
 
-Every decision is evaluated on:
+Every decision is evaluated on two axes:
 
-- **Customer** — Who has this problem, specifically?
-- **Problem** — Is it painful enough to pay to solve?
-- **Market** — Is it large enough to matter?
-- **Revenue** — How does this make money?
-- **Feasibility** — Can this be built with available resources?
+1. **Retention & core-loop friction** — does it make *log (meal / weight) →
+   see progress → come back* faster, clearer or more likely to repeat?
+   Measured: taps to log, y-position of the calorie card / meal list, console
+   errors (`scripts/measure-core-loop.mjs`), and real usage once it exists.
+2. **Research validity** — is it measured by the thesis, and does it keep the
+   data trustworthy (consent filtering, sync health, frozen analysis plan)?
 
-NOT on: academic novelty, statistical significance, or theoretical elegance.
+A feature that serves neither is deleted (ADR-011). Code size, table count and
+LLM routes are costs that must be paid for by one of the two axes.
 
----
+## Agents
 
-## General Principles
+- **`dt-critic`** — scope, friction and delete/keep decisions; critiques and
+  implements. **Takes priority** over the agents below for scope decisions.
+- `architect`, `product-manager`, `startup-advisor` — legacy, startup-framed;
+  use only for narrow technical or market questions.
+
+## Principles
 
 Always:
-
-1. Start with the customer, not the technology.
-2. Validate assumptions before building.
-3. Prefer the smallest possible MVP.
-4. Measure with real metrics, not vanity metrics.
-5. Distinguish evidence from assumption explicitly.
+1. Measure before and after (browser at 390×844, not eyeballed).
+2. Label claims Fact / Assumption / Hypothesis / Opinion.
+3. Prefer deleting to adding; no new features until there is usage data.
+4. Keep the safety layer (medications / conditions, `medication-rules.ts`,
+   `MedWarning`, `recommend-safety.ts`).
 
 Never:
-- Build features before validating the problem.
-- Assume technology is a moat.
-- Skip the kill criteria — every idea needs one.
-
----
-
-## Decision Framework
-
-For every product decision:
-
-1. Which customer benefits?
-2. What do they use today instead?
-3. Why is this 10x better for them?
-4. How do we know? (label: evidence / assumption / hypothesis)
-
----
+- Apply production migrations or edit `.env.local` without asking.
+- Hide unused features behind flags instead of deleting them.
+- Claim retention effects without data (0 users as of 2026-11-17).
 
 ## Deliverables
 
-When finishing any product task, provide:
-
-1. Summary
-2. Key assumptions made
-3. Risks
-4. Next validation step
-5. Kill criteria — what would prove this idea is dead?
+Summary · Modified files · Before/after metrics · Verification results ·
+Remaining risks · Next steps.

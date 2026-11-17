@@ -9,14 +9,14 @@
  *   - Dates are YYYY-MM-DD strings; day arithmetic uses Date.parse of the
  *     bare string, which is UTC midnight per ECMA-262 — no local-TZ drift.
  *   - Weight: kilograms. Energy: kcal/day.
- *   - Adherence tolerance ±200 kcal matches WeeklyReport.calorieAdherence
- *     (lib/types.ts) and /api/weekly-report so the numbers agree everywhere.
+ *   - Adherence tolerance ±200 kcal (the AI weekly report that shared it was
+ *     deleted in ADR-011; this is now the single definition).
  */
 
 import { expSmooth, ols } from './tdee';
 import type { WeightTrend } from './types';
 
-/** ±kcal window counted as "on target" — keep in sync with /api/weekly-report. */
+/** ±kcal window counted as "on target". */
 export const ADHERENCE_TOLERANCE_KCAL = 200;
 
 /** Smoothing factor for the weight trend line (heavier than TDEE's 0.3 —
@@ -205,7 +205,7 @@ export interface AdherenceSeries {
 
 /**
  * Per-day calorie adherence over an explicit date axis, using the same
- * ±200 kcal semantics as WeeklyReport.calorieAdherence.
+ * ±200 kcal semantics (ADHERENCE_TOLERANCE_KCAL).
  */
 export function computeAdherenceSeries(
   dates: readonly string[],

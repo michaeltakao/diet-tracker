@@ -3,39 +3,30 @@
 /**
  * Trends pane for /log (?view=trends) — the Phase C research surface.
  *
- * Weight trend + goal projection, TDEE history, intake-vs-expenditure and
- * calorie adherence, all computed by the pure functions in lib/trends.ts.
- * Offline-first: guests get a client-side TDEE estimate from local data;
- * authenticated users get the server history from /api/tdee/history.
- * Recharts components load via next/dynamic so the default weekly view
- * stays light.
+ * The two study outcomes only (ADR-011): weight trend + goal projection and
+ * calorie adherence, computed by the pure functions in lib/trends.ts.
+ * TDEE, intake-vs-expenditure, training volume, vitals and macro-shortfall
+ * sections were deleted. Recharts components load via next/dynamic so the
+ * default weekly view stays light.
  */
 
 import { todayJst } from '@/lib/format-date';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { TrendingDown, Flame, Scale, Target, Dumbbell } from 'lucide-react';
-import { getAllWeightEntries, getAllFoodEntries, getRealGoals, getAllVitalEntries, getAllWorkoutEntries } from '@/lib/data';
-// checkin.ts is not in the barrel — direct import.
-import { getRecentCheckIns } from '@/lib/data/checkin';
-import { getJson } from '@/lib/httpClient';
-import { estimateTdee } from '@/lib/tdee';
+import { TrendingDown, Scale, Target } from 'lucide-react';
+import { getAllWeightEntries, getAllFoodEntries, getRealGoals } from '@/lib/data';
 import {
   smoothWeightSeries,
   projectGoalDate,
-  computeDailyBalance,
   computeAdherenceSeries,
-  computeMacroShortfall,
   lastNDates,
   WEIGHT_WINDOW_DAYS,
 } from '@/lib/trends';
 import { recordEvent } from '@/lib/telemetry';
-import { useProfile } from '@/contexts/ProfileContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { CARD_CLASS } from '@/components/ui/Card';
-import type { DailyGoals, VitalEntry, DailyCheckIn, MusclePart, WorkoutEntry } from '@/lib/types';
-import type { TdeePoint } from '@/components/trends/TdeeHistoryChart';
+import type { DailyGoals } from '@/lib/types';
 
 function ChartSkeleton({ h = 190 }: { h?: number }) {
   return <div className="skeleton rounded-2xl w-full" style={{ height: h }} aria-hidden />;
@@ -45,90 +36,34 @@ const WeightTrendChart = dynamic(
   () => import('@/components/trends/WeightTrendChart').then(m => m.WeightTrendChart),
   { ssr: false, loading: () => <ChartSkeleton h={200} /> },
 );
-const TdeeHistoryChart = dynamic(
-  () => import('@/components/trends/TdeeHistoryChart').then(m => m.TdeeHistoryChart),
-  { ssr: false, loading: () => <ChartSkeleton h={180} /> },
-);
-const IntakeExpenditureChart = dynamic(
-  () => import('@/components/trends/IntakeExpenditureChart').then(m => m.IntakeExpenditureChart),
-  { ssr: false, loading: () => <ChartSkeleton h={190} /> },
-);
 const AdherenceCard = dynamic(
   () => import('@/components/trends/AdherenceCard').then(m => m.AdherenceCard),
   { ssr: false, loading: () => <ChartSkeleton h={110} /> },
 );
-const BpChart = dynamic(
-  () => import('@/components/trends/VitalsChart').then(m => m.BpChart),
-  { ssr: false, loading: () => <ChartSkeleton h={180} /> },
-);
-const GlucoseChart = dynamic(
-  () => import('@/components/trends/VitalsChart').then(m => m.GlucoseChart),
-  { ssr: false, loading: () => <ChartSkeleton h={180} /> },
-);
-const WellnessChart = dynamic(
-  () => import('@/components/trends/VitalsChart').then(m => m.WellnessChart),
-  { ssr: false, loading: () => <ChartSkeleton h={140} /> },
-);
-const LipidChart = dynamic(
-  () => import('@/components/trends/VitalsChart').then(m => m.LipidChart),
-  { ssr: false, loading: () => <ChartSkeleton h={180} /> },
-);
-const Hba1cChart = dynamic(
-  () => import('@/components/trends/VitalsChart').then(m => m.Hba1cChart),
-  { ssr: false, loading: () => <ChartSkeleton h={140} /> },
-);
-const VolumeByBodyPartChart = dynamic(
-  () => import('@/components/trends/VolumeByBodyPartChart').then(m => m.VolumeByBodyPartChart),
-  { ssr: false, loading: () => <ChartSkeleton h={200} /> },
-);
-const ExerciseProgressChart = dynamic(
-  () => import('@/components/trends/ExerciseProgressChart').then(m => m.ExerciseProgressChart),
-  { ssr: false, loading: () => <ChartSkeleton h={220} /> },
-);
-
 /** Same "today" convention as the rest of the app (lib/data date stamps). */
 function getTodayDate(): string {
   return todayJst();
-}
-
-interface TdeeHistoryRow {
-  estimated_at: string;
-  tdee_kcal: number;
-  r_squared: number | null;
-  data_points: number;
 }
 
 const BALANCE_WINDOW_DAYS = 14;
 
 export function TrendsPanel() {
   const { t, lang } = useLanguage();
-  const { isAuthenticated } = useProfile();
 
   // Local data loads once on mount (hydration-safe: this component is only
   // rendered client-side after the view toggle).
   const [loaded, setLoaded] = useState(false);
   const [weightEntries, setWeightEntries] = useState<Array<{ date: string; weight: number }>>([]);
-  const [foodEntries, setFoodEntries] = useState<Array<{ date: string; calories: number; protein: number; fat: number; carbs: number }>>([]);
-  // null = no real goals set → goal-relative sections (adherence, macro
-  // shortfall) sit behind a set-goals CTA; weight/TDEE/balance charts stay.
+  const [foodEntries, setFoodEntries] = useState<Array<{ date: string; calories: number }>>([]);
+  // null = no real goals set → adherence sits behind a set-goals CTA.
   const [goals, setGoals] = useState<DailyGoals | null>(null);
-  const [tdeeHistory, setTdeeHistory] = useState<TdeePoint[]>([]);
-  const [tdeeIsLocal, setTdeeIsLocal] = useState(false);
-  const [vitalEntries, setVitalEntries] = useState<VitalEntry[]>([]);
-  const [recentCheckIns, setRecentCheckIns] = useState<DailyCheckIn[]>([]);
-  const [workoutEntries, setWorkoutEntries] = useState<WorkoutEntry[]>([]);
 
   useEffect(() => {
     recordEvent('trends_viewed');
-     
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
     setWeightEntries(getAllWeightEntries().map(e => ({ date: e.date, weight: e.weight })));
-    setFoodEntries(getAllFoodEntries().map(e => ({
-      date: e.date, calories: e.calories, protein: e.protein, fat: e.fat, carbs: e.carbs,
-    })));
+    setFoodEntries(getAllFoodEntries().map(e => ({ date: e.date, calories: e.calories })));
     setGoals(getRealGoals());
-    setVitalEntries(getAllVitalEntries());
-    setRecentCheckIns(getRecentCheckIns(30));
-    setWorkoutEntries(getAllWorkoutEntries());
     setLoaded(true);
   }, []);
 
@@ -139,32 +74,6 @@ export function TrendsPanel() {
     for (const e of foodEntries) byDate.set(e.date, (byDate.get(e.date) ?? 0) + e.calories);
     return [...byDate.entries()].map(([date, totalKcal]) => ({ date, totalKcal }));
   }, [foodEntries]);
-
-  // TDEE source: server history when signed in, on-device estimate for guests.
-  useEffect(() => {
-    if (!loaded) return;
-    let cancelled = false;
-    (async () => {
-      if (isAuthenticated) {
-        try {
-          const rows = await getJson<TdeeHistoryRow[]>('/api/tdee/history');
-          if (!cancelled) {
-            setTdeeHistory(rows.map(r => ({ date: r.estimated_at, tdeeKcal: r.tdee_kcal, rSquared: r.r_squared })));
-            setTdeeIsLocal(false);
-          }
-          return;
-        } catch {
-          // fall through to the local estimate
-        }
-      }
-      const est = estimateTdee({ weightLogs: weightEntries.map(w => ({ date: w.date, weightKg: w.weight })), calorieLogs, prevTdee: null });
-      if (!cancelled) {
-        setTdeeHistory(est.tdeeKcal != null ? [{ date: today, tdeeKcal: est.tdeeKcal, rSquared: est.rSquared }] : []);
-        setTdeeIsLocal(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [loaded, isAuthenticated, weightEntries, calorieLogs, today]);
 
   const axis = useMemo(() => lastNDates(today, BALANCE_WINDOW_DAYS), [today]);
 
@@ -180,18 +89,10 @@ export function TrendsPanel() {
     () => projectGoalDate(recentWeights, goals?.goalWeight ?? null),
     [recentWeights, goals?.goalWeight],
   );
-  const balance = useMemo(
-    () => computeDailyBalance(axis, calorieLogs, tdeeHistory.map(p => ({ date: p.date, tdeeKcal: p.tdeeKcal }))),
-    [axis, calorieLogs, tdeeHistory],
-  );
   // Goal-relative series only exist against real goals (null otherwise).
   const adherence = useMemo(
     () => (goals ? computeAdherenceSeries(axis, calorieLogs, goals.calories) : null),
     [axis, calorieLogs, goals],
-  );
-  const macros = useMemo(
-    () => (goals ? computeMacroShortfall(axis, foodEntries, goals) : null),
-    [axis, foodEntries, goals],
   );
   const loggedDaysInWindow = useMemo(
     () => calorieLogs.filter(l => l.date >= axis[0] && l.date <= axis[axis.length - 1]).length,
@@ -200,10 +101,7 @@ export function TrendsPanel() {
 
   if (!loaded) return <ChartSkeleton h={300} />;
 
-  // Training and vitals data count too (phase C) — the panel has sections for
-  // them, so workout-only or vitals-only users must not hit the empty state.
-  const hasAnyData = weightSeries.length >= 2 || loggedDaysInWindow > 0 || calorieLogs.length > 0
-    || workoutEntries.length > 0 || vitalEntries.length > 0;
+  const hasAnyData = weightSeries.length >= 2 || loggedDaysInWindow > 0 || calorieLogs.length > 0;
   if (!hasAnyData) {
     return (
       <div className={`${CARD_CLASS} p-10 text-center`}>
@@ -257,151 +155,10 @@ export function TrendsPanel() {
         )}
       </section>
 
-      {/* ── TDEE history ── */}
-      <section className={`${CARD_CLASS} p-4`}>
-        <div className="flex items-center gap-2 mb-2">
-          <Flame size={14} className="text-ai" aria-hidden />
-          <h2 className="text-xs font-black text-faint uppercase tracking-widest">{t.trendsTdeeTitle}</h2>
-        </div>
-        {tdeeHistory.length > 0 ? (
-          <>
-            <TdeeHistoryChart
-              points={tdeeHistory}
-              labels={{ tdee: 'TDEE', confidence: t.trendsConfidenceLabel }}
-            />
-            {tdeeIsLocal && <p className="text-xs text-faint mt-1">{t.trendsGuestTdeeNote}</p>}
-          </>
-        ) : (
-          <p className="text-xs text-faint py-4 text-center">{t.trendsTdeeEmpty}</p>
-        )}
-      </section>
-
-      {/* ── Intake vs expenditure ── */}
-      <section className={`${CARD_CLASS} p-4`}>
-        <h2 className="text-xs font-black text-faint uppercase tracking-widest mb-2">{t.trendsBalanceTitle}</h2>
-        {tdeeHistory.length > 0 || loggedDaysInWindow > 0 ? (
-          <IntakeExpenditureChart
-            points={balance}
-            labels={{ intake: t.trendsIntakeLabel, expenditure: t.trendsExpenditureLabel }}
-          />
-        ) : (
-          <p className="text-xs text-faint py-4 text-center">{t.trendsEmptyDesc}</p>
-        )}
-      </section>
-
-      {/* ── Training: volume by part + exercise progression (phase C) ── */}
-      {(() => {
-        const hasTraining = workoutEntries.some(
-          (w) => (w.setDetails?.length ?? 0) > 0 || (w.weight ?? 0) > 0,
-        );
-        if (!hasTraining) return null;
-        const partLabels: Record<MusclePart, string> = {
-          chest: t.mpChest, back: t.mpBack, legs: t.mpLegs,
-          shoulders: t.mpShoulders, arms: t.mpArms, abs: t.mpAbs,
-        };
-        return (
-          <section className={`${CARD_CLASS} p-4`}>
-            <div className="flex items-center gap-2 mb-2">
-              <Dumbbell size={14} className="text-fox" aria-hidden />
-              <h2 className="text-xs font-black text-faint uppercase tracking-widest">{t.volumeByPartTitle}</h2>
-            </div>
-            <VolumeByBodyPartChart
-              entries={workoutEntries}
-              labels={{ parts: partLabels, week: t.reportPeriod1w, month: t.reportPeriod1m, volume: t.volumeLabel }}
-            />
-            <div className="mt-4 pt-3 border-t border-line">
-              <h3 className="text-xs font-black text-faint uppercase tracking-widest mb-2">{t.exerciseProgressTitle}</h3>
-              <ExerciseProgressChart
-                entries={workoutEntries}
-                labels={{ selectExercise: t.selectExercise, topWeight: t.topWeightLabel, est1RM: t.est1rmPr }}
-              />
-            </div>
-          </section>
-        );
-      })()}
-
-      {/* ── Vitals (record only — neutral display, no thresholds) ── */}
-      {(() => {
-        const bpPoints = vitalEntries
-          .filter((v): v is Extract<VitalEntry, { kind: 'blood_pressure' }> => v.kind === 'blood_pressure')
-          .map(v => ({ date: v.date, systolic: v.systolic, diastolic: v.diastolic }));
-        const glucosePoints = vitalEntries
-          .filter((v): v is Extract<VitalEntry, { kind: 'blood_glucose' }> => v.kind === 'blood_glucose')
-          .map(v => ({ date: v.date, glucoseMgDl: v.glucoseMgDl, context: v.glucoseContext }));
-        const lipidPoints = vitalEntries
-          .filter((v): v is Extract<VitalEntry, { kind: 'lipid' }> => v.kind === 'lipid')
-          .map(v => ({
-            date: v.date, totalMgDl: v.totalMgDl,
-            ldlMgDl: v.ldlMgDl, hdlMgDl: v.hdlMgDl, triglyceridesMgDl: v.triglyceridesMgDl,
-          }));
-        const hba1cPoints = vitalEntries
-          .filter((v): v is Extract<VitalEntry, { kind: 'hba1c' }> => v.kind === 'hba1c')
-          .map(v => ({ date: v.date, hba1cPercent: v.hba1cPercent }));
-        const wellnessPoints = recentCheckIns
-          .filter(c => c.sleepQuality != null || c.stressLevel != null || c.sleepHours > 0)
-          .map(c => ({ date: c.date, sleepQuality: c.sleepQuality, stressLevel: c.stressLevel, sleepHours: c.sleepHours > 0 ? c.sleepHours : undefined }));
-        if (bpPoints.length === 0 && glucosePoints.length === 0 && wellnessPoints.length === 0
-          && lipidPoints.length === 0 && hba1cPoints.length === 0) return null;
-        const chartLabels = {
-          systolic: t.systolicLabel,
-          diastolic: t.diastolicLabel,
-          glucose: t.glucoseLabel,
-          sleepQuality: t.sleepQualityLabel,
-          stress: t.stressLevelLabel,
-          sleepHours: t.sleepHoursSeries,
-          contextLabels: {
-            fasting: t.glucoseFasting,
-            postprandial: t.glucosePostprandial,
-            random: t.glucoseRandom,
-          },
-        };
-        return (
-          <section className={`${CARD_CLASS} p-4`}>
-            <h2 className="text-xs font-black text-faint uppercase tracking-widest mb-2">{t.trendsVitalsTitle}</h2>
-            <div className="space-y-4">
-              {bpPoints.length > 0 && (
-                <div>
-                  <p className="text-xs font-bold text-muted mb-1">🫀 {t.vitalsBp}</p>
-                  <BpChart points={bpPoints} labels={chartLabels} />
-                </div>
-              )}
-              {glucosePoints.length > 0 && (
-                <div>
-                  <p className="text-xs font-bold text-muted mb-1">🩸 {t.vitalsGlucose}</p>
-                  <GlucoseChart points={glucosePoints} labels={chartLabels} />
-                </div>
-              )}
-              {lipidPoints.length > 0 && (
-                <div>
-                  <p className="text-xs font-bold text-muted mb-1">🧈 {t.vitalLipid}</p>
-                  <LipidChart
-                    points={lipidPoints}
-                    labels={{ total: t.totalCholesterol, ldl: t.ldlLabel, hdl: t.hdlLabel, tg: t.triglyceridesLabel }}
-                  />
-                </div>
-              )}
-              {hba1cPoints.length > 0 && (
-                <div>
-                  <p className="text-xs font-bold text-muted mb-1">🅰️ {t.vitalHba1c}</p>
-                  <Hba1cChart points={hba1cPoints} label={t.vitalHba1c} />
-                </div>
-              )}
-              {wellnessPoints.length > 0 && (
-                <div>
-                  <p className="text-xs font-bold text-muted mb-1">😴 {t.sleepQualityLabel} / {t.stressLevelLabel}</p>
-                  <WellnessChart points={wellnessPoints} labels={chartLabels} />
-                </div>
-              )}
-            </div>
-            <p className="text-xs text-faint leading-relaxed mt-3">{t.vitalsDisclaimer}</p>
-          </section>
-        );
-      })()}
-
-      {/* ── Adherence + macro shortfall (goal-relative → needs real goals) ── */}
+      {/* ── Calorie adherence (goal-relative → needs real goals) ── */}
       <section className={`${CARD_CLASS} p-4`}>
         <h2 className="text-xs font-black text-faint uppercase tracking-widest mb-2">{t.trendsAdherenceTitle}</h2>
-        {!(goals && adherence && macros) ? (
+        {!(goals && adherence) ? (
           <div className="bg-surface-2 rounded-2xl p-5 text-center">
             <p className="text-2xl mb-2" aria-hidden="true">🎯</p>
             <p className="text-xs text-faint mb-3">{t.aiNeedsGoals}</p>
@@ -434,31 +191,6 @@ export function TrendsPanel() {
           }}
         />
 
-        {macros.loggedDays > 0 && (
-          <div className="mt-4 pt-3 border-t border-line">
-            <p className="text-xs font-black text-faint uppercase tracking-widest mb-2">{t.trendsMacroTitle}</p>
-            <div className="space-y-1.5">
-              {(
-                [
-                  { label: t.protein, avg: macros.avgProtein, goal: goals.protein, short: macros.proteinShortfallG },
-                  { label: t.fat, avg: macros.avgFat, goal: goals.fat, short: macros.fatShortfallG },
-                  { label: t.carbs, avg: macros.avgCarbs, goal: goals.carbs, short: macros.carbsShortfallG },
-                ] as const
-              ).map(({ label, avg, goal, short }) => (
-                <div key={label} className="flex items-center gap-2 text-xs">
-                  <span className="w-20 text-muted truncate">{label}</span>
-                  <span className="tabular-nums font-bold text-fg">{avg ?? '—'}g</span>
-                  <span className="text-faint">/ {goal}g</span>
-                  {short > 0 && (
-                    <span className="ml-auto text-xs font-bold text-warning bg-warning-soft px-2 py-0.5 rounded-full">
-                      −{short}g {t.trendsShortfallSuffix}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
         </>
         )}
       </section>

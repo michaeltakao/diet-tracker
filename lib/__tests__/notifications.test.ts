@@ -98,20 +98,12 @@ describe('decideNudge', () => {
     expect(d.kind === 'decay' && d.template.href).toBe('/');
   });
 
-  it('a water-only day counts as activity (any-log)', () => {
+  it('a water-only day is NOT activity (ADR-011: food / workout / weight only)', () => {
     const days = activityDaysFrom({
       foodEntries: [],
       workoutEntries: [],
       weightEntries: [],
-      vitalEntries: [],
-      symptomEntries: [],
-      waterByDate: { [TODAY]: 200 },
     });
-    const d = decideNudge(input({
-      activityDays: days,
-      streak: { current: 1 },
-      hour: 21,
-    }));
-    expect(d.kind).toBe('none'); // logged today via water → no streak-at-risk
+    expect(days.has(TODAY)).toBe(false);
   });
 });

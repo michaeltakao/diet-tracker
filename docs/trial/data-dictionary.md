@@ -32,7 +32,8 @@
 | `logged_date` | DATE | 保存した日(JST、`app/add/page.tsx` `getTodayDate()` = `todayJst()`)。/add からは今日の日付でしか記録できない | — |
 | `meal_type` | enum | breakfast / lunch / dinner / snack。利用者が選ぶ(既定は時刻から推定) | — |
 | `calories` | INTEGER ≥ 0 | 利用者の入力、または写真 AI / バーコード / 成分表示の値 × 量 | — |
-| `protein_g` / `fat_g` / `carbs_g` | NUMERIC ≥ 0 | 同上 | **0 と未入力を区別できない**(`NOT NULL DEFAULT 0`)。今は P/F/C が入力必須なので 0 は実際の 0。任意にするなら `macros_entered`(P0-13、`supabase/drafts/029_food_macros_entered.sql`、未適用)を先に入れる |
+| `protein_g` / `fat_g` / `carbs_g` | NUMERIC ≥ 0 | 同上 | `NOT NULL DEFAULT 0`。ADR-011 で P/F/C は任意になった(3 つ全部か、kcal だけ)。**`macros_entered = false` の行の 0 は未入力の置き場で、実測ではない → 欠測として扱う。** |
+| `macros_entered` | BOOLEAN NULL | 同上(migration 029、**本番未適用**) | false = kcal だけ入力。true = P/F/C も入力。NULL = 029 より前の行(当時は P/F/C 必須 = 入力済み) |
 | `source` | TEXT | manual / ai / db / barcode(`lib/types.ts` `FoodSource`)。最近の食事からのクイック追加は元の値を引き継ぐ | NULL = 古い行 |
 | `servings` / `amount_g` | NUMERIC | 量のステッパー | NULL = 未使用 |
 | `logged_at` | TIMESTAMPTZ | 利用者が選んだ食事時刻(JST の日付 + HH:MM → UTC、`jstTimestamp`) | — |
@@ -75,11 +76,13 @@
 
 ## training_programs(運動計画)
 
-書き込み: `lib/data/training-plan.ts`(upsert、送信キューなし)。`data -> 'weekSchedule'` の空でない曜日数 = 週あたりの予定回数。`is_active` の計画だけ使う。
+書き込み: **なし(2026-11-17 以降)**。運動計画の画面(`/plan`)と `lib/data/training-plan.ts` は ADR-011 で削除した。それまでの書き込みは `lib/data/training-plan.ts`(upsert、送信キューなし)。`data -> 'weekSchedule'` の空でない曜日数 = 週あたりの予定回数。`is_active` の計画だけ使う。
+
+**影響:** S5 の `planned_per_week` / `m1_adherence` / `m6_adherence` は、ADR-011 以降に始めた参加者では全員 NULL になる。S5 の主要値(1 か月目と 6 か月目の週あたり運動日数)には影響しない。分析計画の固定前に、この 3 列を残すか消すかを決める(`analysis-plan-freeze.md`)。テーブルは消さない(家族トライアル期の行がある)。
 
 ## ai_usage(AI 利用回数)
 
-書き込み: `lib/api-guard.ts` `recordAiUsage()`(サーバー側、AI が成功したときだけ)。`usage_date` = JST の日付、`route` = API 名、`calls` = 回数。AI が失敗した呼び出しは数えない。generate-workout は AI が使えないときも計画を返す(P0-4)ので、**運動計画の表示回数 ≠ ai_usage の generate-workout 回数**。
+書き込み: `lib/api-guard.ts` `recordAiUsage()`(サーバー側、AI が成功したときだけ)。`usage_date` = JST の日付、`route` = API 名、`calls` = 回数。AI が失敗した呼び出しは数えない。generate-workout は ADR-011(2026-11-17)で削除した。それより前の行に残っている。
 
 ## client_sync_health(端末の送信状況、migration 028 — 本番に適用済み 2026-11-12)
 

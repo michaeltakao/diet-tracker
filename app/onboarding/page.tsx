@@ -38,17 +38,16 @@ import {
 import {
   completeOnboarding,
   skipOnboarding,
+  DEFAULT_ANSWERS,
   type OnboardingAnswers,
-  type TrainingEnvironment,
 } from '@/lib/data/onboarding';
 import { recommendedGoals, isSenior } from '@/lib/nutrition-standards';
 import { estimateTdee } from '@/lib/tdee';
 import { todayJst, todayStr } from '@/lib/format-date';
 import { resolveBody, type BodyField } from '@/lib/onboarding-body';
-import { seedPrefsFromOnboarding, type SessionDuration } from '@/lib/data/workout-prefs';
 import { CARD_CLASS as CARD } from '@/components/ui/Card';
 import { ChipGroup } from '@/components/onboarding/ChipGroup';
-import type { DailyGoals, ExperienceLevel, FitnessGoal } from '@/lib/types';
+import type { DailyGoals, FitnessGoal } from '@/lib/types';
 
 // ── Chip vocabularies (labels mirror app/settings/page.tsx) ──────────────────
 
@@ -64,26 +63,6 @@ const SEXES: Array<{ value: 'male' | 'female' | 'unset'; label: string }> = [
   { value: 'male',   label: '男性' },
   { value: 'female', label: '女性' },
   { value: 'unset',  label: '回答しない' },
-];
-
-const EXPERIENCES: Array<{ value: ExperienceLevel; label: string; icon: string }> = [
-  { value: 'beginner',     label: 'はじめて',       icon: '🌱' },
-  { value: 'intermediate', label: '経験あり',       icon: '🏋️' },
-  { value: 'advanced',     label: 'しっかり継続中', icon: '🔥' },
-];
-
-const ENVIRONMENTS: Array<{ value: TrainingEnvironment; label: string; icon: string }> = [
-  { value: 'home',    label: '自宅',   icon: '🏠' },
-  { value: 'gym',     label: 'ジム',   icon: '🏢' },
-  { value: 'outside', label: '外',     icon: '🌤' },
-];
-
-// Same vocabulary as the workout check-in (SessionDuration; 60 = "60分以上").
-const MINUTES: Array<{ value: '15' | '30' | '45' | '60'; label: string }> = [
-  { value: '15', label: '15分' },
-  { value: '30', label: '30分' },
-  { value: '45', label: '45分' },
-  { value: '60', label: '60分以上' },
 ];
 
 // ── Explicit body-step defaults (used for computation when skipped) ──────────
@@ -141,8 +120,11 @@ function Stepper({
 
 // ── Wizard ────────────────────────────────────────────────────────────────────
 
-type StepId = 'goal' | 'body' | 'experience' | 'environment';
-const STEPS: StepId[] = ['goal', 'body', 'experience', 'environment'];
+// Two steps (ADR-011): the experience / environment steps only seeded the
+// deleted workout generator. Their OnboardingAnswers fields keep the
+// explicit defaults below so the stored record shape is unchanged.
+type StepId = 'goal' | 'body';
+const STEPS: StepId[] = ['goal', 'body'];
 
 interface ResultNumbers {
   tdee:       number;
@@ -155,7 +137,7 @@ interface ResultNumbers {
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [stepIdx, setStepIdx] = useState(0);           // 0..3 questions, 4 = result
+  const [stepIdx, setStepIdx] = useState(0);           // 0..1 questions, 2 = result
   const [result, setResult] = useState<ResultNumbers | null>(null);
 
   // Answers (pre-filled from an existing profile — returning user, new device)
@@ -165,9 +147,6 @@ export default function OnboardingPage() {
   const [heightCm, setHeightCm] = useState(DEFAULT_HEIGHT_CM);
   const [weightKg, setWeightKg] = useState(DEFAULT_WEIGHT_KG);
   const [goalWeightKg, setGoalWeightKg] = useState(DEFAULT_WEIGHT_KG);
-  const [experience, setExperience] = useState<ExperienceLevel>('beginner');
-  const [environment, setEnvironment] = useState<TrainingEnvironment>('home');
-  const [minutes, setMinutes] = useState<'15' | '30' | '45' | '60'>('15');
   const [defaultedSteps, setDefaultedSteps] = useState<StepId[]>([]);
   // P0-5: which body values are real — changed here, or loaded from earlier data.
   const [touched, setTouched] = useState<ReadonlySet<BodyField>>(new Set());
@@ -182,7 +161,6 @@ export default function OnboardingPage() {
     if (profile.age) { setBirthYear(CURRENT_YEAR - profile.age); known.add('birthYear'); }
     if (profile.sex) { setSex(profile.sex); known.add('sex'); }
     if (profile.heightCm) { setHeightCm(profile.heightCm); known.add('heightCm'); }
-    if (profile.experience) setExperience(profile.experience);
     const latest = getLatestWeightEntry();
     // Pre-fills stay exact (no rounding): a provided value is stored as is.
     if (latest) { setWeightKg(latest.weight); known.add('weightKg'); }
@@ -213,7 +191,6 @@ export default function OnboardingPage() {
     updateHealthProfile({
       ...profile,
       fitnessGoal: goal,
-      experience,
       ...body.profile,
     });
     if (body.weightToLog != null) {
@@ -266,15 +243,13 @@ export default function OnboardingPage() {
     const answers: OnboardingAnswers = {
       fitnessGoal: goal,
       ...body.answers,
-      experience,
-      environment,
-      availableMinutes: Number(minutes),
+      // No longer asked (see STEPS) — fixed defaults, not user answers.
+      experience: DEFAULT_ANSWERS.experience,
+      environment: DEFAULT_ANSWERS.environment,
+      availableMinutes: DEFAULT_ANSWERS.availableMinutes,
       defaultedSteps: finalDefaulted,
     };
     completeOnboarding(answers);
-    if (!finalDefaulted.includes('environment')) {
-      seedPrefsFromOnboarding(environment, Number(minutes) as SessionDuration);
-    }
     // Study baseline (goal_history): only a purpose the user actually chose,
     // and nutrition targets only when they come from confirmed body data —
     // a skipped step must not be recorded as the participant's starting goal.
@@ -306,12 +281,11 @@ export default function OnboardingPage() {
 
   // ── Result screen (D5) ──────────────────────────────────────────────────────
   if (stepIdx >= STEPS.length && result) {
-    const envLabel = ENVIRONMENTS.find(e => e.value === environment);
     const why = {
       tdee: result.isMifflin
-        ? 'Mifflin-St Jeor式（体重・身長・年齢・性別）による推定。食事と体重の記録が7日たまると実測ベースに切り替わります。'
-        : '食事摂取基準2025の推定エネルギー必要量（年齢・活動量ベース）。記録がたまると実測ベースに切り替わります。',
-      calories: '目標は摂取基準の必要量そのまま＝安全側。減量・増量ペースは記録がたまってから調整します。',
+        ? 'Mifflin-St Jeor式（体重・身長・年齢・性別）による推定です。目標は設定画面でいつでも変更できます。'
+        : '食事摂取基準2025の推定エネルギー必要量（年齢・活動量ベース）です。目標は設定画面でいつでも変更できます。',
+      calories: '目標は摂取基準の必要量そのまま＝安全側です。減量・増量ペースは設定画面で調整できます。',
       protein: result.seniorFloor
         ? '65歳以上は筋量維持のため体重×1.0g/日を下限にしています（摂取基準の推奨量より優先）。'
         : '食事摂取基準のたんぱく質推奨量です。',
@@ -358,20 +332,20 @@ export default function OnboardingPage() {
         </div>
 
         <button
-          onClick={() => router.replace('/workout')}
+          onClick={() => router.replace('/add')}
           className="w-full py-4 rounded-2xl text-sm font-black text-white
             bg-gradient-to-r from-brand-500 to-brand-600 shadow-[0_4px_14px_rgba(88,204,2,0.35)]
             hover:from-brand-600 hover:to-brand-700 transition-all active:scale-95
             flex items-center justify-center gap-2"
         >
-          {envLabel?.icon} {envLabel?.label}で{minutes}分のはじめてワークアウトへ
+          最初の食事を記録する
           <ChevronRight size={16} />
         </button>
         <button
           onClick={() => router.replace('/dashboard')}
           className="w-full py-3 mt-2 rounded-2xl text-xs font-bold text-muted hover:bg-surface-2 transition-all"
         >
-          ダッシュボードを見る
+          ホームを見る
         </button>
       </div>
     );
@@ -382,8 +356,6 @@ export default function OnboardingPage() {
   const stepMeta: Record<StepId, { title: string; skipNote: string }> = {
     goal:        { title: 'いちばん近い目標は？',       skipNote: 'スキップ＝「維持」で始めます' },
     body:        { title: 'あなたの体のこと',           skipNote: `スキップ＝仮の標準値（${CURRENT_YEAR - DEFAULT_BIRTH_YEAR}歳・${DEFAULT_HEIGHT_CM}cm・${DEFAULT_WEIGHT_KG}kg）で計算` },
-    experience:  { title: '運動の経験は？',             skipNote: 'スキップ＝「はじめて」向けで始めます' },
-    environment: { title: '今日はどこで動けそう？',     skipNote: 'スキップ＝「自宅で15分」で提案します' },
   };
 
   return (
@@ -410,7 +382,7 @@ export default function OnboardingPage() {
       </div>
 
       <h1 className="text-xl font-black text-fg mb-1">{stepMeta[step].title}</h1>
-      <p className="text-[11px] text-faint mb-5">全部で1分・あとから設定でいつでも変更できます</p>
+      <p className="text-[11px] text-faint mb-5">全部で30秒・あとから設定でいつでも変更できます</p>
 
       <div className={`${CARD} p-5`}>
         {step === 'goal' && (
@@ -434,19 +406,6 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {step === 'experience' && (
-          <ChipGroup label="運動経験" options={EXPERIENCES} value={experience} onChange={setExperience} />
-        )}
-
-        {step === 'environment' && (
-          <div className="space-y-4">
-            <ChipGroup label="運動する場所" options={ENVIRONMENTS} value={environment} onChange={setEnvironment} />
-            <div>
-              <p className="text-xs font-bold text-faint mb-2">使える時間</p>
-              <ChipGroup label="使える時間" options={MINUTES} value={minutes} onChange={setMinutes} />
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="mt-auto pt-6">

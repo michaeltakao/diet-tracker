@@ -2,16 +2,14 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Sparkles, BarChart3, BookmarkPlus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, BookmarkPlus } from 'lucide-react';
 import { getAppData, getRealGoals, removeFoodEntry, updateFoodEntry } from '@/lib/data';
 import { saveMealTemplate } from '@/lib/data/meal-templates';
 import { FoodEntry, DailyGoals, MealTemplate } from '@/lib/types';
 import MealCard from '@/components/MealCard';
 import CalorieBar from '@/components/CalorieBar';
-import { MonthCalendar } from '@/components/MonthCalendar';
-import { shiftDate, weekStartOf } from '@/lib/streak';
-import type { CategoryKey } from '@/lib/dashboard-data';
-import WeeklyReportCard from '@/components/WeeklyReportCard';
+import { MonthCalendar, type DayCategory } from '@/components/MonthCalendar';
+import { shiftDate, weekStartOf } from '@/lib/format-date';
 import SusSurveyCard from '@/components/SusSurveyCard';
 import BottomNav from '@/components/BottomNav';
 import { TrendsPanel } from '@/components/TrendsPanel';
@@ -29,7 +27,6 @@ function getWeekDates(anchor: string): string[] {
 }
 
 import { fmtCalendarCell, fmtMonthDayDowLongJa, fmtLongEn, todayJst } from '@/lib/format-date';
-import { postJson, HttpError } from '@/lib/httpClient';
 import { CARD_CLASS as cardCls } from '@/components/ui/Card';
 
 function formatShort(dateStr: string, locale: string): { day: string; num: string } {
@@ -46,109 +43,10 @@ function formatFull(dateStr: string, locale: string): string {
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
-// ── Habit analysis helpers ────────────────────────────────────
-interface DaySummary {
-  date: string;
-  mealCount: number;
-  totalCalories: number;
-  earliestMealHour: number | null;
-  latestMealHour: number | null;
-  lateNightMeals: number;
-  workoutCount: number;
-  workoutHours: number[];
-  missedPostWorkoutWindow: boolean;
-}
-
-function buildHabitMatrix(allFood: FoodEntry[], allWorkouts: { date: string; addedAt: string; name: string }[]): {
-  matrix: DaySummary[];
-  daysWithData: number;
-  avgDailyCalories: number;
-  lateNightEatingDays: number;
-  noBreakfastDays: number;
-  avgBreakfastHour: number | null;
-  workoutDays: number;
-  missedPostWorkoutDays: number;
-} {
-  const today = todayJst();
-  const matrix: DaySummary[] = [];
-
-  for (let i = 6; i >= 0; i--) {
-    const date = shiftDate(today, -i);
-
-    const meals = allFood.filter((e) => e.date === date);
-    const workouts = allWorkouts.filter((w) => w.date === date);
-
-    const mealHours = meals.map((m) => new Date(m.addedAt).getHours());
-    const workoutHours = workouts.map((w) => new Date(w.addedAt).getHours());
-    const latestMealHour = mealHours.length > 0 ? Math.max(...mealHours) : null;
-    const lateNightMeals = mealHours.filter((h) => h >= 21).length;
-
-    const lastWorkoutHour = workoutHours.length > 0 ? Math.max(...workoutHours) : null;
-    const hadPostWorkoutMeal =
-      lastWorkoutHour != null &&
-      mealHours.some((h) => h > lastWorkoutHour && h <= lastWorkoutHour + 2);
-    const missedPostWorkoutWindow = lastWorkoutHour != null && !hadPostWorkoutMeal;
-
-    matrix.push({
-      date,
-      mealCount: meals.length,
-      totalCalories: meals.reduce((s, m) => s + m.calories, 0),
-      earliestMealHour: mealHours.length > 0 ? Math.min(...mealHours) : null,
-      latestMealHour,
-      lateNightMeals,
-      workoutCount: workouts.length,
-      workoutHours,
-      missedPostWorkoutWindow,
-    });
-  }
-
-  const daysWithData = matrix.filter((d) => d.mealCount > 0).length;
-  const caloricDays  = matrix.filter((d) => d.totalCalories > 0);
-  const avgDailyCalories = caloricDays.length > 0
-    ? caloricDays.reduce((s, d) => s + d.totalCalories, 0) / caloricDays.length
-    : 0;
-
-  const lateNightEatingDays = matrix.filter((d) => d.lateNightMeals > 0).length;
-  const noBreakfastDays     = matrix.filter((d) => d.mealCount > 0 && (d.earliestMealHour == null || d.earliestMealHour >= 10)).length;
-  const workoutDays         = matrix.filter((d) => d.workoutCount > 0).length;
-  const missedPostWorkoutDays = matrix.filter((d) => d.missedPostWorkoutWindow).length;
-
-  const breakfastHours = matrix.flatMap((d) =>
-    d.earliestMealHour != null && d.earliestMealHour < 10 ? [d.earliestMealHour] : []
-  );
-  const avgBreakfastHour = breakfastHours.length > 0
-    ? Math.round(breakfastHours.reduce((s, h) => s + h, 0) / breakfastHours.length)
-    : null;
-
-  return { matrix, daysWithData, avgDailyCalories, lateNightEatingDays, noBreakfastDays, avgBreakfastHour, workoutDays, missedPostWorkoutDays };
-}
-
-// ── Skeleton ──────────────────────────────────────────────────
-function HabitSkeleton() {
-  return (
-    <div className="space-y-3 animate-pulse">
-      {['full', '4/5', '3/4'].map((w, i) => (
-        <div key={i} className="rounded-2xl p-4 bg-surface-2">
-          <div className="h-3 skeleton rounded w-1/4 mb-2.5" />
-          {[w, '2/3'].map((ww, j) => (
-            <div key={j} className={`h-3.5 skeleton rounded w-${ww} mb-1.5`} />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-interface HabitReport {
-  strengths: string[];
-  frictions: string[];
-  nextWeekTarget: string;
-}
-
 type LogView = 'weekly' | 'month' | 'trends';
 
-const EMPTY_DAY_SETS: Record<CategoryKey, Set<string>> = {
-  meal: new Set(), exercise: new Set(), vital: new Set(), symptom: new Set(),
+const EMPTY_DAY_SETS: Record<DayCategory, Set<string>> = {
+  meal: new Set(), workout: new Set(), weight: new Set(),
 };
 
 export default function LogPage() {
@@ -160,15 +58,8 @@ export default function LogPage() {
   const [allEntries, setAllEntries]     = useState<FoodEntry[]>([]);
   // null = no real goals set → goal-colored UI hidden, AI features gated
   const [goals, setGoals]               = useState<DailyGoals | null>(null);
-  // Per-category logged-day sets for the month calendar dots (phase C) —
-  // same derivation as lib/dashboard-data.ts computeCategoryStats.
-  const [daySets, setDaySets]           = useState<Record<CategoryKey, Set<string>>>(EMPTY_DAY_SETS);
-
-  // Habit report state
-  const [habitReport, setHabitReport]     = useState<HabitReport | null>(null);
-  const [habitLoading, setHabitLoading]   = useState(false);
-  const [habitError, setHabitError]       = useState('');
-  const [habitInsuff, setHabitInsuff]     = useState(false);
+  // Per-category logged-day sets for the month calendar dots.
+  const [daySets, setDaySets]           = useState<Record<DayCategory, Set<string>>>(EMPTY_DAY_SETS);
 
   // "Save this meal" as a template
   const [templateSource, setTemplateSource] = useState<FoodEntry['mealType'] | null>(null);
@@ -179,10 +70,9 @@ export default function LogPage() {
     setAllEntries(data.foodEntries);
     setGoals(getRealGoals());
     setDaySets({
-      meal:     new Set(data.foodEntries.map((e) => e.date)),
-      exercise: new Set(data.workoutEntries.map((e) => e.date)),
-      vital:    new Set(data.vitalEntries.map((e) => e.date)),
-      symptom:  new Set(data.symptomEntries.map((e) => e.date)),
+      meal:    new Set(data.foodEntries.map((e) => e.date)),
+      workout: new Set(data.workoutEntries.map((e) => e.date)),
+      weight:  new Set(data.weightEntries.map((e) => e.date)),
     });
   }, []);
 
@@ -263,47 +153,6 @@ export default function LogPage() {
     lunch:     `☀️ ${t.lunch}`,
     dinner:    `🌙 ${t.dinner}`,
     snack:     `🍎 ${t.snack}`,
-  };
-
-  const handleGenerateReport = async () => {
-    if (!goals) return; // gated in the UI; never send fabricated numbers to the LLM
-    setHabitLoading(true);
-    setHabitError('');
-    setHabitInsuff(false);
-    try {
-      const data = getAppData();
-      const { matrix, daysWithData, avgDailyCalories, lateNightEatingDays, noBreakfastDays, avgBreakfastHour, workoutDays, missedPostWorkoutDays } =
-        buildHabitMatrix(data.foodEntries, data.workoutEntries);
-
-      if (daysWithData < 3) {
-        setHabitInsuff(true);
-        setHabitLoading(false);
-        return;
-      }
-
-      const report = await postJson<HabitReport>('/api/habit-report', {
-        daysWithData,
-        totalDays: 7,
-        avgDailyCalories,
-        calorieGoal: goals.calories,
-        lateNightEatingDays,
-        noBreakfastDays,
-        avgBreakfastHour,
-        workoutDays,
-        missedPostWorkoutDays,
-        streak: 0, // could import getStreak() here if needed
-        dailySummary: matrix,
-      });
-      setHabitReport(report);
-    } catch (err) {
-      if (err instanceof HttpError && err.status === 422) {
-        setHabitInsuff(true);
-        return;
-      }
-      setHabitError(err instanceof Error ? err.message : 'エラーが発生しました');
-    } finally {
-      setHabitLoading(false);
-    }
   };
 
 
@@ -465,142 +314,9 @@ export default function LogPage() {
         </div>
       )}
 
-      {/* ── Weekly Report ────────────────────────── */}
-      <WeeklyReportCard />
-
       {/* ── SUS usability survey (Day14+, authenticated only) ───── */}
       <SusSurveyCard />
 
-      {/* ── AI Habit Analytics Widget ─────────────── */}
-      <section className={`${cardCls} p-4`}>
-        {/* Section header */}
-        <div className="flex items-center gap-2 mb-1">
-          <div className="p-1.5 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl">
-            <BarChart3 className="w-4 h-4 text-white" />
-          </div>
-          <h2 className="font-black text-fg">{t.habitReportTitle}</h2>
-        </div>
-        <p className="text-xs text-faint mb-4 pl-8">{t.habitReportSubtitle}</p>
-
-        {/* Insufficient data */}
-        {habitInsuff && (
-          <div className="bg-warning-soft border border-warning/30 rounded-2xl p-4 mb-3 text-center animate-fade-in">
-            <p className="text-2xl mb-2">📊</p>
-            <p className="text-sm font-semibold text-warning">{t.notEnoughData}</p>
-          </div>
-        )}
-
-        {/* No real goals → set-goals CTA instead of the generate button */}
-        {!goals && !habitReport && !habitLoading && (
-          <div className="bg-surface-2 rounded-2xl p-5 text-center">
-            <p className="text-2xl mb-2" aria-hidden="true">🎯</p>
-            <p className="text-xs text-faint mb-3">{t.aiNeedsGoals}</p>
-            <Link
-              href="/onboarding"
-              className="
-                inline-flex items-center justify-center
-                px-4 py-2 rounded-xl
-                bg-gradient-to-br from-brand-500 to-brand-600 text-white
-                text-xs font-bold shadow-card
-                hover:scale-[1.03] active:scale-95
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-                transition-all duration-200
-              "
-            >
-              {t.noGoalsCta}
-            </Link>
-          </div>
-        )}
-
-        {/* Generate button */}
-        {goals && !habitReport && !habitLoading && (
-          <button
-            onClick={handleGenerateReport}
-            className="
-              w-full py-3.5 rounded-2xl font-black text-sm text-white
-              bg-gradient-to-r from-purple-500 to-indigo-500
-              hover:from-purple-600 hover:to-indigo-600
-              shadow-[0_4px_14px_rgba(168,85,247,0.4)]
-              hover:scale-[1.01] active:scale-[0.98]
-              transition-all duration-200
-              flex items-center justify-center gap-2
-            "
-          >
-            <Sparkles className="w-4 h-4" />
-            {t.weeklyHabitReport}
-          </button>
-        )}
-
-        {/* Loading skeleton */}
-        {habitLoading && (
-          <div>
-            <p className="text-xs text-center text-purple-600 dark:text-purple-400 font-medium mb-3 animate-pulse">
-              {t.generatingReport}
-            </p>
-            <HabitSkeleton />
-          </div>
-        )}
-
-        {/* Error */}
-        {habitError && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 text-xs p-3 rounded-xl">
-            ⚠️ {habitError}
-            <button onClick={handleGenerateReport} className="ml-2 underline font-semibold">再試行</button>
-          </div>
-        )}
-
-        {/* Report output */}
-        {habitReport && (
-          <div className="space-y-3 animate-fade-in">
-            {/* Strengths */}
-            <div className="bg-success-soft rounded-2xl p-4 border border-success/20">
-              <p className="text-xs font-black text-success uppercase tracking-widest mb-3">
-                {t.habitStrengths}
-              </p>
-              <ul className="space-y-2">
-                {habitReport.strengths.map((s, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-muted">
-                    <span className="text-success font-black mt-0.5 flex-shrink-0">✓</span>
-                    <span className="leading-relaxed">{s}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Frictions */}
-            <div className="bg-warning-soft rounded-2xl p-4 border border-warning/20">
-              <p className="text-xs font-black text-warning uppercase tracking-widest mb-3">
-                {t.habitFrictions}
-              </p>
-              <ul className="space-y-2">
-                {habitReport.frictions.map((f, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-muted">
-                    <span className="text-warning font-black mt-0.5 flex-shrink-0">!</span>
-                    <span className="leading-relaxed">{f}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Next week target */}
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-2xl p-4 border border-indigo-100 dark:border-indigo-800">
-              <p className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-widest mb-2">
-                {t.habitNextWeek}
-              </p>
-              <p className="text-sm font-semibold text-fg leading-relaxed">
-                {habitReport.nextWeekTarget}
-              </p>
-            </div>
-
-            <button
-              onClick={() => { setHabitReport(null); setHabitError(''); setHabitInsuff(false); }}
-              className="w-full py-2 text-xs text-faint hover:text-fg underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-            >
-              {t.regenerate}
-            </button>
-          </div>
-        )}
-      </section>
       </>
       )}
 

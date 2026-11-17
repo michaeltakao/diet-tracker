@@ -29,8 +29,6 @@ import {
   addWater,
   getStreak,
   getStreakState,
-  checkAndAwardBadges,
-  getBadges,
 } from '../storage';
 import type { FoodEntry, StreakState, WeightEntry, WorkoutEntry } from '../types';
 
@@ -74,18 +72,13 @@ describe('weekStartOf', () => {
 // ── Any-log union ─────────────────────────────────────────────
 
 describe('activityDaysFrom', () => {
-  it('unions food, workout, weight, vitals, symptoms, and water>0 days; excludes water=0', () => {
+  it('unions food, workout and weight days only (ADR-011 outcome logs)', () => {
     const days = activityDaysFrom({
       foodEntries:    [{ date: '2026-07-10' } as never],
       workoutEntries: [{ date: '2026-07-11' } as never],
       weightEntries:  [{ date: '2026-07-12' } as never],
-      vitalEntries:   [{ date: '2026-07-09' } as never],
-      symptomEntries: [{ date: '2026-07-08' } as never],
-      waterByDate:    { '2026-07-13': 500, '2026-07-14': 0 },
     });
-    expect(days).toEqual(
-      new Set(['2026-07-08', '2026-07-09', '2026-07-10', '2026-07-11', '2026-07-12', '2026-07-13']),
-    );
+    expect(days).toEqual(new Set(['2026-07-10', '2026-07-11', '2026-07-12']));
   });
 });
 
@@ -223,13 +216,13 @@ describe('storage integration (any-log streak + first-log badges)', () => {
     vi.unstubAllGlobals();
   });
 
-  it('counts a mixed food/workout/weight/water run as one streak', () => {
+  it('counts a mixed food/workout/weight run as one streak; water does not extend it', () => {
     const today = jstToday();
     addFoodEntry(food(today));
     addWorkoutEntry(workout(shiftDate(today, -1)));
     addWeightEntry(weight(shiftDate(today, -2)));
-    addWater(shiftDate(today, -3), 300);
-    expect(getStreak()).toBe(4);
+    addWater(shiftDate(today, -3), 300); // not an outcome log (ADR-011)
+    expect(getStreak()).toBe(3);
   });
 
   it('persists longest and repair consumption across reads', () => {
@@ -247,23 +240,4 @@ describe('storage integration (any-log streak + first-log badges)', () => {
     expect(s2.longest).toBeGreaterThanOrEqual(2);
   });
 
-  it('awards first_food and first_workout exactly once', () => {
-    const today = jstToday();
-    addFoodEntry(food(today));
-    let earned = checkAndAwardBadges(today).map((b) => b.type);
-    expect(earned).toContain('first_food');
-    expect(earned).not.toContain('first_workout');
-
-    addWorkoutEntry(workout(today));
-    earned = checkAndAwardBadges(today).map((b) => b.type);
-    expect(earned).toContain('first_workout');
-    expect(earned).not.toContain('first_food'); // idempotent
-
-    // Third pass awards neither again
-    earned = checkAndAwardBadges(today).map((b) => b.type);
-    expect(earned).not.toContain('first_food');
-    expect(earned).not.toContain('first_workout');
-    expect(getBadges().filter((b) => b.type === 'first_food')).toHaveLength(1);
-    expect(getBadges().filter((b) => b.type === 'first_workout')).toHaveLength(1);
-  });
 });

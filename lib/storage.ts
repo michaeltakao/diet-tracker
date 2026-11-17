@@ -1,13 +1,8 @@
-import { AppData, Badge, BadgeType, DailyGoals, ExerciseRankState, FavoriteFood, FoodEntry, MealTemplate, PersonalRecord, RecommendationFeedback, SymptomEntry, VitalEntry, WeightEntry, WorkoutEntry } from './types';
-import { activityDaysFrom, computeStreak, jstToday, shiftDate } from './streak';
-import type { RankId } from './rank';
+import { AppData, DailyGoals, FavoriteFood, FoodEntry, MealTemplate, RecommendationFeedback, WeightEntry, WorkoutEntry } from './types';
+import { activityDaysFrom, computeStreak, jstToday } from './streak';
 
 const STORAGE_KEY = 'diet-tracker-v1';
 
-const RANK_IDS: readonly RankId[] = ['E', 'D', 'C', 'B', 'A', 'S'];
-function isRankId(v: unknown): v is RankId {
-  return typeof v === 'string' && (RANK_IDS as readonly string[]).includes(v);
-}
 
 export const DEFAULT_GOALS: DailyGoals = {
   calories: 2000,
@@ -39,18 +34,11 @@ const DEFAULT_DATA: AppData = {
   weightEntries: [],
   goals: DEFAULT_GOALS,
   waterByDate: {},
-  badges: [],
   personalRecords: {},
   recommendationFeedback: [],
   favoriteFoods: [],
   mealTemplates: [],
   streakState: { longest: 0, repairedDates: [] },
-  vitalEntries: [],
-  symptomEntries: [],
-  xp: 0,
-  highestRank: 'E',
-  earnedTitles: [],
-  exerciseRanks: {},
 };
 
 /**
@@ -74,7 +62,6 @@ export function getAppData(): AppData {
       weightEntries: parsed.weightEntries ?? [],
       goals: { ...DEFAULT_GOALS, ...(parsed.goals ?? {}) },
       waterByDate: parsed.waterByDate ?? {},
-      badges: parsed.badges ?? [],
       personalRecords: parsed.personalRecords ?? {},
       recommendationFeedback: parsed.recommendationFeedback ?? [],
       favoriteFoods: parsed.favoriteFoods ?? [],
@@ -83,12 +70,6 @@ export function getAppData(): AppData {
         longest: parsed.streakState?.longest ?? 0,
         repairedDates: parsed.streakState?.repairedDates ?? [],
       },
-      vitalEntries: parsed.vitalEntries ?? [],
-      symptomEntries: parsed.symptomEntries ?? [],
-      xp: typeof parsed.xp === 'number' && parsed.xp >= 0 ? parsed.xp : 0,
-      highestRank: isRankId(parsed.highestRank) ? parsed.highestRank : 'E',
-      earnedTitles: Array.isArray(parsed.earnedTitles) ? parsed.earnedTitles : [],
-      exerciseRanks: parsed.exerciseRanks ?? {},
     };
   } catch {
     return freshDefaultData();
@@ -133,7 +114,27 @@ export function safeSetItem(key: string, value: string): boolean {
 /** Persist the app blob. Returns false (and fires the notice) on failure. */
 export function saveAppData(data: AppData): boolean {
   if (typeof window === 'undefined') return false;
-  return safeSetItem(STORAGE_KEY, JSON.stringify(data));
+  return safeSetItem(STORAGE_KEY, JSON.stringify({ ...readLegacyKeys(), ...data }));
+}
+
+/**
+ * Keys in the stored blob that the current AppData no longer reads.
+ * ADR-011 deleted features (vitals, symptoms, badges, xp, ranks, titles), but
+ * their local records are the user's data: a save must not drop them. They
+ * are carried through unchanged and included in the JSON export
+ * (lib/export.ts).
+ */
+export function readLegacyKeys(): Record<string, unknown> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const known = new Set<string>(Object.keys(DEFAULT_DATA));
+    return Object.fromEntries(Object.entries(parsed).filter(([k]) => !known.has(k)));
+  } catch {
+    return {};
+  }
 }
 
 // ── Recommendation feedback (Phase B: preference signals) ──
@@ -291,44 +292,6 @@ export function getLatestWeight(): WeightEntry | undefined {
   return data.weightEntries.at(-1);
 }
 
-// ── Vitals (per-measurement rows — record only, never interpreted) ──
-export function addVitalEntry(entry: VitalEntry): void {
-  const data = getAppData();
-  data.vitalEntries.push(entry);
-  saveAppData(data);
-}
-
-export function removeVitalEntry(id: string): void {
-  const data = getAppData();
-  data.vitalEntries = data.vitalEntries.filter((e) => e.id !== id);
-  saveAppData(data);
-}
-
-export function getAllVitalEntries(): VitalEntry[] {
-  return getAppData().vitalEntries;
-}
-
-export function getVitalEntriesForDate(date: string): VitalEntry[] {
-  return getAppData().vitalEntries.filter((e) => e.date === date);
-}
-
-// ── Symptoms (per-event rows — record + display only, never diagnostic) ──
-export function addSymptomEntry(entry: SymptomEntry): void {
-  const data = getAppData();
-  data.symptomEntries.push(entry);
-  saveAppData(data);
-}
-
-export function removeSymptomEntry(id: string): void {
-  const data = getAppData();
-  data.symptomEntries = data.symptomEntries.filter((e) => e.id !== id);
-  saveAppData(data);
-}
-
-export function getAllSymptomEntries(): SymptomEntry[] {
-  return getAppData().symptomEntries;
-}
-
 // ── Water ────────────────────────────────────────────────
 export function getWaterForDate(date: string): number {
   const data = getAppData();
@@ -352,152 +315,6 @@ export function updateGoals(goals: DailyGoals): void {
   const data = getAppData();
   data.goals = goals;
   saveAppData(data);
-}
-
-// ── Badges ───────────────────────────────────────────────
-export function getBadges(): Badge[] {
-  return getAppData().badges ?? [];
-}
-
-export function hasBadge(type: BadgeType, date?: string): boolean {
-  const badges = getBadges();
-  if (date) {
-    return badges.some((b) => b.type === type && b.earnedAt.startsWith(date));
-  }
-  return badges.some((b) => b.type === type);
-}
-
-export function addBadge(badge: Badge): void {
-  const data = getAppData();
-  if (!data.badges) data.badges = [];
-  data.badges.push(badge);
-  saveAppData(data);
-}
-
-// ── Personal Records ─────────────────────────────────────
-export function getPersonalRecord(exerciseName: string): PersonalRecord | undefined {
-  const data = getAppData();
-  return (data.personalRecords ?? {})[exerciseName];
-}
-
-/**
- * Returns true if this is a new PR for the exercise.
- * Only tracks exercises with weight > 0. Weight remains the sole PR
- * criterion (and celebration trigger); est1RM is recorded alongside when
- * the session provided one (per-set logging, phase B).
- */
-export function checkAndUpdatePR(
-  exerciseName: string,
-  weight: number,
-  date: string,
-  est1RM?: number,
-): boolean {
-  if (weight <= 0) return false;
-  const data = getAppData();
-  if (!data.personalRecords) data.personalRecords = {};
-  const existing = data.personalRecords[exerciseName];
-  if (!existing || weight > existing.maxWeight) {
-    data.personalRecords[exerciseName] = {
-      exerciseName,
-      maxWeight: weight,
-      achievedAt: new Date().toISOString(),
-      date,
-      ...(est1RM != null && est1RM > 0 ? { est1RM } : {}),
-    };
-    saveAppData(data);
-    return true;
-  }
-  return false;
-}
-
-// ── Per-exercise strength rank (Liftoff-inspired, lib/exercise-rank.ts) ──
-export function getExerciseRankState(exerciseId: string): ExerciseRankState | undefined {
-  const data = getAppData();
-  return (data.exerciseRanks ?? {})[exerciseId];
-}
-
-/** Persists the given rank for `exerciseId`, stamping achievedAt now. Unconditional — callers decide whether it's actually a change worth writing. */
-export function setExerciseRankState(exerciseId: string, rank: ExerciseRankState['rank']): void {
-  const data = getAppData();
-  if (!data.exerciseRanks) data.exerciseRanks = {};
-  data.exerciseRanks[exerciseId] = { rank, achievedAt: new Date().toISOString() };
-  saveAppData(data);
-}
-
-/**
- * Check all badge conditions and award any newly earned badges.
- * Returns array of newly awarded badges.
- *
- * `opts.goalsAreReal === false` skips the goal-dependent badges
- * (water_goal, calorie_goal) so fabricated fresh-install defaults never
- * award a "goal achieved" badge.
- */
-export function checkAndAwardBadges(today: string, opts?: { goalsAreReal?: boolean }): Badge[] {
-  const goalsAreReal = opts?.goalsAreReal ?? true;
-  const newBadges: Badge[] = [];
-  const data = getAppData();
-  const streak = getStreak();
-
-  const award = (badge: Omit<Badge, 'id' | 'earnedAt'>, dateCheck?: string) => {
-    if (hasBadge(badge.type, dateCheck)) return;
-    const full: Badge = { ...badge, id: crypto.randomUUID(), earnedAt: new Date().toISOString() };
-    addBadge(full);
-    newBadges.push(full);
-  };
-
-  // First-log badges (once ever)
-  if (data.foodEntries.length > 0) {
-    award({ type: 'first_food', name: '🥇 はじめての食事記録！', description: '最初の食事を記録しました！', icon: '🥇' });
-  }
-  if (data.workoutEntries.length > 0) {
-    award({ type: 'first_workout', name: '💪 はじめてのトレーニング！', description: '最初のワークアウトを記録しました！', icon: '💪' });
-  }
-
-  // Streak badges (once ever) — any-log streak: food OR workout OR weight OR water
-  if (streak >= 3) award({ type: 'streak3', name: '🔥 3日連続！', description: '3日間連続して記録しました！', icon: '🔥' });
-  if (streak >= 7) award({ type: 'streak7', name: '🏆 1週間継続！', description: '7日間連続して記録しました！', icon: '🏆' });
-  if (streak >= 30) award({ type: 'streak30', name: '💎 1ヶ月継続！', description: '30日間連続して記録しました！', icon: '💎' });
-
-  // Water goal (once per day) — only against real, user-set goals
-  if (goalsAreReal) {
-    const water = data.waterByDate[today] ?? 0;
-    const waterGoal = data.goals.water ?? 2000;
-    if (water >= waterGoal) {
-      award({ type: 'water_goal', name: '💧 水分目標達成！', description: '今日の水分目標をクリアしました！', icon: '💧' }, today);
-    }
-
-    // Calorie goal within 200kcal below (once per day)
-    const todayCals = data.foodEntries
-      .filter((e) => e.date === today)
-      .reduce((s, e) => s + e.calories, 0);
-    const calGoal = data.goals.calories;
-    if (todayCals > 0 && todayCals <= calGoal && todayCals >= calGoal - 200) {
-      award({ type: 'calorie_goal', name: '🎯 カロリー目標達成！', description: 'カロリー目標をぴったりクリアしました！', icon: '🎯' }, today);
-    }
-  }
-
-  // Workout master: 5+ unique workout days in last 7 days (once ever)
-  const weekAgo = shiftDate(today, -6); // inclusive 7-day window: today + preceding 6 days
-  const workoutDays = new Set(
-    data.workoutEntries
-      .filter((w) => w.date >= weekAgo)
-      .map((w) => w.date)
-  );
-  if (workoutDays.size >= 5) {
-    award({ type: 'workout_master', name: '🏋️ ワークアウトマスター！', description: '7日間で5日以上トレーニングしました！', icon: '🏋️' });
-  }
-
-  // Vitals week: 5+ unique vital-log days in last 7 days (once ever)
-  const vitalDays = new Set(
-    data.vitalEntries
-      .filter((v) => v.date >= weekAgo)
-      .map((v) => v.date)
-  );
-  if (vitalDays.size >= 5) {
-    award({ type: 'vitals_week', name: '🩺 バイタル記録週間！', description: '7日間で5日以上バイタルを記録しました！', icon: '🩺' });
-  }
-
-  return newBadges;
 }
 
 // ── Streak (any-log, JST boundary, weekly repair ticket) ─

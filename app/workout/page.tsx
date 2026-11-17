@@ -1,1089 +1,220 @@
 'use client';
 
-import { todayJst, nowJstTime, jstTimestamp } from '@/lib/format-date';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import Link from 'next/link';
-import {
-  getAppData, addWorkoutEntry, removeWorkoutEntry,
-  checkAndUpdatePR, addBadge, checkAndAwardBadges, getStreak, getBadges,
-  getHealthProfile, getRealGoals,
-  recomputeAndPersistExerciseRank,
-} from '@/lib/data';
-import { isRankableExercise, type ExerciseRankId } from '@/lib/exercise-rank';
-import ExerciseRankBadge from '@/components/ExerciseRankBadge';
-import ExerciseRankUpCelebration from '@/components/ExerciseRankUpCelebration';
-import { evaluateDailyQuests } from '@/lib/daily-quests';
-import { getTodayQuestState, recordQuestCompletion } from '@/lib/data/quests';
-import { getDailyChallengeProgress, DAILY_CHALLENGE_XP } from '@/lib/daily-challenge';
-import { isChallengeCompletedToday, recordChallengeCompletion } from '@/lib/data/daily-challenge';
-import { jstToday } from '@/lib/streak';
-import { WorkoutEntry, MusclePart, CoachMenu, FoodEntry, Badge, PersonalRecord, DailyGoals, SetDetail } from '@/lib/types';
-import {
-  Dumbbell, Clock, Flame, ShieldAlert, CheckCircle,
-  Trash2, ChevronRight, ChevronDown, Sparkles, X,
-} from 'lucide-react';
-import { getExercises, getBeginnerExercises, findExercise, EXERCISE_DB } from '@/lib/exercise-db';
-import ExerciseVideo from '@/components/ExerciseVideo';
-import { summarizeSets, nextSetSuggestion, comboBonusXp } from '@/lib/workout-sets';
-import { addXp } from '@/lib/xp';
-import ComboMeter from '@/components/ComboMeter';
-import BottomNav from '@/components/BottomNav';
-import { Toast } from '@/components/ui/Toast';
-import { InfoTooltip } from '@/components/ui/InfoTooltip';
-import BadgeCelebration from '@/components/BadgeCelebration';
-import BadgeShelf from '@/components/BadgeShelf';
-import MedWarning from '@/components/MedWarning';
-import RestTimer from '@/components/RestTimer';
-import SessionStart from '@/components/SessionStart';
-import { getWorkoutWarnings } from '@/lib/medication-rules';
-import { isSupabaseConfigured } from '@/lib/supabase';
-import { postJson } from '@/lib/httpClient';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { useWeightUnit, toDisplay, lbsToKg, formatWeight } from '@/lib/units';
-import { epley1RM } from '@/lib/onerm';
-import { getCheckIn, todayDate as checkinTodayDate } from '@/lib/data/checkin';
+/**
+ * Workout log — deliberately minimal (ADR-011).
+ *
+ * The study's outcome is workout DAYS per week, so the page only has to make
+ * "I trained today" cheap to record: exercise name (suggested from the
+ * exercise DB + history), body part, and optional weight × reps × sets.
+ * The program generator, AI coach, session-start check-in, rest timer, PR
+ * badges, combos and per-exercise ranks were deleted; git history has them.
+ *
+ * Safety layer kept: medication / condition workout warnings (MedWarning).
+ */
 
-// The curated starter menus now live in lib/exercise-db.ts (phase B); this
-// adapter keeps the CoachMenu shape so the rendering below stays unchanged.
-// nameJa remains the canonical logging name (history/PR back-compat).
-const RECOMMENDED_MENUS: CoachMenu[] = getExercises()
-  .filter((e) => e.recommended)
-  .map((e) => ({
-    id: e.id,
-    name: e.nameJa,
-    musclePart: e.musclePart,
-    defaultWeight: e.recommended!.defaultWeightKg,
-    defaultReps: e.recommended!.reps,
-    defaultSets: e.recommended!.sets,
-    coachTip: e.recommended!.coachTipJa,
-    coachTipEn: e.recommended!.coachTipEn,
-  }));
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Dumbbell, Trash2 } from 'lucide-react';
+import { getAppData, addWorkoutEntry, removeWorkoutEntry, getHealthProfile } from '@/lib/data';
+import { getWorkoutWarnings } from '@/lib/medication-rules';
+import { EXERCISE_DB } from '@/lib/exercise-db';
+import type { MusclePart, WorkoutEntry } from '@/lib/types';
+import MedWarning from '@/components/MedWarning';
+import BottomNav from '@/components/BottomNav';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { useWeightUnit, lbsToKg, formatWeight } from '@/lib/units';
+import { todayJst } from '@/lib/format-date';
 
 const PART_IDS: MusclePart[] = ['chest', 'back', 'legs', 'shoulders', 'arms', 'abs'];
 
-interface CoachAdvice {
-  todayAdvice: string;
-  habitInsight: string;
-  tomorrowTip: string;
-  motivationMessage: string;
-}
-
-function getTodayDate() { return todayJst(); }
-
-function getCurrentTime(): string {
-  return nowJstTime();
-}
-
-function buildTimestamp(date: string, time: string): string {
-  // JST day + JST HH:MM -> ISO instant (ADR-008 P0-1: no 24 h shift before 09:00)
-  return jstTimestamp(date, time);
-}
-
-function formatTime(iso: string) {
-  try { return new Date(iso).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }); }
-  catch { return '--:--'; }
-}
-
-/** Days since the given muscle group was last trained (null = no history). */
-function getDaysSinceGroup(musclePart: MusclePart, workouts: WorkoutEntry[]): number | null {
-  const relevant = workouts.filter(w => w.musclePart === musclePart);
-  if (relevant.length === 0) return null;
-  const latest = relevant.reduce((a, b) => a.date > b.date ? a : b);
-  return Math.floor((Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86_400_000);
-}
-
-/** Last completed session for a specific exercise (excludes today). */
-function getLastSession(name: string, workouts: WorkoutEntry[], today: string): {
-  weight: number; reps: number; sets: number; daysAgo: number;
-} | null {
-  const prev = workouts
-    .filter(w => w.name === name && w.date < today && (w.weight ?? 0) > 0)
-    .sort((a, b) => b.date.localeCompare(a.date));
-  if (prev.length === 0) return null;
-  const last = prev[0];
-  const daysAgo = Math.floor((Date.now() - new Date(last.date + 'T00:00:00').getTime()) / 86_400_000);
-  return { weight: last.weight ?? 0, reps: last.reps ?? 0, sets: last.sets ?? 0, daysAgo };
-}
-
-/**
- * Progressive overload suggestion: if last session hit ≥ 12 reps, add 2.5 kg.
- * Falls back to defaultWeight when no history.
- */
-function suggestWeight(last: { weight: number; reps: number } | null, defaultWeight: number): number {
-  if (!last || last.weight === 0) return defaultWeight;
-  return last.reps >= 12 ? last.weight + 2.5 : last.weight;
-}
-
-// ── Skeleton for AI coach loading ────────────────────
-function CoachSkeleton() {
-  return (
-    <div className="space-y-3 animate-pulse">
-      {[['1/4', 'full'], ['full', '3/4'], ['full', '2/3'], ['1/3', 'full']].map(([w1, w2], i) => (
-        <div key={i} className="rounded-2xl p-3 bg-surface-2">
-          <div className={`h-2.5 skeleton rounded w-${w1} mb-2`} />
-          <div className={`h-4 skeleton rounded w-${w2} mb-1`} />
-          <div className="h-4 skeleton rounded w-2/3" />
-        </div>
-      ))}
-    </div>
-  );
-}
+const FIELD = 'w-full px-3 py-2.5 rounded-xl border border-line-strong bg-surface-2 text-fg text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]';
 
 export default function WorkoutPage() {
-  const today = getTodayDate();
   const { t, lang } = useLanguage();
   const { unit } = useWeightUnit();
-  /** Parse the weight input (shown in the display unit) back into kg for storage. */
-  const toKg = (displayVal: number) => (unit === 'lbs' ? Math.round(lbsToKg(displayVal) * 10) / 10 : displayVal);
+  const today = todayJst();
 
-  const PARTS = PART_IDS.map(id => ({
-    id,
-    label: t[`mp${id.charAt(0).toUpperCase()}${id.slice(1)}` as 'mpChest'],
-  }));
+  const [todayEntries, setTodayEntries] = useState<WorkoutEntry[]>([]);
+  const [history, setHistory]           = useState<WorkoutEntry[]>([]);
+  const [warnings, setWarnings]         = useState<string[]>([]);
+  const [name, setName]                 = useState('');
+  // No default part: an unknown or cardio entry must not be stored as 'chest'.
+  const [part, setPart]                 = useState<MusclePart | null>(null);
+  const [weight, setWeight]             = useState('');
+  const [reps, setReps]                 = useState('');
+  const [sets, setSets]                 = useState('');
 
-  const [workouts, setWorkouts]           = useState<WorkoutEntry[]>([]);
-  const [foodEntries, setFoodEntries]     = useState<FoodEntry[]>([]);
-  const [selectedPart, setSelectedPart]  = useState<MusclePart>('chest');
-  const [name, setName]                  = useState('');
-  const [musclePart, setMusclePart]      = useState<MusclePart>('chest');
-  const [weight, setWeight]              = useState('40');
-  const [reps, setReps]                  = useState('10');
-  const [sets, setSets]                  = useState('3');
-  // Per-set mode (phase B): rows are strings in the DISPLAY unit; storage kg.
-  const [detailMode, setDetailMode]      = useState(false);
-  const [setRows, setSetRows]            = useState<Array<{ weight: string; reps: string }>>([]);
-  const [logTime, setLogTime]            = useState(getCurrentTime());
-  const [coachAdvice, setCoachAdvice]    = useState(t.defaultCoachTip);
-  const [allBadges, setAllBadges]        = useState<Badge[]>([]);
-  const [pickerOpen, setPickerOpen]      = useState(false);
-  const [beginnerFilter, setBeginnerFilter] = useState(false);
-  // Which ExerciseDef was clicked (recommended card or full picker), for
-  // the demo-video display below the exercise name. Presentation-only —
-  // never touches WorkoutEntry/PersonalRecord.
-  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
-
-  // AI coach
-  const [aiAdvice, setAiAdvice]    = useState<CoachAdvice | null>(null);
-  const [aiLoading, setAiLoading]  = useState(false);
-  const [aiError, setAiError]      = useState('');
-
-  // PR & Badge celebration
-  const [celebrationBadges, setCelebrationBadges] = useState<Badge[]>([]);
-  // Per-exercise strength rank-up celebration (Liftoff-inspired) — queued
-  // separately from celebrationBadges so it can stack behind/after the PR
-  // badge modal rather than fight it for the same state slot.
-  const [exerciseRankUp, setExerciseRankUp] = useState<{ exerciseName: string; newRank: Exclude<ExerciseRankId, 'unranked'> } | null>(null);
-  const [prToast, setPrToast]                     = useState<string | null>(null);
-  const [questToast, setQuestToast]                = useState<string | null>(null);
-  const [comboToast, setComboToast]                = useState<string | null>(null);
-
-  // Combo bonus (phase C): timing/count live in refs for correctness — React
-  // state updates are async and two rapid add-set clicks would otherwise
-  // read stale values. Mirrored to state only so <ComboMeter> re-renders.
-  // In-memory only — resets on reload (spec-intended, no persistence).
-  const lastSetAtRef = useRef<number | null>(null);
-  const comboCountRef = useRef(0);
-  const [lastSetAt, setLastSetAt] = useState<number | null>(null);
-  const [comboCount, setComboCount] = useState(0);
-
-  // History for smart recommendations
-  const [allWorkouts,    setAllWorkouts]    = useState<WorkoutEntry[]>([]);
-  const [personalRecords, setPersonalRecords] = useState<Record<string, PersonalRecord>>({});
-  const [workoutWarnings, setWorkoutWarnings] = useState<string[]>([]);
-  // null = no real goals → AI coach is gated (P0 #4b: no fabricated goals to the LLM).
-  const [realGoals, setRealGoals] = useState<DailyGoals | null>(null);
-
-  // Entry form anchor for the empty-timeline CTA (#5).
-  const entryFormRef = useRef<HTMLElement | null>(null);
-  const nameInputRef = useRef<HTMLInputElement | null>(null);
-
-  // Session-start gate (P0 #9): logging UI stays hidden until SessionStart
-  // reports completion. `onComplete({rest: true})` fires when the user
-  // confirms Rest Day — SessionStart keeps rendering its own affirmation
-  // panel in that case, so the gated logging UI below must stay hidden too
-  // (sessionStarted stays false) until its OWN "log anyway" link fires
-  // `onComplete({rest: false})`, which is functionally identical to a normal
-  // check-in completion for gating purposes.
-  const [sessionStarted, setSessionStarted] = useState(false);
-
-  useEffect(() => {
-    const saved = getCheckIn(checkinTodayDate());
-     
-    if (saved) setSessionStarted(true);
-  }, []);
-
-  const handleSessionStartComplete = (result: { rest: boolean }) => {
-    if (!result.rest) setSessionStarted(true);
-  };
-
-  const loadData = useCallback(() => {
+  const load = useCallback(() => {
     const data = getAppData();
-    setWorkouts(data.workoutEntries.filter((w) => w.date === today));
-    setFoodEntries(data.foodEntries.filter((f) => f.date === today));
-    setAllBadges(getBadges());
-    setAllWorkouts(data.workoutEntries);
-    setPersonalRecords(data.personalRecords ?? {});
-    setRealGoals(getRealGoals());
+    setTodayEntries(data.workoutEntries.filter((w) => w.date === today));
+    setHistory(data.workoutEntries);
     const profile = getHealthProfile();
-    setWorkoutWarnings(getWorkoutWarnings(profile.healthConditions, profile.medications ?? []));
+    setWarnings(getWorkoutWarnings(profile.healthConditions, profile.medications ?? []));
   }, [today]);
 
-   
-  useEffect(() => { loadData(); }, [loadData]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
+  useEffect(() => { load(); }, [load]);
 
-  useEffect(() => {
-    if (!prToast) return;
-    const t = setTimeout(() => setPrToast(null), 3000);
-    return () => clearTimeout(t);
-  }, [prToast]);
+  /** Recently used names first, then the exercise DB (deduplicated). */
+  const suggestions = useMemo(() => {
+    const recent = [...history]
+      .sort((a, b) => b.addedAt.localeCompare(a.addedAt))
+      .map((w) => w.name);
+    // nameJa is the canonical logging name (lib/exercise-db.ts) in both languages.
+    const db = EXERCISE_DB.map((e) => e.nameJa);
+    return Array.from(new Set([...recent, ...db])).slice(0, 80);
+  }, [history]);
 
-  useEffect(() => {
-    if (!questToast) return;
-    const t = setTimeout(() => setQuestToast(null), 3000);
-    return () => clearTimeout(t);
-  }, [questToast]);
-
-  useEffect(() => {
-    if (!comboToast) return;
-    const t = setTimeout(() => setComboToast(null), 3000);
-    return () => clearTimeout(t);
-  }, [comboToast]);
-
-  /**
-   * Combo bonus (phase C): call on every combo-eligible action (add-set
-   * click gated on a valid previous row, and form submit), passing the
-   * current timestamp from the caller (an event handler) — Date.now() is
-   * never read here so this stays pure from the linter's point of view.
-   * The first action arms the clock with no bonus/reset messaging. A
-   * subsequent action within COMBO_SLOW_MS (120s) earns
-   * comboBonusXp(elapsed) XP and bumps the combo count; outside that window
-   * with an active combo, it's a reset (no XP). Returns the toast text (or
-   * null); the add-set trigger shows it standalone, handleSubmit folds it
-   * into the merged PR/quest/challenge/combo toast instead.
-   */
-  const registerComboAction = (now: number): string | null => {
-    const last = lastSetAtRef.current;
-    lastSetAtRef.current = now;
-    setLastSetAt(now);
-
-    if (last === null) return null; // first action just arms the clock
-
-    const bonus = comboBonusXp(now - last);
-    if (bonus > 0) {
-      const nextCount = Math.max(2, comboCountRef.current + 1);
-      comboCountRef.current = nextCount;
-      setComboCount(nextCount);
-      void addXp(null, 'combo_bonus', bonus);
-      return t.comboToast.replace('{n}', String(nextCount)).replace('{xp}', String(bonus));
-    }
-    if (comboCountRef.current > 0) {
-      comboCountRef.current = 0;
-      setComboCount(0);
-      return t.comboBroken;
-    }
-    return null;
+  /** Picking a known exercise fills its body part. */
+  const onNameChange = (value: string) => {
+    setName(value);
+    const known = EXERCISE_DB.find((e) => e.nameJa === value)
+      ?? history.find((w) => w.name === value);
+    if (known?.musclePart) setPart(known.musclePart);
   };
 
-  /** Last previous session's per-set breakdown for an exercise (ghost text). */
-  const getLastSetDetails = (exerciseName: string): SetDetail[] | null => {
-    const prev = allWorkouts
-      .filter((w) => w.name === exerciseName && w.date < today && (w.setDetails?.length ?? 0) > 0)
-      .sort((a, b) => b.date.localeCompare(a.date));
-    return prev[0]?.setDetails ?? null;
-  };
-
-  /** Seed the per-set rows from the current scalar fields. */
-  const seedRowsFromScalars = (w: string, r: string, s: string) => {
-    const n = Math.min(10, Math.max(1, parseInt(s) || 3));
-    setSetRows(Array.from({ length: n }, () => ({ weight: w, reps: r })));
-  };
-
-  const handleSelectMenu = (menu: CoachMenu) => {
-    const last      = getLastSession(menu.name, allWorkouts, today);
-    const suggested = suggestWeight(last, menu.defaultWeight);
-    setName(menu.name);
-    setSelectedExerciseId(menu.id);
-    setMusclePart(menu.musclePart);
-    // Form weight is shown in the user's display unit; storage stays kg.
-    const w = String(toDisplay(suggested, unit));
-    setWeight(w);
-    setReps(String(menu.defaultReps));
-    setSets(String(menu.defaultSets));
-    if (detailMode) seedRowsFromScalars(w, String(menu.defaultReps), String(menu.defaultSets));
-    setCoachAdvice(lang === 'en' && menu.coachTipEn ? menu.coachTipEn : menu.coachTip);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
-    if (!name.trim()) return;
-
-    // Combo bonus (phase C): read the timestamp up front, before any
-    // `await` — a submit is itself a combo-eligible action, and this stays
-    // the single Date.now() read for the whole handler. handleSubmit only
-    // ever runs from the form's onSubmit (a real event), never during
-    // render; the react-hooks/purity rule's whole-component analysis
-    // flags this call regardless (a known false positive with this
-    // experimental rule when local closures capture refs/setState
-    // elsewhere in the component — see registerComboAction above).
-    const submitTimestamp = Date.now(); // eslint-disable-line react-hooks/purity
-
-    // Per-set mode: rows (display unit) → kg SetDetails; scalars derived via
-    // summarizeSets so every existing reader keeps its semantics.
-    let wt: number, repCount: number, setCount: number;
-    let setDetails: SetDetail[] | undefined;
-    let est1RM: number;
-    if (detailMode) {
-      const details = setRows
-        .map((r) => ({ weight: toKg(parseFloat(r.weight) || 0), reps: parseInt(r.reps) || 0 }))
-        .filter((s) => s.reps > 0 && s.weight >= 0);
-      const summary = summarizeSets(details);
-      if (summary.sets === 0) return;
-      wt = summary.weight;
-      repCount = summary.reps;
-      setCount = summary.sets;
-      est1RM = summary.best1RM;
-      setDetails = details;
-    } else {
-      wt = toKg(parseFloat(weight) || 0);
-      repCount = parseInt(reps) || 0;
-      setCount = parseInt(sets) || 0;
-      est1RM = epley1RM(wt, repCount);
-    }
-
-    const isNewPR = await checkAndUpdatePR(name.trim(), wt, today, est1RM);
-
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const w = parseFloat(weight);
+    const kg = Number.isFinite(w) && w > 0
+      ? (unit === 'lbs' ? Math.round(lbsToKg(w) * 10) / 10 : w)
+      : undefined;
+    const r = parseInt(reps, 10);
+    const s = parseInt(sets, 10);
     await addWorkoutEntry({
       id: crypto.randomUUID(),
       date: today,
-      name: name.trim(),
-      category: 'strength',
-      musclePart,
-      weight: wt,
-      reps:   repCount,
-      sets:   setCount,
-      ...(setDetails ? { setDetails } : {}),
-      addedAt: buildTimestamp(today, logTime),
+      name: trimmed,
+      // A body part means a strength exercise; otherwise the type is unknown
+      // ('other'), not a made-up 'strength'/'chest' (schema: muscle_part NULL).
+      category: part ? 'strength' : 'other',
+      ...(part ? { musclePart: part } : {}),
+      ...(kg !== undefined ? { weight: kg } : {}),
+      ...(Number.isFinite(r) && r > 0 ? { reps: r } : {}),
+      ...(Number.isFinite(s) && s > 0 ? { sets: s } : {}),
+      addedAt: new Date().toISOString(),
     });
-
-    if (isNewPR && wt > 0) {
-      const prBadge: Badge = {
-        id: crypto.randomUUID(),
-        type: 'pr_achieved',
-        name: `💪 ${name.trim()} ${t.prNewRecord}`,
-        description: lang === 'en'
-          ? `New personal record on ${name.trim()}: ${formatWeight(wt, unit)}!`
-          : `${name.trim()} で ${formatWeight(wt, unit)} の自己ベストを更新しました！`,
-        icon: '💪',
-        earnedAt: new Date().toISOString(),
-      };
-      await addBadge(prBadge);
-      setPrToast(`🏆 PR更新！${name.trim()} ${formatWeight(wt, unit)}`);
-      setCelebrationBadges([prBadge]);
-    }
-
-    // Per-exercise strength rank (Liftoff-inspired, Phase 1). The form logs
-    // by nameJa (free-typed / menu-selected), not ExerciseDef.id — resolve
-    // it here rather than threading an id through the whole form. Only the
-    // 10 curated rankable lifts resolve to a non-null id AND have
-    // threshold data; everything else is a no-op via
-    // recomputeAndPersistExerciseRank's own isRankableExercise guard.
-    const loggedExercise = EXERCISE_DB.find((ex) => ex.nameJa === name.trim());
-    if (loggedExercise && isRankableExercise(loggedExercise.id) && est1RM > 0) {
-      const rankResult = await recomputeAndPersistExerciseRank(loggedExercise.id, est1RM);
-      if (rankResult && rankResult.newRank !== rankResult.oldRank && rankResult.newRank !== 'unranked') {
-        setExerciseRankUp({ exerciseName: name.trim(), newRank: rankResult.newRank });
-      }
-    }
-
-    const newBadges = await checkAndAwardBadges(today);
-    if (newBadges.length > 0 && !isNewPR) setCelebrationBadges(newBadges);
-
-    // Solo Leveling daily quests (Phase 3) — evaluate + award XP for the
-    // workout quest (and all_complete, if this was the last of the 4).
-    // Re-checks getTodayQuestState() before each award (not just once
-    // upfront) so a rapid double-submit can't double-award the same quest.
-    const goalsAreReal = getRealGoals() !== null;
-    const questCandidates = evaluateDailyQuests(getAppData(), today, getTodayQuestState(today), { goalsAreReal });
-    const newlyCompletedQuests: typeof questCandidates = [];
-    for (const quest of questCandidates) {
-      if (getTodayQuestState(today).has(quest.type)) continue;
-      await recordQuestCompletion(null, today, quest);
-      newlyCompletedQuests.push(quest);
-    }
-    // Shadow Training Grounds: this submit may have pushed today's challenge
-    // over its target. JST edge (accepted): the challenge date is jstToday()
-    // while entries carry this page's UTC date — 00:00–09:00 JST logs won't
-    // count toward the JST challenge (same class as the quest/dashboard UTC
-    // inconsistency; do not mix date bases).
-    const challengeDate = jstToday();
-    const challengeProgress = getDailyChallengeProgress(getAppData().workoutEntries, challengeDate);
-    let challengeText: string | null = null;
-    if (challengeProgress.completed && !isChallengeCompletedToday(challengeDate)) {
-      await recordChallengeCompletion(null, challengeDate, challengeProgress.challenge);
-      challengeText = t.dailyChallengeToast.replace('{n}', String(DAILY_CHALLENGE_XP));
-    }
-
-    // Combo bonus (phase C): fold its text into the merged toast below
-    // instead of a standalone one (timestamp captured up top).
-    const comboText = registerComboAction(submitTimestamp);
-
-    // PR / quest / challenge / combo toasts share the same fixed position —
-    // fold everything this submit earned into a single toast joined with
-    // '·' instead of mounting overlapping <Toast>s.
-    const questText = newlyCompletedQuests.length > 0
-      ? t.questXpEarned.replace(
-          '{n}',
-          String(newlyCompletedQuests.reduce((sum, q) => sum + q.xp, 0)),
-        )
-      : null;
-    const xpTexts = [questText, challengeText, comboText].filter((s): s is string => s !== null);
-    if (isNewPR && wt > 0) {
-      if (xpTexts.length > 0) {
-        setPrToast([`🏆 PR更新！${name.trim()} ${formatWeight(wt, unit)}`, ...xpTexts].join(' · '));
-      }
-    } else if (xpTexts.length > 0) {
-      setQuestToast(xpTexts.join(' · '));
-    }
-
-    loadData();
     setName('');
-    setLogTime(getCurrentTime());
+    setPart(null);
+    setWeight('');
+    setReps('');
+    setSets('');
+    load();
   };
 
-  const handleDelete = (id: string) => { removeWorkoutEntry(id); loadData(); };
+  const handleDelete = (id: string) => { void removeWorkoutEntry(id); load(); };
 
-  const handleGetAIAdvice = async () => {
-    if (!realGoals) return; // gated in the UI; never send fabricated goals to the LLM
-    setAiLoading(true);
-    setAiError('');
-    try {
-      const data = getAppData();
-      const todayFood = data.foodEntries.filter((e) => e.date === today);
-      const totals = todayFood.reduce(
-        (acc, e) => ({ calories: acc.calories + e.calories, protein: acc.protein + e.protein, fat: acc.fat + e.fat, carbs: acc.carbs + e.carbs }),
-        { calories: 0, protein: 0, fat: 0, carbs: 0 }
-      );
-      const recentFoodLog = [...data.foodEntries]
-        .sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime())
-        .slice(0, 14)
-        .map((f) => ({ date: f.date, time: formatTime(f.addedAt), name: f.name, calories: f.calories, mealType: f.mealType }));
-      const recentWorkoutLog = [...data.workoutEntries]
-        .sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime())
-        .slice(0, 10)
-        .map((w) => ({ date: w.date, name: w.name, weight: w.weight ?? 0 }));
-
-      const advice = await postJson<CoachAdvice>('/api/coach', {
-        today, ...totals,
-        calorieGoal: realGoals.calories, proteinGoal: realGoals.protein,
-        fatGoal: realGoals.fat, carbsGoal: realGoals.carbs,
-        waterConsumed: data.waterByDate[today] ?? 0, waterGoal: realGoals.water ?? 2000,
-        todayWorkouts: workouts.map((w) => ({ name: w.name, weight: w.weight ?? 0, reps: w.reps ?? 0, sets: w.sets ?? 0 })),
-        recentFoodLog, recentWorkoutLog, streak: getStreak(),
-        healthConditions: getHealthProfile().healthConditions,
-        medications: getHealthProfile().medications ?? [],
-      });
-      setAiAdvice(advice);
-    } catch (err) {
-      setAiError(err instanceof Error ? err.message : 'エラーが発生しました');
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const timeline = [
-    ...foodEntries.map((f) => ({ ...f, _type: 'food' as const })),
-    ...workouts.map((w)    => ({ ...w, _type: 'workout' as const })),
-  ].sort((a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime());
-
-  const cardCls = 'bg-card rounded-2xl p-4 shadow-card border border-line';
+  const partLabel = (id: MusclePart) =>
+    t[`mp${id.charAt(0).toUpperCase()}${id.slice(1)}` as 'mpChest'];
 
   return (
-    <main className="min-h-screen bg-[var(--background)] pb-28 lg:pb-8 max-w-md lg:max-w-2xl mx-auto lg:px-6">
-      {/* Badge Celebration */}
-      {celebrationBadges.length > 0 && (
-        <BadgeCelebration badges={celebrationBadges} onClose={() => setCelebrationBadges([])} />
-      )}
-
-      {/* Exercise Rank-Up Celebration (Liftoff-inspired) — queued behind the
-          badge celebration above when both fire from the same submit, so
-          they never visually overlap. */}
-      {celebrationBadges.length === 0 && exerciseRankUp && (
-        <ExerciseRankUpCelebration
-          exerciseName={exerciseRankUp.exerciseName}
-          newRank={exerciseRankUp.newRank}
-          onClose={() => setExerciseRankUp(null)}
-        />
-      )}
-
-      {/* PR Toast */}
-      <Toast message={prToast} variant="celebrate" />
-
-      {/* Solo Leveling quest XP toast (Phase 3) */}
-      <Toast message={questToast} variant="celebrate" />
-
-      {/* Combo bonus toast (phase C) — mid-form add-set feedback */}
-      <Toast message={comboToast} variant="celebrate" />
-
-      {/* Header */}
-      <div className="bg-gradient-to-br from-brand-500 via-brand-600 to-brand-700 text-white px-4 pt-12 pb-8 rounded-b-[2.5rem] shadow-[0_16px_48px_rgba(88,204,2,0.25)]">
-        <h1 className="text-2xl font-black flex items-center gap-2 tracking-tight">
-          <Dumbbell className="w-6 h-6" /> {t.aiCoach}
+    <main className="min-h-screen bg-[var(--background)] pb-28 lg:pb-8 max-w-md lg:max-w-2xl mx-auto px-4 lg:px-6">
+      <div className="pt-6 pb-4">
+        <h1 className="text-2xl font-black text-fg tracking-tight flex items-center gap-2">
+          <Dumbbell className="w-6 h-6 text-brand" aria-hidden="true" /> {t.workoutLog}
         </h1>
-        <p className="text-green-100 text-sm mt-1 font-medium">{t.workoutSubtitle}</p>
+        <p className="text-xs text-faint mt-0.5">{t.workoutSubtitle}</p>
       </div>
 
-      {/* Med / condition workout warnings */}
-      {workoutWarnings.length > 0 && (
-        <div className="px-4 mt-4">
-          <MedWarning warnings={workoutWarnings} type="workout" collapseAfter={2} />
+      {warnings.length > 0 && (
+        <div className="mb-3">
+          <MedWarning warnings={warnings} type="workout" collapseAfter={2} />
         </div>
       )}
 
-      {/* Session start (P0 #9): single entry point, gates the logging UI below.
-          On Rest Day, SessionStart renders its own affirmation panel (with its
-          own "log anyway" escape link) in place of the chips — nothing more
-          to show here until sessionStarted flips true. */}
-      <div className="px-4 pt-5">
-        <SessionStart onComplete={handleSessionStartComplete} />
-      </div>
+      <form
+        onSubmit={(e) => void handleSubmit(e)}
+        className="bg-card rounded-2xl shadow-card border border-line p-4 mb-4 space-y-3"
+      >
+        <div>
+          <label htmlFor="workout-name" className="block text-xs font-bold text-faint mb-1.5">{t.workoutName}</label>
+          <input
+            id="workout-name"
+            list="workout-suggestions"
+            value={name}
+            onChange={(e) => onNameChange(e.target.value)}
+            placeholder={lang === 'en' ? 'e.g. Squat, 30 min walk' : '例：スクワット、ウォーキング30分'}
+            autoComplete="off"
+            className={FIELD}
+          />
+          <datalist id="workout-suggestions">
+            {suggestions.map((s) => <option key={s} value={s} />)}
+          </datalist>
+        </div>
 
-      {sessionStarted && (
-      <div className="px-4 pt-5 space-y-4">
-
-        {/* 1 ── 部位別メニュー ─────────────── */}
-        <section className={`${cardCls} space-y-3`}>
-          <h2 className="font-black text-fg flex items-center gap-1.5">
-            <Flame className="w-5 h-5 text-orange-500" /> {t.recommendedByGroup}
-          </h2>
-          <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
-            {PARTS.map((p) => {
-              const days = getDaysSinceGroup(p.id, allWorkouts);
-              const recoveryDot =
-                days === null  ? null :
-                days === 0     ? <span className="block text-[9px] font-bold leading-none text-red-400/90">{t.todayShort}</span> :
-                days === 1     ? <span className="block text-[9px] font-bold leading-none text-amber-400">{lang === 'en' ? '1d ago' : '1日前'}</span> :
-                                 <span className="block text-[9px] font-bold leading-none text-brand-400">{lang === 'en' ? `${days}d ago` : `${days}日前`}</span>;
-              return (
-                <button key={p.id} type="button" onClick={() => setSelectedPart(p.id)}
-                  className={`
-                    flex flex-col items-center px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap
-                    transition-all duration-200 hover:scale-[1.04] active:scale-95
-                    ${selectedPart === p.id
-                      ? 'bg-brand-600 text-white shadow-[0_4px_12px_rgba(88,204,2,0.35)]'
-                      : 'bg-surface-2 text-muted'}
-                  `}
-                >
-                  {p.label}
-                  {recoveryDot}
-                </button>
-              );
-            })}
-          </div>
-          <div className="space-y-1.5">
-            {RECOMMENDED_MENUS.filter((m) => m.musclePart === selectedPart).map((menu) => {
-              const last      = getLastSession(menu.name, allWorkouts, today);
-              const suggested = suggestWeight(last, menu.defaultWeight);
-              const pr        = personalRecords[menu.name];
-              const isOverload = last && suggested > last.weight;
-              return (
-                <button key={menu.id} type="button" onClick={() => handleSelectMenu(menu)}
-                  className="
-                    w-full text-left
-                    bg-surface-2
-                    hover:bg-green-50 dark:hover:bg-green-900/20
-                    border border-line
-                    hover:border-green-200 dark:hover:border-green-800
-                    rounded-2xl p-3
-                    flex items-center justify-between
-                    transition-all duration-200
-                    hover:scale-[1.01] active:scale-[0.99]
-                    group
-                  "
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className="text-sm font-bold text-fg group-hover:text-brand-600 dark:group-hover:text-brand-400">{menu.name}</p>
-                      {pr && (
-                        <span className="text-[9px] font-black bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-1.5 py-0.5 rounded-full">
-                          🏆 PR {formatWeight(pr.maxWeight, unit)}
-                        </span>
-                      )}
-                      {isRankableExercise(menu.id) && <ExerciseRankBadge exerciseId={menu.id} size="sm" />}
-                    </div>
-                    {last ? (
-                      <div className="mt-0.5 space-y-0.5">
-                        <p className="text-[11px] text-faint">
-                          {t.lastSessionPrefix} <span className="text-muted font-semibold">{formatWeight(last.weight, unit)} × {last.reps}{lang === 'en' ? ' reps' : '回'} × {last.sets}set</span>
-                          <span className="ml-1 text-faint">{last.daysAgo === 0 ? t.todayShort : lang === 'en' ? `${last.daysAgo}d ago` : `${last.daysAgo}日前`}</span>
-                        </p>
-                        <p className="text-[11px]">
-                          <span className={isOverload ? 'text-brand-600 dark:text-brand-400 font-black' : 'text-faint font-semibold'}>
-                            → {formatWeight(suggested, unit)} × {menu.defaultReps}回 × {menu.defaultSets}set
-                          </span>
-                          {isOverload && (
-                            <span className="ml-1 text-[9px] font-bold bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 px-1.5 py-0.5 rounded-full">
-                              +{toDisplay(suggested - last.weight, unit)}{unit} UP
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-[11px] text-indigo-500 dark:text-indigo-400 mt-0.5 font-semibold">
-                        ✨ {t.firstChallengeLabel} — {menu.defaultWeight > 0 ? formatWeight(menu.defaultWeight, unit) : t.bodyweightLabel} × {menu.defaultReps}{lang === 'en' ? ' reps' : '回'}
-                      </p>
-                    )}
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-faint flex-shrink-0 ml-2" />
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Full exercise DB picker (phase B) — non-recommended for this part */}
-          <button
-            type="button"
-            onClick={() => setPickerOpen((v) => !v)}
-            aria-expanded={pickerOpen}
-            className="w-full flex items-center justify-between text-xs font-bold text-faint hover:text-fg py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] rounded"
-          >
-            <span>{t.exercisePickerTitle}</span>
-            {pickerOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-          </button>
-          {pickerOpen && (
-            <>
-              {/* Beginner-friendly filter chip (accessibility/first-run
-                  improvement — isolation-movement proxy, see lib/exercise-db.ts
-                  getBeginnerExercises docs for why this isn't a real
-                  difficulty rating). */}
+        <div>
+          <span className="block text-xs font-bold text-faint mb-1.5">{t.musclePartLabel}</span>
+          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t.musclePartLabel}>
+            {PART_IDS.map((id) => (
               <button
+                key={id}
                 type="button"
-                onClick={() => setBeginnerFilter((v) => !v)}
-                aria-pressed={beginnerFilter}
-                className={`
-                  inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 my-1.5 rounded-full
-                  transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-                  ${beginnerFilter
-                    ? 'bg-brand-500 text-white'
-                    : 'bg-surface-2 text-faint border border-line hover:bg-line'}
-                `}
+                role="radio"
+                aria-checked={part === id}
+                onClick={() => setPart((cur) => (cur === id ? null : id))}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
+                  part === id ? 'bg-brand-500 text-white' : 'bg-surface-2 text-muted hover:bg-line'
+                }`}
               >
-                {t.beginnerFilterLabel}
+                {partLabel(id)}
               </button>
-              <div className="grid grid-cols-2 gap-1.5 overflow-y-auto max-h-[400px]">
-                {(beginnerFilter ? getBeginnerExercises(selectedPart) : getExercises(selectedPart))
-                  .filter((e) => !e.recommended).map((ex) => {
-                const equipLabel = {
-                  barbell: t.equipBarbell, dumbbell: t.equipDumbbell, machine: t.equipMachine,
-                  cable: t.equipCable, bodyweight: t.equipBodyweight,
-                }[ex.equipment];
-                return (
-                  <button
-                    key={ex.id}
-                    type="button"
-                    onClick={() => {
-                      const last = getLastSession(ex.nameJa, allWorkouts, today);
-                      const suggested = suggestWeight(last, 0);
-                      setName(ex.nameJa);
-                      setSelectedExerciseId(ex.id);
-                      setMusclePart(ex.musclePart);
-                      const w = String(toDisplay(suggested, unit));
-                      setWeight(w);
-                      setReps('10');
-                      setSets('3');
-                      if (detailMode) seedRowsFromScalars(w, '10', '3');
-                      setCoachAdvice(t.defaultCoachTip);
-                    }}
-                    className="
-                      text-left bg-surface-2 border border-line rounded-xl px-2.5 py-2
-                      hover:bg-green-50 dark:hover:bg-green-900/20
-                      hover:border-green-200 dark:hover:border-green-800
-                      transition-all duration-200 active:scale-[0.98]
-                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-                    "
-                  >
-                    <p className="text-xs font-bold text-fg leading-tight">
-                      {lang === 'en' ? ex.nameEn : ex.nameJa}
-                    </p>
-                    <span className="text-[9px] font-semibold text-faint">{equipLabel}</span>
-                  </button>
-                );
-              })}
-              </div>
-            </>
-          )}
-        </section>
-
-        {/* 2 ── 入力フォーム ──────────────── */}
-        <section ref={entryFormRef} className={`${cardCls} space-y-4`}>
-          {/* Coach tip */}
-          <div className="bg-gradient-to-r from-green-50 to-brand-50 dark:from-green-900/20 dark:to-brand-900/20 rounded-2xl p-3 border border-green-100 dark:border-green-800 flex gap-2 items-start">
-            <ShieldAlert className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
-            <p className="text-xs text-green-800 dark:text-green-300 leading-relaxed font-medium">{coachAdvice}</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div>
-              <label className="block text-xs font-bold text-faint uppercase tracking-widest mb-1.5">{t.workoutName}</label>
-              <input ref={nameInputRef} type="text" value={name} onChange={(e) => setName(e.target.value)}
-                placeholder="ベンチプレス、スクワットなど"
-                className="w-full text-sm bg-surface-2 border border-line-strong rounded-xl px-3 py-2.5 text-fg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-400" />
-            </div>
-
-            {/* Demo video (static assets / YouTube-search link only — no
-                third-party API). Shown only once an exercise has been
-                picked from a card/picker; hidden on the blank default. */}
-            {selectedExerciseId && (
-              <ExerciseVideo video={findExercise(selectedExerciseId)?.video} exerciseName={name} />
-            )}
-
-            {/* Log time */}
-            <div>
-              <label className="block text-xs font-bold text-faint uppercase tracking-widest mb-1.5">{t.selectLogTime}</label>
-              <input type="time" value={logTime} onChange={(e) => setLogTime(e.target.value)}
-                className="w-full text-sm bg-surface-2 border border-line-strong rounded-xl px-3 py-2.5 text-fg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-400" />
-            </div>
-
-            {/* Per-set mode toggle (phase B) */}
-            <button
-              type="button"
-              onClick={() => {
-                const next = !detailMode;
-                setDetailMode(next);
-                if (next && setRows.length === 0) seedRowsFromScalars(weight, reps, sets);
-              }}
-              aria-pressed={detailMode}
-              className={`
-                text-xs font-bold px-3 py-1.5 rounded-full border-2 transition-all
-                ${detailMode
-                  ? 'border-brand-400 bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400'
-                  : 'border-line-strong text-faint hover:border-line-strong'}
-              `}
-            >
-              {t.setDetailToggle}
-            </button>
-
-            {!detailMode ? (
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  [lang === 'en' ? `Weight (${unit})` : `重量 (${unit})`, weight, setWeight],
-                  [t.reps, reps, setReps],
-                  [t.sets, sets, setSets],
-                ] as const).map(([label, val, setter]) => (
-                  <div key={label}>
-                    <label className="block text-xs font-bold text-faint uppercase tracking-wide mb-1">{label}</label>
-                    <input type="number" value={val} aria-label={label}
-                      onChange={(e) => (setter as React.Dispatch<React.SetStateAction<string>>)(e.target.value)}
-                      className="w-full text-sm bg-surface-2 border border-line-strong rounded-xl px-2 py-2.5 text-center text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              /* Per-set rows: ±2.5 steppers (display unit), ghost = last session */
-              (() => {
-                const ghost = name.trim() ? getLastSetDetails(name.trim()) : null;
-                return (
-                  <div className="space-y-2">
-                    {setRows.map((row, i) => {
-                      const g = ghost?.[i];
-                      return (
-                        <div key={i} className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-black text-faint w-10 shrink-0 uppercase tracking-wide">
-                            {t.setLabel}{i + 1}
-                          </span>
-                          <button type="button" aria-label={`-2.5 ${unit}`}
-                            onClick={() => setSetRows((rows) => rows.map((r, j) => j === i
-                              ? { ...r, weight: String(Math.max(0, Math.round(((parseFloat(r.weight) || 0) - 2.5) * 10) / 10)) } : r))}
-                            className="w-8 h-9 rounded-lg border border-line-strong text-faint font-bold hover:bg-surface-2 transition-colors shrink-0">−</button>
-                          <input
-                            type="number" inputMode="decimal" value={row.weight}
-                            placeholder={g ? String(toDisplay(g.weight, unit)) : '0'}
-                            aria-label={`${t.setLabel}${i + 1} ${lang === 'en' ? 'weight' : '重量'} (${unit})`}
-                            onChange={(e) => setSetRows((rows) => rows.map((r, j) => j === i ? { ...r, weight: e.target.value } : r))}
-                            className="w-full min-w-0 text-sm bg-surface-2 border border-line-strong rounded-xl px-1 py-2 text-center text-fg placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-                          />
-                          <button type="button" aria-label={`+2.5 ${unit}`}
-                            onClick={() => setSetRows((rows) => rows.map((r, j) => j === i
-                              ? { ...r, weight: String(Math.round(((parseFloat(r.weight) || 0) + 2.5) * 10) / 10) } : r))}
-                            className="w-8 h-9 rounded-lg border border-line-strong text-faint font-bold hover:bg-surface-2 transition-colors shrink-0">＋</button>
-                          <span className="text-[10px] text-faint shrink-0">{unit}</span>
-                          <input
-                            type="number" inputMode="numeric" value={row.reps}
-                            placeholder={g ? String(g.reps) : '0'}
-                            aria-label={`${t.setLabel}${i + 1} ${t.reps}`}
-                            onChange={(e) => setSetRows((rows) => rows.map((r, j) => j === i ? { ...r, reps: e.target.value } : r))}
-                            className="w-16 shrink-0 text-sm bg-surface-2 border border-line-strong rounded-xl px-1 py-2 text-center text-fg placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-                          />
-                          <span className="text-[10px] text-faint shrink-0">{lang === 'en' ? 'reps' : '回'}</span>
-                          <button type="button" aria-label={`${t.removeSet} ${i + 1}`}
-                            onClick={() => setSetRows((rows) => rows.filter((_, j) => j !== i))}
-                            className="p-1.5 text-faint hover:text-red-400 transition-colors shrink-0">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const prevRow = setRows[setRows.length - 1];
-                          // Anti-spam gate: only register a combo action when
-                          // the row being duplicated is actually filled in —
-                          // blunts rhythmic empty-click farming.
-                          if (prevRow && parseInt(prevRow.reps) > 0) {
-                            const msg = registerComboAction(Date.now());
-                            if (msg) setComboToast(msg);
-                          }
-                          setSetRows((rows) => {
-                            const prev = rows[rows.length - 1];
-                            const parsed = prev
-                              ? { weight: toKg(parseFloat(prev.weight) || 0), reps: parseInt(prev.reps) || 0 }
-                              : null;
-                            const s = nextSetSuggestion(parsed && parsed.reps > 0 ? parsed : null, 0);
-                            return [...rows, {
-                              weight: s.weight > 0 ? String(toDisplay(s.weight, unit)) : (prev?.weight ?? ''),
-                              reps: s.reps > 0 ? String(s.reps) : (prev?.reps ?? ''),
-                            }];
-                          });
-                        }}
-                        className="flex-1 py-2 rounded-xl text-xs font-bold bg-surface-2 text-muted hover:bg-line transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-                      >
-                        {t.addSet}
-                      </button>
-                      <div className="flex items-center gap-1">
-                        <ComboMeter lastSetAt={lastSetAt} comboCount={comboCount} />
-                        <InfoTooltip label={t.infoComboTitle}>
-                          <p className="font-bold text-fg mb-0.5">{t.infoComboTitle}</p>
-                          <p>{t.infoComboBody}</p>
-                        </InfoTooltip>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()
-            )}
-
-            {/* Live estimated 1RM (Epley) — per-set mode uses the best set */}
-            {(() => {
-              const orm = detailMode
-                ? summarizeSets(setRows.map((r) => ({ weight: toKg(parseFloat(r.weight) || 0), reps: parseInt(r.reps) || 0 }))).best1RM
-                : epley1RM(toKg(parseFloat(weight) || 0), parseInt(reps) || 0);
-              if (orm <= 0) return null;
-              return (
-                <p className="text-[11px] text-faint text-right" aria-live="polite">
-                  {t.est1rmPr}:{' '}
-                  <span className="font-black text-brand-600 dark:text-brand-400 tabular-nums">{formatWeight(orm, unit)}</span>
-                </p>
-              );
-            })()}
-
-            <button type="submit"
-              className="
-                w-full py-3.5 rounded-2xl font-black text-sm text-white
-                bg-gradient-to-r from-brand-500 to-brand-600
-                shadow-[0_4px_14px_rgba(88,204,2,0.4)]
-                hover:from-brand-600 hover:to-brand-700
-                hover:scale-[1.01] active:scale-[0.98]
-                transition-all duration-200
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
-              "
-            >
-              {t.recordWorkoutBtn}
-            </button>
-          </form>
-        </section>
-
-        {/* 2.5 ── Rest-interval timer ─────── */}
-        <RestTimer />
-
-        {/* 3 ── AI パーソナルコーチ ────────── */}
-        <section className={`${cardCls} space-y-4`}>
-          <h2 className="font-black text-fg flex items-center gap-1.5">
-            <Sparkles className="w-5 h-5 text-purple-500" /> {t.aiCoach}
-          </h2>
-          <p className="text-xs text-faint">{t.aiCoachDesc}</p>
-
-          {!isSupabaseConfigured() && (
-            <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl p-4 text-center">
-              <p className="text-xs font-semibold text-purple-500 dark:text-purple-400">
-                🔐 {t.loginForAI}
-              </p>
-            </div>
-          )}
-
-          {isSupabaseConfigured() && !aiAdvice && !aiLoading && !realGoals && (
-            /* No real goals → set-goals CTA instead of the coach button (P0 #4b) */
-            <div className="bg-surface-2 rounded-2xl p-5 text-center">
-              <p className="text-2xl mb-2" aria-hidden="true">🎯</p>
-              <p className="text-xs text-faint mb-3">{t.aiNeedsGoals}</p>
-              <Link
-                href="/onboarding"
-                className="
-                  inline-flex items-center justify-center
-                  px-4 py-2 rounded-xl
-                  bg-gradient-to-br from-brand-500 to-brand-600 text-white
-                  text-xs font-bold shadow-card
-                  hover:scale-[1.03] active:scale-95
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-                  transition-all duration-200
-                "
-              >
-                {t.noGoalsCta}
-              </Link>
-            </div>
-          )}
-
-          {isSupabaseConfigured() && !aiAdvice && !aiLoading && realGoals && (
-            <button onClick={handleGetAIAdvice}
-              className="
-                w-full py-3.5
-                bg-gradient-to-r from-purple-500 to-indigo-500
-                hover:from-purple-600 hover:to-indigo-600
-                text-white font-black rounded-2xl text-sm
-                flex items-center justify-center gap-2
-                shadow-[0_4px_14px_rgba(168,85,247,0.4)]
-                hover:scale-[1.01] active:scale-[0.98]
-                transition-all duration-200
-              "
-            >
-              <Sparkles className="w-4 h-4" /> AIアドバイスを取得する
-            </button>
-          )}
-
-          {aiLoading && <CoachSkeleton />}
-
-          {aiError && (
-            <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs p-3 rounded-xl border border-red-100 dark:border-red-800">
-              ⚠️ {aiError}
-              <button onClick={handleGetAIAdvice} className="ml-2 underline font-semibold">{t.retry}</button>
-            </div>
-          )}
-
-          {aiAdvice && (
-            <div className="space-y-2.5 animate-fade-in">
-              {/* Today's advice */}
-              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-2xl p-3 border border-purple-100 dark:border-purple-800">
-                <p className="text-xs font-bold text-purple-600 dark:text-purple-400 mb-1.5">📊 {t.todaySummaryLabel}</p>
-                <p className="text-sm text-muted leading-relaxed">{aiAdvice.todayAdvice}</p>
-              </div>
-              {/* Habit insight */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-3 border border-blue-100 dark:border-blue-800">
-                <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1.5">🕐 {t.habitInsightLabel}</p>
-                <p className="text-sm text-muted leading-relaxed">{aiAdvice.habitInsight}</p>
-              </div>
-              {/* Tomorrow tip */}
-              <div className="bg-success-soft rounded-2xl p-3 border border-success/20">
-                <p className="text-xs font-bold text-success mb-1.5">💡 {t.tomorrowAdviceLabel}</p>
-                <p className="text-sm text-muted leading-relaxed">{aiAdvice.tomorrowTip}</p>
-              </div>
-              {/* Motivation */}
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl p-3 border border-yellow-100 dark:border-yellow-800 text-center">
-                <p className="text-sm font-black text-yellow-700 dark:text-yellow-400">{aiAdvice.motivationMessage}</p>
-              </div>
-              <button onClick={() => { setAiAdvice(null); setAiError(''); }}
-                className="w-full py-2 text-xs text-faint hover:text-fg underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]">
-                {t.refreshAdvice}
-              </button>
-            </div>
-          )}
-        </section>
-
-        {/* 4 ── 習慣タイムライン ──────────── */}
-        <section className={`${cardCls} space-y-3`}>
-          <h2 className="font-black text-fg flex items-center gap-1.5">
-            <Clock className="w-5 h-5 text-blue-500" /> {t.activityTimeline}
-          </h2>
-          <p className="text-xs text-faint">{t.activityTimelineDesc}</p>
-          {timeline.length === 0 ? (
-            <div className="text-center py-6">
-              <p className="text-4xl mb-3" aria-hidden="true">💪</p>
-              <p className="text-xs text-faint mb-4">{t.noTimelineEntries}</p>
-              <button
-                type="button"
-                onClick={() => {
-                  entryFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  nameInputRef.current?.focus({ preventScroll: true });
-                }}
-                className="
-                  inline-flex items-center justify-center
-                  px-5 py-2.5 rounded-2xl
-                  bg-gradient-to-br from-brand-500 to-brand-600 text-white
-                  text-sm font-bold
-                  shadow-card hover:scale-[1.03] active:scale-95
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-                  transition-all duration-200
-                "
-              >
-                {t.noTimelineCta}
-              </button>
-            </div>
-          ) : (
-            <div className="relative border-l-2 border-line ml-3 pl-5 space-y-4 pt-1">
-              {timeline.map((entry) => (
-                <div key={entry.id} className="relative">
-                  <div className={`absolute -left-[27px] top-1 w-3.5 h-3.5 rounded-full border-2 border-card shadow-sm ${entry._type === 'food' ? 'bg-orange-400' : 'bg-green-500'}`} />
-                  <span className="text-xs font-bold text-faint bg-surface-2 px-1.5 py-0.5 rounded mr-1">
-                    {formatTime(entry.addedAt)}
-                  </span>
-                  <span className="text-sm font-semibold text-fg">
-                    {entry._type === 'food' ? `🥗 ${(entry as FoodEntry).name}` : `🏋️ ${entry.name}`}
-                  </span>
-                  <p className="text-xs text-faint mt-0.5 pl-14">
-                    {entry._type === 'food'
-                      ? `${(entry as FoodEntry).calories}kcal · P${(entry as FoodEntry).protein}g · F${(entry as FoodEntry).fat}g · C${(entry as FoodEntry).carbs}g`
-                      : `${formatWeight((entry as WorkoutEntry).weight ?? 0, unit)} × ${(entry as WorkoutEntry).reps}${lang === 'en' ? ' reps' : '回'} × ${(entry as WorkoutEntry).sets}set`}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* 5 ── 実施済み ─────────────────── */}
-        {workouts.length > 0 && (
-          <section className="space-y-2">
-            <h3 className="text-xs font-black text-faint uppercase tracking-widest px-1">{t.completedSessions}</h3>
-            {workouts.map((w) => (
-              <div key={w.id} className="bg-card border border-line rounded-2xl p-3 flex items-center justify-between shadow-card hover:scale-[1.01] active:scale-[0.99] transition-all duration-200">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-xl">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-fg">{w.name}</p>
-                    <p className="text-xs text-faint">
-                      {formatWeight(w.weight ?? 0, unit)} × {w.reps}{lang === 'en' ? ' reps' : '回'} × {w.sets}set
-                      {epley1RM(w.weight ?? 0, w.reps ?? 0) > 0 && (
-                        <span className="ml-1.5 text-[10px] font-bold text-brand-600 dark:text-brand-400">· 1RM {formatWeight(epley1RM(w.weight ?? 0, w.reps ?? 0), unit)}</span>
-                      )}
-                    </p>
-                    {/* Per-set breakdown + volume (phase B entries only) */}
-                    {(w.setDetails?.length ?? 0) > 0 && (
-                      <p className="text-[10px] text-faint mt-0.5 tabular-nums">
-                        {w.setDetails!.map((s) => `${toDisplay(s.weight, unit)}×${s.reps}`).join(' / ')}
-                        <span className="ml-1.5 font-semibold">
-                          · {t.volumeLabel} {toDisplay(summarizeSets(w.setDetails!).volume, unit)}{unit}
-                        </span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <button type="button" onClick={() => handleDelete(w.id)}
-                  className="p-2 text-faint hover:text-red-400 active:scale-95 transition-all duration-200">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
             ))}
-          </section>
-        )}
+          </div>
+        </div>
 
-        {/* 6 ── Badge shelf ─────────────── */}
-        {allBadges.length > 0 && (
-          <section className={cardCls}>
-            <BadgeShelf badges={allBadges} title={`🏆 ${t.myBadges} (${allBadges.length})`} />
-          </section>
-        )}
-      </div>
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <label htmlFor="workout-weight" className="block text-[11px] font-bold text-faint mb-1">
+              {lang === 'en' ? `Weight (${unit})` : `重量 (${unit})`}
+            </label>
+            <input id="workout-weight" type="number" inputMode="decimal" min="0" step="0.5" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="—" className={FIELD} />
+          </div>
+          <div>
+            <label htmlFor="workout-reps" className="block text-[11px] font-bold text-faint mb-1">{t.reps}</label>
+            <input id="workout-reps" type="number" inputMode="numeric" min="0" value={reps} onChange={(e) => setReps(e.target.value)} placeholder="—" className={FIELD} />
+          </div>
+          <div>
+            <label htmlFor="workout-sets" className="block text-[11px] font-bold text-faint mb-1">{t.sets}</label>
+            <input id="workout-sets" type="number" inputMode="numeric" min="0" value={sets} onChange={(e) => setSets(e.target.value)} placeholder="—" className={FIELD} />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={!name.trim()}
+          className="w-full py-3 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-brand-500 to-brand-600 disabled:opacity-40 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]"
+        >
+          {t.saveWorkout}
+        </button>
+      </form>
+
+      <h2 className="text-sm font-bold text-muted mb-2">{lang === 'en' ? 'Today' : '今日の記録'}</h2>
+      {todayEntries.length === 0 ? (
+        <p className="text-sm text-faint bg-card rounded-2xl border border-line p-6 text-center">{t.noWorkouts}</p>
+      ) : (
+        <ul className="space-y-2">
+          {todayEntries.map((w) => (
+            <li key={w.id} className="bg-card rounded-2xl border border-line shadow-card px-4 py-3 flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-fg truncate">{w.name}</p>
+                <p className="text-xs text-faint tabular-nums">
+                  {w.musclePart ? partLabel(w.musclePart) : ''}
+                  {w.weight ? ` · ${formatWeight(w.weight, unit)}` : ''}
+                  {w.reps ? ` × ${w.reps}` : ''}
+                  {w.sets ? ` × ${w.sets}${lang === 'en' ? ' sets' : 'セット'}` : ''}
+                </p>
+              </div>
+              <button
+                onClick={() => handleDelete(w.id)}
+                aria-label={`${t.delete}: ${w.name}`}
+                className="p-2 rounded-xl text-faint hover:text-danger hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+              >
+                <Trash2 size={16} aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
 
       <BottomNav />

@@ -16,6 +16,8 @@ interface RecommendRequest {
   todayProtein:     number;
   todayFat:         number;
   todayCarbs:       number;
+  /** false when some of today's meals were logged kcal-only (029): P/F/C sums are a lower bound. */
+  macrosComplete?:  boolean;
   waterConsumed:    number;
   recentFoodLog:    Array<{ date: string; name: string; calories: number; mealType: string }>;
   recentWorkoutLog: Array<{ date: string; name: string; category: string }>;
@@ -130,6 +132,16 @@ export async function POST(request: Request): Promise<NextResponse> {
     const remainingFat      = goals.fat      - body.todayFat;
     const remainingCarbs    = goals.carbs    - body.todayCarbs;
 
+    // Kcal-only meals (029) make the P/F/C sums a lower bound; never present
+    // them as the day's intake or derive a "remaining" budget from them.
+    const macroLines = body.macrosComplete === false
+      ? `- P・F・C: 一部の食事は未入力のため不明（入力済みの食事のみ: タンパク質${body.todayProtein}g・脂質${body.todayFat}g・炭水化物${body.todayCarbs}g）。残量を推測せず、カロリー残量を基準に提案すること`
+      : [
+          `- タンパク質: ${body.todayProtein}g（残り${remainingProtein}g）`,
+          `- 脂質: ${body.todayFat}g（残り${remainingFat}g）`,
+          `- 炭水化物: ${body.todayCarbs}g（残り${remainingCarbs}g）`,
+        ].join('\n');
+
     const userMessage = `
 【ユーザープロフィール】
 - 年齢: ${profile.age != null ? `${profile.age}歳` : '未設定'}
@@ -147,9 +159,7 @@ ${safety.promptInjection || '特記事項なし'}
 
 【今日の摂取状況 (${today})】
 - 摂取済み: ${body.todayCalories}kcal（残り${remainingCalories}kcal）
-- タンパク質: ${body.todayProtein}g（残り${remainingProtein}g）
-- 脂質: ${body.todayFat}g（残り${remainingFat}g）
-- 炭水化物: ${body.todayCarbs}g（残り${remainingCarbs}g）
+${macroLines}
 - 水分: ${body.waterConsumed}ml / ${goals.water}ml
 - 連続ログイン記録: ${body.streak}日
 

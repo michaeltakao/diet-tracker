@@ -2,85 +2,91 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, BookOpen, PlusCircle, Dumbbell, Scale, CalendarDays } from 'lucide-react';
+import { Home, BookOpen, Plus, Dumbbell, Scale } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
+/**
+ * Mobile navigation: 4 tabs (ADR-011) + the add-meal FAB.
+ *
+ * The FAB lives here (not on the dashboard) so logging a meal is one tap
+ * from every tabbed page; it is hidden on /add itself.
+ */
 export default function BottomNav() {
   const pathname = usePathname();
   const { t } = useLanguage();
 
   const NAV_ITEMS = [
-    { href: '/dashboard', label: t.navHome,  icon: Home },
-    { href: '/log',     label: t.navLog,     icon: BookOpen },
-    { href: '/add',     label: t.navAdd,     icon: PlusCircle },
-    { href: '/workout', label: t.navWorkout, icon: Dumbbell },
-    { href: '/plan',    label: t.navPlan,    icon: CalendarDays },
-    { href: '/weight',  label: t.navWeight,  icon: Scale },
+    { href: '/dashboard', label: t.navHome,    icon: Home },
+    { href: '/log',       label: t.navLog,     icon: BookOpen },
+    { href: '/workout',   label: t.navWorkout, icon: Dumbbell },
+    { href: '/weight',    label: t.navWeight,  icon: Scale },
   ];
 
   return (
-    <nav
-      aria-label="メインナビゲーション"
-      className="
-        lg:hidden
-        fixed bottom-0 left-0 right-0 z-50
-        bg-card/90
-        backdrop-blur-md
-        border-t border-line
-        shadow-[0_-4px_24px_rgb(0,0,0,0.06)]
-      "
-    >
-      <div className="max-w-md mx-auto flex">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href;
-          const isAdd = href === '/add';
+    <>
+      {pathname !== '/add' && (
+        <Link
+          href="/add"
+          className="
+            lg:hidden
+            fixed bottom-20 right-4 z-40
+            w-14 h-14 rounded-full
+            bg-gradient-to-br from-brand-500 to-brand-600
+            shadow-[0_8px_24px_rgba(88,204,2,0.5)]
+            flex items-center justify-center text-white
+            hover:scale-110 active:scale-95
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
+            transition-all duration-200
+          "
+          aria-label={t.addMeal}
+        >
+          <Plus size={28} strokeWidth={2.5} aria-hidden="true" />
+        </Link>
+      )}
 
-          return (
-            <Link
-              key={href}
-              href={href}
-              aria-current={isActive ? 'page' : undefined}
-              className={`
-                flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[56px] py-2
-                rounded-xl transition-all duration-200
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
-                ${isActive ? 'text-brand' : 'text-faint hover:text-muted'}
-              `}
-            >
-              <div className={`
-                relative transition-all duration-200
-                ${isActive && !isAdd ? 'scale-110' : ''}
-              `}>
-                {isAdd ? (
-                  <div className="
-                    w-10 h-10 -mt-5 mb-0.5
-                    bg-gradient-to-br from-brand-500 to-brand-600
-                    rounded-full shadow-[0_4px_14px_rgba(88,204,2,0.5)]
-                    flex items-center justify-center
-                    hover:scale-105 active:scale-95
-                    transition-all duration-200
-                  ">
-                    <Icon size={22} className="text-white" strokeWidth={2.5} aria-hidden="true" />
-                  </div>
-                ) : (
+      <nav
+        aria-label="メインナビゲーション"
+        className="
+          lg:hidden
+          fixed bottom-0 left-0 right-0 z-50
+          bg-card/90
+          backdrop-blur-md
+          border-t border-line
+          shadow-[0_-4px_24px_rgb(0,0,0,0.06)]
+        "
+      >
+        <div className="max-w-md mx-auto flex">
+          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+            const isActive = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={isActive ? 'page' : undefined}
+                className={`
+                  flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[56px] py-2
+                  rounded-xl transition-all duration-200
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
+                  ${isActive ? 'text-brand' : 'text-faint hover:text-muted'}
+                `}
+              >
+                <div className={`relative transition-all duration-200 ${isActive ? 'scale-110' : ''}`}>
                   <Icon
                     size={22}
                     className={isActive ? 'text-brand' : 'text-faint'}
                     strokeWidth={isActive ? 2.5 : 1.5}
                     aria-hidden="true"
                   />
-                )}
-                {isActive && !isAdd && (
-                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-brand rounded-full" />
-                )}
-              </div>
-              <span className={`text-[10px] font-semibold ${isAdd ? 'mt-0.5' : ''}`}>
-                {label}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+                  {isActive && (
+                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-brand rounded-full" />
+                  )}
+                </div>
+                <span className="text-[10px] font-semibold">{label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    </>
   );
 }

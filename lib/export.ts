@@ -7,10 +7,8 @@
  */
 
 import { todayJst } from '@/lib/format-date';
-import { AppData, ExerciseRankState } from './types';
-import { getAppData, saveAppData } from './storage';
-import { rankAtLeast } from './rank';
-import { isExerciseRankHigher, isExerciseRankId } from './exercise-rank';
+import { AppData } from './types';
+import { getAppData, readLegacyKeys, saveAppData } from './storage';
 
 const STORAGE_KEY = 'diet-tracker-v1';
 
@@ -28,13 +26,12 @@ export interface StorageStats {
   foodCount: number;
   workoutCount: number;
   weightCount: number;
-  badgeCount: number;
   daysTracked: number;
 }
 
 export function getStorageStats(): StorageStats {
   if (typeof window === 'undefined') {
-    return { usedBytes: 0, usedKB: '0', foodCount: 0, workoutCount: 0, weightCount: 0, badgeCount: 0, daysTracked: 0 };
+    return { usedBytes: 0, usedKB: '0', foodCount: 0, workoutCount: 0, weightCount: 0, daysTracked: 0 };
   }
 
   const raw = localStorage.getItem(STORAGE_KEY) ?? '';
@@ -52,7 +49,6 @@ export function getStorageStats(): StorageStats {
     foodCount:    data.foodEntries.length,
     workoutCount: data.workoutEntries.length,
     weightCount:  data.weightEntries.length,
-    badgeCount:   (data.badges ?? []).length,
     daysTracked:  trackedDates.size,
   };
 }
@@ -65,7 +61,8 @@ export function exportDataAsJSON(): void {
   const payload: ExportPayload = {
     version: '1.0',
     exportedAt: new Date().toISOString(),
-    data: getAppData(),
+    // Legacy keys (records of features deleted in ADR-011) stay in the backup.
+    data: { ...readLegacyKeys(), ...getAppData() },
   };
 
   const json = JSON.stringify(payload, null, 2);
@@ -92,7 +89,9 @@ export function exportDataAsCSV(): void {
   ];
 
   for (const e of data.foodEntries) {
-    rows.push(`food,${e.date},"${e.name.replace(/"/g, '""')}",${e.calories},${e.protein},${e.fat},${e.carbs},${e.mealType},,, `);
+    // kcal-only meals (029): blank P/F/C, not 0 placeholders that read as measured.
+    const pfc = e.macrosEntered === false ? ',,' : `${e.protein},${e.fat},${e.carbs}`;
+    rows.push(`food,${e.date},"${e.name.replace(/"/g, '""')}",${e.calories},${pfc},${e.mealType},,, `);
   }
 
   for (const w of data.workoutEntries) {
@@ -151,7 +150,6 @@ export async function importFromFile(file: File): Promise<ImportResult> {
       weightEntries:  mergeById(current.weightEntries,  incoming.weightEntries  ?? []),
       goals: incoming.goals ?? current.goals,
       waterByDate: { ...current.waterByDate, ...(incoming.waterByDate ?? {}) },
-      badges:          mergeById(current.badges ?? [],  incoming.badges         ?? []),
       personalRecords: { ...current.personalRecords, ...(incoming.personalRecords ?? {}) },
       // Keyed by (itemType, itemName) rather than id; incoming wins on conflict.
       recommendationFeedback: Array.from(
@@ -164,8 +162,6 @@ export async function importFromFile(file: File): Promise<ImportResult> {
       ),
       favoriteFoods: mergeById(current.favoriteFoods ?? [], incoming.favoriteFoods ?? []),
       mealTemplates: mergeById(current.mealTemplates ?? [], incoming.mealTemplates ?? []),
-      vitalEntries:   mergeById(current.vitalEntries   ?? [], incoming.vitalEntries   ?? []),
-      symptomEntries: mergeById(current.symptomEntries ?? [], incoming.symptomEntries ?? []),
       // Device-local streak bookkeeping: keep the higher longest; union the
       // bridged gap days (both sides' repairs stay honored after a restore).
       streakState: {
@@ -177,42 +173,6 @@ export async function importFromFile(file: File): Promise<ImportResult> {
           ]),
         ).sort(),
       },
-      // XP/rank never decreases — same "keep the higher value" merge as
-      // streakState.longest above.
-      xp: Math.max(current.xp ?? 0, incoming.xp ?? 0),
-      highestRank: rankAtLeast(current.highestRank ?? 'E', incoming.highestRank ?? 'E')
-        ? (current.highestRank ?? 'E')
-        : (incoming.highestRank ?? 'E'),
-      // Titles are once-earned-never-revoked (like badges) — union both sides.
-      earnedTitles: Array.from(
-        new Set([...(current.earnedTitles ?? []), ...(incoming.earnedTitles ?? [])]),
-      ),
-      // Per-exercise ranks are a ratchet too (see lib/exercise-rank.ts) —
-      // union both sides, keeping the higher-ranked entry per exercise on
-      // conflict. `incoming` is a raw `as AppData` cast of parsed JSON (a
-      // restored backup file), so incomingState.rank/exerciseId are
-      // untrusted input, not guaranteed to match the app's types — validate
-      // before ever writing them into AppData (a malformed rank string
-      // would otherwise reach EXERCISE_RANK_TIERS[state.rank] as undefined
-      // at render time).
-      exerciseRanks: (() => {
-        const merged: AppData['exerciseRanks'] = { ...(current.exerciseRanks ?? {}) };
-        for (const [exerciseId, incomingStateUnsafe] of Object.entries(incoming.exerciseRanks ?? {}) as [string, unknown][]) {
-          const rank: unknown = (incomingStateUnsafe as { rank?: unknown } | null)?.rank;
-          const achievedAt: unknown = (incomingStateUnsafe as { achievedAt?: unknown } | null)?.achievedAt;
-          if (
-            typeof exerciseId !== 'string' || exerciseId.length === 0 ||
-            !isExerciseRankId(rank) || rank === 'unranked' ||
-            typeof achievedAt !== 'string'
-          ) continue;
-          const incomingState: ExerciseRankState = { rank, achievedAt };
-          const existing = merged[exerciseId];
-          if (!existing || isExerciseRankHigher(incomingState.rank, existing.rank)) {
-            merged[exerciseId] = incomingState;
-          }
-        }
-        return merged;
-      })(),
     };
 
     saveAppData(merged);

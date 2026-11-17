@@ -5,9 +5,10 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { getAppData, getRealGoals } from '@/lib/data';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { sumIntake } from '@/lib/macros';
 
 // Pages that already show a full calorie breakdown
-const HIDDEN_PATHS = new Set(['/', '/settings']);
+const HIDDEN_PATHS = new Set(['/', '/dashboard', '/settings']);
 
 interface Snapshot {
   calories: number;
@@ -16,25 +17,23 @@ interface Snapshot {
   carbs: number;
   /** null = no real goals set → bar hidden (never render fabricated numbers) */
   goal: number | null;
+  /** False when every entry today is kcal-only (P/F/C are placeholders). */
+  hasMacros: boolean;
 }
 
-const ZERO: Snapshot = { calories: 0, protein: 0, fat: 0, carbs: 0, goal: null };
+const ZERO: Snapshot = { calories: 0, protein: 0, fat: 0, carbs: 0, goal: null, hasMacros: false };
 
 function readSnapshot(): Snapshot {
   try {
     const data = getAppData();
     const today = todayJst();
     const entries = data.foodEntries.filter((e) => e.date === today);
-    const agg = entries.reduce(
-      (acc, e) => ({
-        calories: acc.calories + e.calories,
-        protein:  acc.protein  + e.protein,
-        fat:      acc.fat      + e.fat,
-        carbs:    acc.carbs    + e.carbs,
-      }),
-      { calories: 0, protein: 0, fat: 0, carbs: 0 },
-    );
-    return { ...agg, goal: getRealGoals()?.calories ?? null };
+    // kcal-only entries (macrosEntered === false) carry 0 placeholders, not
+    // measurements: sumIntake leaves them out of P/F/C (shared with home).
+    const { calories, protein, fat, carbs, enteredCount } = sumIntake(entries);
+    const agg = { calories, protein, fat, carbs };
+    const hasMacros = enteredCount > 0;
+    return { ...agg, goal: getRealGoals()?.calories ?? null, hasMacros };
   } catch {
     return ZERO;
   }
@@ -89,14 +88,16 @@ export default function CalorieContextBar() {
             : `${remaining.toLocaleString()} kcal ${t.remaining}`}
         </span>
 
-        {/* right: macro pills */}
-        <div className="flex items-center gap-2.5 text-white text-[11px] font-bold tabular-nums">
-          <span>P {Math.round(snap.protein)}g</span>
-          <span className="text-white/50" aria-hidden="true">·</span>
-          <span>F {Math.round(snap.fat)}g</span>
-          <span className="text-white/50" aria-hidden="true">·</span>
-          <span>C {Math.round(snap.carbs)}g</span>
-        </div>
+        {/* right: macro pills (only when some entry has real P/F/C) */}
+        {snap.hasMacros && (
+          <div className="flex items-center gap-2.5 text-white text-[11px] font-bold tabular-nums">
+            <span>P {Math.round(snap.protein)}g</span>
+            <span className="text-white/50" aria-hidden="true">·</span>
+            <span>F {Math.round(snap.fat)}g</span>
+            <span className="text-white/50" aria-hidden="true">·</span>
+            <span>C {Math.round(snap.carbs)}g</span>
+          </div>
+        )}
       </div>
     </div>
   );

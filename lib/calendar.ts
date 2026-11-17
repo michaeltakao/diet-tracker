@@ -6,7 +6,7 @@
  * shiftDate/weekStartOf so month/year/leap handling stays in one place.
  */
 
-import { shiftDate, weekStartOf } from '@/lib/streak';
+import { shiftDate, weekStartOf } from '@/lib/format-date';
 
 /**
  * Full-week grid covering a month.

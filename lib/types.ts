@@ -1,4 +1,3 @@
-import type { RankId } from './rank';
 
 /** Where a food entry's nutrition values came from. */
 export type FoodSource = 'manual' | 'ai' | 'db' | 'barcode';
@@ -25,6 +24,12 @@ export interface FoodEntry {
   sourceId?: string;      // food-db id / barcode EAN when source is 'db'/'barcode'
   sodiumMg?: number;      // future: medication-rules already reason about sodium
   fiberG?: number;
+  /**
+   * False = the user entered kcal only (P/F/C optional since ADR-011) and
+   * protein/fat/carbs are 0 placeholders, not measurements. Undefined =
+   * written before the flag existed, when P/F/C were mandatory → entered.
+   */
+  macrosEntered?: boolean;
 }
 
 /** A food the user explicitly favorited (♡) — Phase B preference signal. */
@@ -83,82 +88,11 @@ export interface WorkoutEntry {
   addedAt: string;
 }
 
-export interface CoachMenu {
-  id: string;
-  name: string;
-  musclePart: MusclePart;
-  defaultWeight: number;
-  defaultReps: number;
-  defaultSets: number;
-  coachTip: string;
-  coachTipEn?: string;
-}
-
 export interface WeightEntry {
   id: string;
   date: string; // YYYY-MM-DD
   weight: number; // kg
   addedAt: string;
-}
-
-// ── Vitals (record only — the app never interprets these values) ──────────
-
-export type GlucoseContext = 'fasting' | 'postprandial' | 'random';
-
-interface VitalEntryBase {
-  id: string;
-  date: string;    // YYYY-MM-DD (JST day)
-  addedAt: string; // ISO
-  notes?: string;
-}
-
-export interface BloodPressureEntry extends VitalEntryBase {
-  kind: 'blood_pressure';
-  systolic: number;  // mmHg, plausibility bounds 50–300 (matches SQL CHECK)
-  diastolic: number; // mmHg, plausibility bounds 30–200
-}
-
-export interface BloodGlucoseEntry extends VitalEntryBase {
-  kind: 'blood_glucose';
-  glucoseMgDl: number; // mg/dL, plausibility bounds 20–600
-  glucoseContext: GlucoseContext;
-}
-
-/** Lipid panel (脂質検査) — total cholesterol required, the rest lab-dependent. */
-export interface LipidPanelEntry extends VitalEntryBase {
-  kind: 'lipid';
-  totalMgDl: number;          // 総コレステロール, bounds 50–500 (matches SQL CHECK)
-  ldlMgDl?: number;           // bounds 20–400
-  hdlMgDl?: number;           // bounds 10–150
-  triglyceridesMgDl?: number; // 中性脂肪, bounds 20–2000
-}
-
-export interface Hba1cEntry extends VitalEntryBase {
-  kind: 'hba1c';
-  hba1cPercent: number; // %, bounds 3.0–20.0
-}
-
-export type VitalEntry = BloodPressureEntry | BloodGlucoseEntry | LipidPanelEntry | Hba1cEntry;
-
-// ── Symptom log (record + display only — never diagnostic) ────────────────
-
-export interface SymptomEntry {
-  id: string;
-  date: string;               // YYYY-MM-DD (JST day of onset)
-  onsetAt: string;            // ISO
-  name: string;               // e.g. 頭痛
-  durationMin?: number;       // 1–10080 (one week), matches SQL CHECK
-  severity: number;           // 1–10 self-rating (recorded, not judged)
-  trigger?: string;           // free chip value: 食事/運動/ストレス/天候/睡眠不足/不明
-  actionTaken?: string;
-  note?: string;
-  // Plain id links (no FK — client-generated ids + guest mode); names are
-  // denormalized at link time so the doctor report survives log deletion.
-  relatedMealId?: string;
-  relatedMealName?: string;
-  relatedWorkoutId?: string;
-  relatedWorkoutName?: string;
-  addedAt: string;            // ISO
 }
 
 export interface DailyGoals {
@@ -169,13 +103,6 @@ export interface DailyGoals {
   water: number;    // ml per day, default 2000
   goalWeight?: number; // kg target
 }
-
-export type BadgeType =
-  | 'streak3' | 'streak7' | 'streak30'
-  | 'water_goal' | 'calorie_goal'
-  | 'workout_master' | 'pr_achieved'
-  | 'first_food' | 'first_workout'
-  | 'vitals_week';
 
 /**
  * Per-device streak bookkeeping (localStorage-only — per-device UX state,
@@ -190,15 +117,6 @@ export interface StreakState {
    * bridging the same gaps (see lib/streak.ts).
    */
   repairedDates: string[];
-}
-
-export interface Badge {
-  id: string;
-  type: BadgeType;
-  name: string;
-  description: string;
-  icon: string;
-  earnedAt: string; // ISO
 }
 
 export interface PersonalRecord {
@@ -216,24 +134,11 @@ export interface AppData {
   weightEntries: WeightEntry[];
   goals: DailyGoals;
   waterByDate: Record<string, number>; // date -> ml consumed
-  badges: Badge[];
   personalRecords: Record<string, PersonalRecord>; // exercise name -> best PR
   recommendationFeedback: RecommendationFeedback[]; // Phase B: preference signals
   favoriteFoods: FavoriteFood[];   // ♡ foods (Phase B signal + quick-add pills)
   mealTemplates: MealTemplate[];   // saved meals for one-tap re-log
   streakState: StreakState;        // longest streak + repair-ticket memory (device-local)
-  vitalEntries: VitalEntry[];      // BP / glucose measurements (record-only)
-  symptomEntries: SymptomEntry[];  // symptom log (record-only, non-diagnostic)
-  xp: number;                      // Solo Leveling rank system (Phase 1): cumulative XP, never decreases
-  highestRank: RankId;             // ratchet — highest rank ever reached, independent of current XP
-  earnedTitles: string[];          // Solo Leveling titles (Phase 4): TitleKey[], stored untyped here to avoid a types.ts <-> titles.ts import cycle
-  exerciseRanks: Record<string, ExerciseRankState>; // per-exercise strength rank (Liftoff-inspired), keyed by ExerciseDef.id — only the 10 curated rankable lifts ever get an entry
-}
-
-/** Stored per-exercise rank state — the achieved tier + when it was reached. */
-export interface ExerciseRankState {
-  rank: 'novice' | 'intermediate' | 'advanced' | 'expert' | 'elite'; // 'unranked' is never persisted (absence of a row = unranked, mirrors PersonalRecord's "no row = no PR yet")
-  achievedAt: string; // ISO
 }
 
 // ── Health Profile (stored in localStorage + profiles table) ──
@@ -264,11 +169,6 @@ export interface UserHealthProfile {
   fitnessGoal:         FitnessGoal;
   activityLevel:       ActivityLevel;
   experience?:         ExperienceLevel | null;    // localStorage-only — no profiles column
-}
-
-export interface MedLogEntry {
-  date:      string;    // YYYY-MM-DD
-  takenMeds: string[];  // medication names taken today
 }
 
 // ── XAI Explanation ───────────────────────────────────────────
@@ -346,59 +246,7 @@ export interface RecommendationFeedback {
   createdAt:       string;              // ISO timestamp
 }
 
-// ── Weekly Report (AI-generated, cached in DB) ────────────────
-
-export type ReportAssessment = 'excellent' | 'good' | 'neutral' | 'warning';
-
-export interface ReportSection {
-  summary: string;
-  assessment: ReportAssessment;
-}
-
-export interface WeeklyReport {
-  weekStart:          string;          // YYYY-MM-DD (Monday)
-  weightDelta:        number | null;   // kg change (negative = loss)
-  avgCalories:        number;
-  calorieGoal:        number;
-  calorieAdherence:   number;          // % of days within ±200 kcal
-  avgProtein:         number;
-  proteinGoal:        number;
-  proteinAdherence:   number;          // % of days hitting protein goal
-  workoutDays:        number;
-  hydrationScore:     number;          // % of days hitting water goal
-  strengths:          string[];
-  frictions:          string[];
-  nextWeekTarget:     string;
-  motivationMessage:  string;
-  generatedAt:        string;          // ISO timestamp
-}
-
-// ── Daily Aggregation (server-side only, never stored) ────────
-
-export interface DailyStat {
-  date:             string;
-  hasData:          boolean;
-  totalCalories:    number;
-  totalProtein:     number;
-  calorieHit:       boolean;
-  proteinHit:       boolean;
-  waterHit:         boolean;
-  workoutCount:     number;
-  lateNightMeals:   number;  // meals after 21:00
-  noBreakfast:      boolean;
-  earliestMealHour: number | null;
-  latestMealHour:   number | null;
-}
-
 // ── Analytics ─────────────────────────────────────────────────
-
-export interface AdherenceScore {
-  total:      number;  // 0-100 composite
-  calorie:    number;  // sub-score contribution
-  protein:    number;
-  workout:    number;
-  hydration:  number;
-}
 
 export interface WeightTrend {
   slope:              number;   // kg/day (negative = losing)
@@ -416,57 +264,3 @@ export interface WeeklyAverage {
   avgWater:     number;
 }
 
-// ── Daily Check-in ────────────────────────────────────────────────────────
-
-export interface DailyCheckIn {
-  date:          string;                    // YYYY-MM-DD
-  mood:          1 | 2 | 3 | 4 | 5;        // 気分 (1=最悪 … 5=最高)
-  energy:        1 | 2 | 3 | 4 | 5;        // 体力 (1=消耗 … 5=絶好調)
-  sleepHours:    number;                    // 睡眠時間
-  sorenessAreas: MusclePart[];             // 筋肉痛部位
-  notes?:        string;
-  sleepQuality?: 1 | 2 | 3 | 4 | 5;        // 睡眠の質 (1=悪い … 5=良い)
-  stressLevel?:  1 | 2 | 3 | 4 | 5;        // ストレス (1=低い … 5=高い)
-  bedTime?:      string;                    // 'HH:MM', 24h
-  wakeTime?:     string;                    // 'HH:MM', 24h
-}
-
-export interface WorkoutSuggestion {
-  proceed:           'full' | 'reduced' | 'alternative' | 'rest';
-  sessionName:       string;
-  adjustments:       string[];    // 種目ごとの調整メモ
-  intensityNote:     string;      // 例: "今日は80%強度で"
-  motivationMessage: string;
-  recoveryTips:      string[];
-  generatedAt:       string;      // ISO
-}
-
-// ── Training Plan ─────────────────────────────────────────────────────────
-
-export interface PlannedExercise {
-  id:            string;
-  name:          string;
-  musclePart:    MusclePart;
-  sets:          number;
-  repsMin:       number;
-  repsMax:       number;
-  targetWeight?: number;   // kg (optional starting suggestion)
-  notes?:        string;
-}
-
-export interface TrainingSession {
-  id:        string;
-  name:      string;        // e.g. "Push Day", "Lower A"
-  exercises: PlannedExercise[];
-}
-
-export interface TrainingProgram {
-  id:           string;
-  name:         string;
-  description:  string;
-  sessions:     TrainingSession[];
-  /** dayOfWeek (0=Sun…6=Sat) → session id. Empty string = rest day. */
-  weekSchedule: Record<number, string>;
-  isActive:     boolean;
-  createdAt:    string;
-}

@@ -19,7 +19,7 @@
  */
 
 import type { AppData, StreakState } from './types';
-import { todayJst } from './format-date';
+import { shiftDate, todayJst, weekStartOf } from './format-date';
 
 const DAY_MS = 86_400_000;
 
@@ -31,12 +31,8 @@ export function jstToday(): string {
   return todayJst();
 }
 
-/** Calendar-day arithmetic on YYYY-MM-DD strings (handles month/year/leap). */
-export function shiftDate(date: string, days: number): string {
-  const d = new Date(`${date}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
+/** Re-exported for existing callers (tests); they live in lib/format-date.ts. */
+export { shiftDate, weekStartOf };
 
 /** ISO-8601 week key (e.g. "2026-W29") of a YYYY-MM-DD date. */
 export function isoWeekKey(date: string): string {
@@ -51,30 +47,20 @@ export function isoWeekKey(date: string): string {
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
-/** Monday (ISO week start) of the week containing `date`. */
-export function weekStartOf(date: string): string {
-  const d = new Date(`${date}T00:00:00Z`);
-  return shiftDate(date, -((d.getUTCDay() + 6) % 7));
-}
+
 
 /**
- * Union of activity days across all log types ("any-log" definition).
- * Water only counts when > 0 ml (a zeroed-out day is not activity).
- * Vitals and symptoms count too: recording a measurement or a symptom is
- * logging activity.
+ * Union of activity days across the outcome logs ("any-log" definition,
+ * ADR-011): food, workout and weight — the same tables the cohort analysis
+ * unions (docs/trial/cohort-queries.sql `act`) and the push cron reads.
  */
 export function activityDaysFrom(
-  data: Pick<AppData, 'foodEntries' | 'workoutEntries' | 'weightEntries' | 'waterByDate' | 'vitalEntries' | 'symptomEntries'>,
+  data: Pick<AppData, 'foodEntries' | 'workoutEntries' | 'weightEntries'>,
 ): Set<string> {
   const days = new Set<string>();
   for (const e of data.foodEntries) days.add(e.date);
   for (const e of data.workoutEntries) days.add(e.date);
   for (const e of data.weightEntries) days.add(e.date);
-  for (const e of data.vitalEntries) days.add(e.date);
-  for (const e of data.symptomEntries) days.add(e.date);
-  for (const [date, ml] of Object.entries(data.waterByDate)) {
-    if (ml > 0) days.add(date);
-  }
   return days;
 }
 
