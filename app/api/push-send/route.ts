@@ -25,7 +25,7 @@ import webpush from 'web-push';
 import { getServerUser, createServerSupabase } from '@/lib/supabase-server';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { buildNudgePayload, sendPushNotifications } from '@/lib/push-send';
-import { jstToday } from '@/lib/streak';
+import { todayJst as jstToday } from '@/lib/format-date';
 import type { NudgeKind } from '@/lib/notifications';
 import type { Lang } from '@/lib/i18n';
 

@@ -9,7 +9,7 @@ import { FoodEntry, DailyGoals, MealTemplate } from '@/lib/types';
 import MealCard from '@/components/MealCard';
 import CalorieBar from '@/components/CalorieBar';
 import { MonthCalendar, type DayCategory } from '@/components/MonthCalendar';
-import { shiftDate, weekStartOf } from '@/lib/streak';
+import { shiftDate, weekStartOf } from '@/lib/format-date';
 import SusSurveyCard from '@/components/SusSurveyCard';
 import BottomNav from '@/components/BottomNav';
 import { TrendsPanel } from '@/components/TrendsPanel';

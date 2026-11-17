@@ -31,7 +31,7 @@ import { constantTimeEqual } from '@/lib/api-guard';
 import { buildNudgePayload, sendPushNotifications } from '@/lib/push-send';
 import { buildNudgeInputFor, groupActivityDaysByUser, type UserLogDates } from '@/lib/nudge-fanout';
 import { decideNudge } from '@/lib/notifications';
-import { jstToday } from '@/lib/streak';
+import { todayJst as jstToday } from '@/lib/format-date';
 
 const JST_OFFSET_MS = 9 * 3_600_000;
 

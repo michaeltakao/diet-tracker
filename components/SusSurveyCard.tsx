@@ -17,7 +17,7 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { jstToday } from '@/lib/streak';
+import { todayJst as jstToday } from '@/lib/format-date';
 import { decideSusShow } from '@/lib/sus-gate';
 import { postJson, HttpError } from '@/lib/httpClient';
 import { Button } from '@/components/ui/Button';
