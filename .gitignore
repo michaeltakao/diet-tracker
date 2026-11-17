@@ -50,5 +50,8 @@ next-env.d.ts
 
 # secscan security baseline (SARIF reports — never commit)
 .secscan/
-docs/reviews/
+# Review records stay local (council / security, 35ee744) — except dt-critic
+# product critiques, which are part of the ADR trail (ADR-011).
+docs/reviews/*
+!docs/reviews/*CRITIQUE*.md
 .env*
