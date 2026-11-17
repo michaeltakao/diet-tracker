@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type, type Schema } from '@google/genai';
-import { generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
+import { GEMINI_MODEL, generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildHealthContextPrompt } from '@/lib/medication-rules';
@@ -174,7 +174,7 @@ ${resultMap['goal'] ?? '（提案なし）'}
     };
 
     const orchestratorResponse = await generateWithRetry(ai, {
-      model: 'gemini-2.5-flash',
+      model: GEMINI_MODEL,
       config: jsonConfig(orchestratorSchema),
       contents: [{ role: 'user', parts: [{ text: orchestratorPrompt }] }],
     });

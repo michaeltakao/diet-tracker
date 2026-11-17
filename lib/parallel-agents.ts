@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { GEMINI_MODEL } from '@/lib/gemini';
 
 export interface AgentTask {
   id: string;
@@ -19,7 +20,7 @@ export interface AgentResult {
 export async function runParallelAgents(
   apiKey: string,
   tasks: AgentTask[],
-  model = 'gemini-2.5-flash',
+  model = GEMINI_MODEL,
 ): Promise<AgentResult[]> {
   const ai = new GoogleGenAI({ apiKey });
 

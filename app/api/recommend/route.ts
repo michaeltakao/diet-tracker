@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type, type Schema } from '@google/genai';
-import { generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
+import { GEMINI_MODEL, generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { buildSafetyReport, filterRecommendation } from '@/lib/recommend-safety';
@@ -166,7 +166,7 @@ ${body.recentWorkoutLog.length > 0
 
     const ai = new GoogleGenAI({ apiKey });
     const response = await generateWithRetry(ai, {
-      model: 'gemini-2.5-flash',
+      model: GEMINI_MODEL,
       config: jsonConfig(RESPONSE_SCHEMA),
       contents: [
         { role: 'user', parts: [{ text: SYSTEM_PROMPT + '\n\n' + userMessage }] },
