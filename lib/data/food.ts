@@ -69,6 +69,8 @@ export function foodRow(entry: FoodEntry): RowFor<'food_logs'> {
     source_id:    entry.sourceId ?? null,
     sodium_mg:    entry.sodiumMg ?? null,
     fiber_g:      entry.fiberG ?? null,
+    // Undefined = pre-ADR-011 entry (P/F/C were mandatory) → entered.
+    macros_entered: entry.macrosEntered ?? true,
   };
 }
 

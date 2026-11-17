@@ -191,7 +191,8 @@ export function FoodEntryForm({
         {errors.calories && <p className="text-xs text-danger mt-1">{errors.calories}</p>}
       </div>
 
-      {/* Macros row */}
+      {/* Macros row — optional since ADR-011 (all three or kcal only) */}
+      <p className="text-[10px] text-faint -mb-1">{t.macrosOptionalNote}</p>
       <div className="grid grid-cols-3 gap-2.5">
         {(
           [
@@ -208,7 +209,7 @@ export function FoodEntryForm({
               type="number"
               value={form[field]}
               onChange={(e) => onUpdateField(field, e.target.value)}
-              placeholder="0"
+              placeholder="—"
               min="0"
               step="0.1"
               className={`

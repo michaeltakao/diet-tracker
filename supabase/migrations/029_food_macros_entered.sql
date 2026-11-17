@@ -1,10 +1,12 @@
 -- =============================================================================
--- DRAFT — NOT A MIGRATION YET. Do not apply. (vault ADR-008 P0-13)
+-- 029 — food_logs.macros_entered (vault ADR-008 P0-13, adopted by ADR-011)
 -- =============================================================================
--- Kept outside supabase/migrations/ on purpose so no tool applies it.
+-- NOT YET APPLIED TO PRODUCTION. Apply (after asking) BEFORE any build of
+-- refactor/core-loop reaches production: the app now sends macros_entered,
+-- and until the column exists the outbox keeps every food row queued
+-- (PGRST204 = schema error, not permanent) and stops the flush.
 --
--- Only needed if P/F/C become optional on manual food entry (ADR-008 P1,
--- waiting on the advisor). food_logs.protein_g / fat_g / carbs_g are
+-- P/F/C became optional on manual food entry in ADR-011. food_logs.protein_g / fat_g / carbs_g are
 -- NOT NULL DEFAULT 0 (001_initial_schema.sql), so a kcal-only meal would be
 -- stored as "0 g protein" — a fake zero, indistinguishable from a real one.
 --
@@ -14,10 +16,9 @@
 -- column. NULL = written before this column existed (treat P/F/C as entered,
 -- which was mandatory then).
 --
--- To adopt: move to supabase/migrations/029_food_macros_entered.sql, set
--- macros_entered in lib/data/food.ts foodRow() (false when the user left
--- P/F/C empty), add a unit test "kcal-only meal → macros_entered = false",
--- and update docs/trial/data-dictionary.md. Apply to prod only after asking.
+-- App side: lib/data/food.ts foodRow() sends macros_entered = false when any
+-- of P/F/C was left empty (all-or-nothing), true otherwise; legacy local
+-- entries without the flag are sent as true (P/F/C were mandatory then).
 -- =============================================================================
 
 ALTER TABLE public.food_logs

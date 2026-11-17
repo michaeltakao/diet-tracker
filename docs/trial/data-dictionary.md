@@ -32,7 +32,8 @@
 | `logged_date` | DATE | 保存した日(JST、`app/add/page.tsx` `getTodayDate()` = `todayJst()`)。/add からは今日の日付でしか記録できない | — |
 | `meal_type` | enum | breakfast / lunch / dinner / snack。利用者が選ぶ(既定は時刻から推定) | — |
 | `calories` | INTEGER ≥ 0 | 利用者の入力、または写真 AI / バーコード / 成分表示の値 × 量 | — |
-| `protein_g` / `fat_g` / `carbs_g` | NUMERIC ≥ 0 | 同上 | **0 と未入力を区別できない**(`NOT NULL DEFAULT 0`)。今は P/F/C が入力必須なので 0 は実際の 0。任意にするなら `macros_entered`(P0-13、`supabase/drafts/029_food_macros_entered.sql`、未適用)を先に入れる |
+| `protein_g` / `fat_g` / `carbs_g` | NUMERIC ≥ 0 | 同上 | `NOT NULL DEFAULT 0`。ADR-011 で P/F/C は任意になった(3 つ全部か、kcal だけ)。**`macros_entered = false` の行の 0 は未入力の置き場で、実測ではない → 欠測として扱う。** |
+| `macros_entered` | BOOLEAN NULL | 同上(migration 029、**本番未適用**) | false = kcal だけ入力。true = P/F/C も入力。NULL = 029 より前の行(当時は P/F/C 必須 = 入力済み) |
 | `source` | TEXT | manual / ai / db / barcode(`lib/types.ts` `FoodSource`)。最近の食事からのクイック追加は元の値を引き継ぐ | NULL = 古い行 |
 | `servings` / `amount_g` | NUMERIC | 量のステッパー | NULL = 未使用 |
 | `logged_at` | TIMESTAMPTZ | 利用者が選んだ食事時刻(JST の日付 + HH:MM → UTC、`jstTimestamp`) | — |

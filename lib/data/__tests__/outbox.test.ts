@@ -428,6 +428,21 @@ describe('data-layer wiring (weight.ts / food.ts)', () => {
     expect(rows('food_logs')[0]).toMatchObject({
       id: 'f9', user_id: 'u1', logged_date: '2026-11-09', meal_type: 'lunch', calories: 250,
       protein_g: 4, fat_g: 0.5, carbs_g: 55, servings: 1.5, logged_at: '2026-11-09T03:00:00.000Z',
+      // No flag on the entry = written when P/F/C were mandatory → entered.
+      macros_entered: true,
+    });
+  });
+
+  it('a kcal-only meal is sent with macros_entered = false (migration 029)', async () => {
+    stubStorage();
+    const { addFoodEntry } = await import('../food');
+    await addFoodEntry({
+      id: 'f10', date: '2026-11-09', mealType: 'dinner', name: 'teishoku', calories: 650,
+      protein: 0, fat: 0, carbs: 0, macrosEntered: false, addedAt: '2026-11-09T10:00:00.000Z',
+    });
+    await idle();
+    expect(rows('food_logs').find((r) => r.id === 'f10')).toMatchObject({
+      calories: 650, protein_g: 0, fat_g: 0, carbs_g: 0, macros_entered: false,
     });
   });
 });

@@ -338,6 +338,7 @@ export type Database = {
           id: string
           logged_at: string
           logged_date: string
+          macros_entered: boolean | null
           meal_type: Database["public"]["Enums"]["meal_type"]
           name: string
           photo_url: string | null
@@ -361,6 +362,7 @@ export type Database = {
           id?: string
           logged_at?: string
           logged_date: string
+          macros_entered?: boolean | null
           meal_type: Database["public"]["Enums"]["meal_type"]
           name: string
           photo_url?: string | null
@@ -384,6 +386,7 @@ export type Database = {
           id?: string
           logged_at?: string
           logged_date?: string
+          macros_entered?: boolean | null
           meal_type?: Database["public"]["Enums"]["meal_type"]
           name?: string
           photo_url?: string | null

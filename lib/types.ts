@@ -24,6 +24,12 @@ export interface FoodEntry {
   sourceId?: string;      // food-db id / barcode EAN when source is 'db'/'barcode'
   sodiumMg?: number;      // future: medication-rules already reason about sodium
   fiberG?: number;
+  /**
+   * False = the user entered kcal only (P/F/C optional since ADR-011) and
+   * protein/fat/carbs are 0 placeholders, not measurements. Undefined =
+   * written before the flag existed, when P/F/C were mandatory → entered.
+   */
+  macrosEntered?: boolean;
 }
 
 /** A food the user explicitly favorited (♡) — Phase B preference signal. */

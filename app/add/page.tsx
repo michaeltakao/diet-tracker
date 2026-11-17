@@ -66,7 +66,8 @@ const SPEED_MODE_KEY = 'diet-tracker:speed-mode';
 export default function AddPage() {
   const router = useRouter();
   const { t } = useLanguage();
-  const [tab, setTab]                       = useState<Tab>('photo');
+  // Manual entry first (ADR-011): photo waits on the AI and is secondary.
+  const [tab, setTab]                       = useState<Tab>('manual');
   const [form, setForm]                     = useState<FormData>(EMPTY_FORM);
   const [errors, setErrors]                 = useState<Partial<FormData>>({});
   const [logTime, setLogTime]               = useState(getCurrentTime());
@@ -191,9 +192,10 @@ export default function AddPage() {
     const newErrors: Partial<FormData> = {};
     if (!form.name.trim())                 newErrors.name     = t.nameRequiredError;
     if (isInvalidNutrition(form.calories)) newErrors.calories = t.numberRequiredError;
-    if (isInvalidNutrition(form.protein))  newErrors.protein  = t.numberRequiredError;
-    if (isInvalidNutrition(form.fat))      newErrors.fat      = t.numberRequiredError;
-    if (isInvalidNutrition(form.carbs))    newErrors.carbs    = t.numberRequiredError;
+    // P/F/C are optional (ADR-011): blank is fine, a typed value must be valid.
+    if (form.protein !== '' && isInvalidNutrition(form.protein)) newErrors.protein = t.numberRequiredError;
+    if (form.fat     !== '' && isInvalidNutrition(form.fat))     newErrors.fat     = t.numberRequiredError;
+    if (form.carbs   !== '' && isInvalidNutrition(form.carbs))   newErrors.carbs   = t.numberRequiredError;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -251,6 +253,8 @@ export default function AddPage() {
       protein:  Math.round(Number(form.protein) * 10) / 10,
       fat:      Math.round(Number(form.fat)     * 10) / 10,
       carbs:    Math.round(Number(form.carbs)   * 10) / 10,
+      // All-or-nothing: any blank P/F/C → the three are placeholders (029).
+      macrosEntered: form.protein !== '' && form.fat !== '' && form.carbs !== '',
       // No photoDataUrl: the photo is preview-only and never persisted
       // (ADR-008 P0-2 — base64 photos filled the localStorage quota).
       addedAt: buildTimestamp(getTodayDate(), logTime),
@@ -430,9 +434,9 @@ export default function AddPage() {
       {/* ── Tabs ────────────────────────────────── */}
       <div role="tablist" className="flex bg-surface-2 rounded-2xl p-1 mb-4">
         {([
+          { id: 'manual'  as Tab, label: t.tabManual,  icon: PenLine },
           { id: 'photo'   as Tab, label: t.tabPhoto,   icon: Camera },
           { id: 'barcode' as Tab, label: t.tabBarcode, icon: ScanBarcode },
-          { id: 'manual'  as Tab, label: t.tabManual,  icon: PenLine },
         ] as const).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
