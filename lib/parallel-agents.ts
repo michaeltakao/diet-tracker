@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { GEMINI_MODEL } from '@/lib/gemini';
+import { GEMINI_MODEL, generateWithRetry } from '@/lib/gemini';
 
 export interface AgentTask {
   id: string;
@@ -27,7 +27,8 @@ export async function runParallelAgents(
   return Promise.all(
     tasks.map(async (task): Promise<AgentResult> => {
       try {
-        const response = await ai.models.generateContent({
+        // Same transient-failure retry (503/429) as every other Gemini call.
+        const response = await generateWithRetry(ai, {
           model,
           contents: [{
             role: 'user',
