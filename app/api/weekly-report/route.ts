@@ -193,8 +193,11 @@ ${resultMap['goal'] || '（提案なし）'}
     });
 
     // One user action = one quota unit, even though this route fans out to
-    // 4 parallel agents + 1 orchestrator internally.
-    await recordAiUsage(guard.userId, 'weekly-report', orchestratorResponse.usageMetadata?.totalTokenCount);
+    // 4 parallel agents + 1 orchestrator internally. Tokens, however, cover
+    // all 5 calls so `ai_usage` reflects what Gemini actually bills.
+    const specialistTokens = agentResults.reduce((sum, r) => sum + r.tokens, 0);
+    const orchestratorTokens = orchestratorResponse.usageMetadata?.totalTokenCount ?? 0;
+    await recordAiUsage(guard.userId, 'weekly-report', orchestratorTokens + specialistTokens);
 
     const parsed = parseGeminiJson<{
       summary:      string;
