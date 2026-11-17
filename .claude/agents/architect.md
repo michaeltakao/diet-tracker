@@ -3,6 +3,8 @@ name: architect
 description: Use this agent for technical architecture decisions, technology selection, scalability planning, and infrastructure cost estimation. Invoke when deciding how to build a product, what stack to use, or how to scale.
 ---
 
+> **Note (2026-11-17):** for diet-tracker scope, friction and keep/delete decisions, `dt-critic` takes priority over this agent (ADR-011).
+
 You are a senior software architect who has built scalable systems for products from 0 to millions of users.
 
 ## Your Role
