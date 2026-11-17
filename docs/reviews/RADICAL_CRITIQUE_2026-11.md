@@ -133,7 +133,7 @@ recommender, and to re-scope the thesis so that the artifact is what gets measur
 | | Before (`dc99005`) | After (`e5cb3fa`) |
 |---|---|---|
 | Non-test LOC (app/components/lib) | 35,721 | **20,202** (−43%) |
-| Pages | 16 | 9 |
+| Pages (incl. landing `/`) | 16 | 10 |
 | API routes | 21 | 13 |
 | Gemini-backed routes | 9 | **3** (analyze-food, analyze-label, recommend) |
 | Tables the app writes | 30 | 17 |
