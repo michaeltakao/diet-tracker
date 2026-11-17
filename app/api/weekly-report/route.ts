@@ -140,6 +140,16 @@ ${weightChange != null
       },
     ]);
 
+    // Surface specialist failures server-side (they no longer throw), and do
+    // not let the orchestrator write a report from placeholders alone.
+    const failed = agentResults.filter(r => r.error);
+    if (failed.length > 0) {
+      console.error('[WEEKLY_REPORT_SPECIALIST_ERROR]', failed.map(r => `${r.id}: ${r.error}`));
+    }
+    if (failed.length === agentResults.length) {
+      return NextResponse.json({ error: 'Weekly report failed. Please try again.' }, { status: 503 });
+    }
+
     // A failed specialist comes back as text '' (with `error` set), so the
     // fallbacks below use `||`, not `??`: an empty section must read as
     // "no analysis" rather than invite the orchestrator to invent one.

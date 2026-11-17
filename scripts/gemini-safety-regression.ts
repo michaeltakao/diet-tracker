@@ -5,9 +5,12 @@
  * synthetic personas against two models, then scores each response with the
  * production safety gate (lib/recommend-safety.ts). No real user data.
  *
- * Usage (run from the repo root):
- *   node --import tsx scripts/gemini-safety-regression.ts --dry-run
- *   node --env-file=<path>/.env.local --import tsx scripts/gemini-safety-regression.ts
+ * Usage (run from the repo root; tsx is not a project dependency, npx fetches it
+ * and resolves the `@/` alias from tsconfig.json):
+ *   npx tsx scripts/gemini-safety-regression.ts --dry-run
+ *   npx tsx --env-file=<path>/.env.local scripts/gemini-safety-regression.ts
+ * The 2026-11-17 run used `node --import <tsx>/dist/loader.mjs` instead, because
+ * the tsx CLI's IPC pipe is blocked in the Claude Code sandbox; same code path.
  *
  * Flags
  * -----
@@ -15,6 +18,11 @@
  * --reps=N       calls per (model, persona); default 3
  * --cap=USD      stop once the estimated spend exceeds this; default 1
  * --out=STEM     output stem under docs/eval/; default gemini-pin-YYYY-MM-DD
+ * --force        overwrite existing output files (committed results are kept otherwise)
+ *
+ * Valid only before 2026-12-01: from then on Google routes `gemini-2.5-flash`
+ * to `gemini-3.5-flash-lite` server-side, so the "baseline" would be the
+ * candidate. The script refuses to run on or after that date.
  *
  * The API key is read from GEMINI_API_KEY and handed to the SDK only. It is
  * never printed, logged or written to the output files.
@@ -24,7 +32,7 @@
  * That is the 2.5-flash price; flash-lite is not more expensive, so the cap
  * is conservative.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { GoogleGenAI, type GenerateContentResponse } from '@google/genai';
 import { GEMINI_MODEL, generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
@@ -35,6 +43,8 @@ import type { Recommendation, UserHealthProfile } from '@/lib/types';
 // ── Config ──────────────────────────────────────────────────────────────────
 
 const BASELINE_MODEL = 'gemini-2.5-flash';
+/** First day the baseline is rerouted to the candidate (AI Studio deprecations page). */
+const BASELINE_SHUTDOWN = '2026-12-01';
 const MODELS = [BASELINE_MODEL, GEMINI_MODEL] as const;
 const PRICE_IN_PER_M = 0.3;
 const PRICE_OUT_PER_M = 2.5;
@@ -44,9 +54,21 @@ function arg(name: string): string | undefined {
   const hit = process.argv.find((a) => a.startsWith(`--${name}=`));
   return hit?.split('=').slice(1).join('=');
 }
+/** Parse a numeric flag; exit on anything that is not a finite number > 0. */
+function numArg(name: string, fallback: number, integer: boolean): number {
+  const raw = arg(name);
+  if (raw === undefined) return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0 || (integer && !Number.isInteger(n))) {
+    console.error(`--${name} must be a ${integer ? 'positive integer' : 'positive number'}, got "${raw}"`);
+    process.exit(2);
+  }
+  return n;
+}
 const DRY_RUN = process.argv.includes('--dry-run');
-const REPS = Number(arg('reps') ?? 3);
-const CAP_USD = Number(arg('cap') ?? 1);
+const FORCE = process.argv.includes('--force');
+const REPS = numArg('reps', 3, true);
+const CAP_USD = numArg('cap', 1, false);
 const TODAY = new Date().toISOString().slice(0, 10);
 const OUT_STEM = arg('out') ?? `gemini-pin-${TODAY}`;
 
@@ -390,6 +412,17 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (TODAY >= BASELINE_SHUTDOWN) {
+    console.error(`${BASELINE_MODEL} is rerouted to ${GEMINI_MODEL} from ${BASELINE_SHUTDOWN}; a comparison would be meaningless. Aborting.`);
+    process.exit(2);
+  }
+  const outDir = path.join(process.cwd(), 'docs', 'eval');
+  const outFiles = ['json', 'md'].map((ext) => path.join(outDir, `${OUT_STEM}.${ext}`));
+  if (!FORCE && outFiles.some((f) => existsSync(f))) {
+    console.error(`docs/eval/${OUT_STEM}.{json,md} already exists; pass --out=<stem> or --force. Aborting before any call.`);
+    process.exit(2);
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     console.error('GEMINI_API_KEY is not set (pass --env-file). Aborting.');
@@ -429,7 +462,6 @@ async function main(): Promise<void> {
   const summaries = MODELS.map((m) => summarise(m, records.filter((r) => r.model === m)));
   const v = verdict(summaries[0], summaries[1], expectedPerModel);
 
-  const outDir = path.join(process.cwd(), 'docs', 'eval');
   mkdirSync(outDir, { recursive: true });
   const meta = { date: TODAY, reps: REPS, capped, capUsd: CAP_USD };
   const json = {
@@ -440,8 +472,8 @@ async function main(): Promise<void> {
     summaries,
     records,
   };
-  writeFileSync(path.join(outDir, `${OUT_STEM}.json`), JSON.stringify(json, null, 2) + '\n');
-  writeFileSync(path.join(outDir, `${OUT_STEM}.md`), markdown(summaries, records, v, meta));
+  writeFileSync(outFiles[0], JSON.stringify(json, null, 2) + '\n');
+  writeFileSync(outFiles[1], markdown(summaries, records, v, meta));
 
   console.log(`\nVerdict: ${v.pass ? 'PASS' : 'FAIL'}`);
   for (const c of v.checks) console.log(`  ${c.pass ? '✓' : '✗'} ${c.name}: ${c.detail}`);

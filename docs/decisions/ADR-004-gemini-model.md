@@ -91,6 +91,12 @@ Setup:
 Answered calls: `gemini-2.5-flash` 24/30 (6× 429 quota),
 `gemini-3.5-flash-lite` 29/30 (1× 503 after retries).
 
+The script prints verdict **FAIL** (also in the JSON), from a fourth check
+added during implementation and not part of the approved criteria: "every
+planned call answered". It failed on one `503 UNAVAILABLE` that persisted
+through retries. The run was not capped. The owner-approved criteria were
+applied as written; the results md explains this.
+
 Approved blocking criteria, all met:
 - 0 contraindicated foods after the gate
 - 0 parse failures (baseline 0)
@@ -106,4 +112,20 @@ Diagnostics:
 
 The thinking default therefore differs by model, as the "Unchanged" note
 anticipated.
+
+**Smoke (2026-11-17, local `next dev`, synthetic images).**
+- `/api/analyze-food`: 200.
+- `/api/analyze-label`: 200; every label value transcribed exactly.
+
+**Not covered.** No quality or parse-rate measurement exists for these six
+routes, or for analyze-* accuracy beyond one image each:
+- generate-workout
+- suggest-workout
+- coach
+- nutritionist
+- habit-report
+- weekly-report
+
+Thinking is now off by default, which may change output quality in the
+free-prose routes.
 
