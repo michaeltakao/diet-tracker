@@ -9,6 +9,7 @@ import { evaluateTitles, awardTitle, type TitleKey } from '@/lib/titles';
 import TitleDisplay from '@/components/TitleDisplay';
 import { DailyGoals, UserHealthProfile, FitnessGoal, ActivityLevel } from '@/lib/types';
 import { recommendedGoals, ageBand } from '@/lib/nutrition-standards';
+import { isProteinCapped, ckdProteinCapG, CKD_PROTEIN_G_PER_KG } from '@/lib/medication-rules';
 import { getTextScale, setTextScale, type TextScale } from '@/components/TextScaleInit';
 import { getStoredEasyMode, setEasyMode } from '@/lib/easy-mode';
 import {
@@ -98,6 +99,8 @@ export default function SettingsPage() {
   const [easyMode, setEasyModeState] = useState(false);
   const [earnedTitles, setEarnedTitles] = useState<Set<TitleKey>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Latest body weight, for the CKD protein-cap note beside the protein goal.
+  const [latestWeightKg, setLatestWeightKg] = useState<number | null>(null);
 
   useEffect(() => {
     const data = getAppData();
@@ -112,6 +115,7 @@ export default function SettingsPage() {
     });
     setStats(getStorageStats());
     setHealthProfile(getHealthProfile());
+    setLatestWeightKg(getLatestWeightEntry()?.weight ?? null);
     setTextScaleState(getTextScale());
     setEasyModeState(getStoredEasyMode());
 
@@ -204,6 +208,11 @@ export default function SettingsPage() {
 
   // 食事摂取基準ベースの推奨値 — 年齢12歳以上が設定されている場合のみ有効
   const recommendReady = ageBand(healthProfile.age) !== null;
+  // Display-only: getRealGoals() applies this cap at read time; the stored
+  // goal stays the user's value (no blocking, no auto-rewrite).
+  const proteinCapG = isProteinCapped(healthProfile.healthConditions ?? [])
+    ? ckdProteinCapG(latestWeightKg)
+    : null;
 
   const applyRecommendedGoals = () => {
     const rec = recommendedGoals(healthProfile, getLatestWeightEntry()?.weight ?? null);
@@ -471,6 +480,11 @@ export default function SettingsPage() {
               min="0"
               className={`${inputCls} ${accent}`}
             />
+            {field === 'protein' && proteinCapG != null && (
+              <p className="text-xs text-muted mt-1.5">
+                腎臓病のため、表示・AIでは上限 {proteinCapG}g（{CKD_PROTEIN_G_PER_KG} g/kg）を適用します
+              </p>
+            )}
           </div>
         ))}
       </div>

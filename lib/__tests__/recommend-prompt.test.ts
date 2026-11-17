@@ -12,6 +12,8 @@
  * 2026-11-17 (CKD protein cap): hand-edited again — the CKD protein line
  * moved from after the 禁忌 line into the health-context block (after the
  * fluid line) and gained the "cap beats the user's goal" sentence.
+ * 2026-11-17 (cap floor): hand-edited — 42g → 41g, because ckdProteinCapG
+ * now floors (0.8 × 52 kg = 41.6 → 41) so the cap never exceeds 0.8 g/kg.
  * The other two fixtures (non-CKD) still match the pre-refactor template.
  */
 import { describe, expect, it } from 'vitest';

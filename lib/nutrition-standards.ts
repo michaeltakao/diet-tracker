@@ -168,7 +168,9 @@ const DEFAULT_WATER_ML = 2000;
  * water   = 2000 ml (unchanged; no 基準 RDA)
  *
  * Contraindication-grade caps (CKD protein ≤ 0.8 g/kg) are NOT applied here —
- * they live in lib/recommend-safety.ts and always win over the senior floor.
+ * they are applied at read time in getRealGoals() (lib/data/profile.ts, via
+ * capGoalsForConditions) and in recommend's clampMacros, and always win over
+ * the senior floor.
  *
  * Returns null when the profile's age is < 12 or unset.
  */

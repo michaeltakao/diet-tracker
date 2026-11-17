@@ -7,6 +7,7 @@ import {
   CKD_FLUID_PROMPT,
   isFluidNeutral,
   ckdProteinCapG,
+  capGoalsForConditions,
   parseWeightKg,
 } from '@/lib/medication-rules';
 
@@ -46,9 +47,35 @@ describe('isFluidNeutral', () => {
   });
 });
 
+describe('capGoalsForConditions', () => {
+  const goals = { calories: 2000, protein: 120, fat: 60, carbs: 250, water: 2000 };
+
+  it('caps protein at floor(0.8 g/kg) for CKD with a known weight', () => {
+    const out = capGoalsForConditions(goals, ['腎臓病'], 72);
+    expect(out.protein).toBe(57);
+    // other macros untouched, input not mutated
+    expect({ ...out, protein: 120 }).toEqual(goals);
+    expect(goals.protein).toBe(120);
+  });
+
+  it('leaves a goal already below the cap unchanged', () => {
+    const low = { ...goals, protein: 50 };
+    expect(capGoalsForConditions(low, ['腎臓病'], 72)).toBe(low);
+  });
+
+  it('is a no-op without weight or without CKD', () => {
+    expect(capGoalsForConditions(goals, ['腎臓病'], null)).toBe(goals);
+    expect(capGoalsForConditions(goals, ['腎臓病'], undefined)).toBe(goals);
+    expect(capGoalsForConditions(goals, ['高血圧'], 72)).toBe(goals);
+    expect(capGoalsForConditions(goals, [], 72)).toBe(goals);
+  });
+});
+
 describe('CKD protein cap', () => {
-  it('computes 0.8 g/kg rounded, null without a usable weight', () => {
-    expect(ckdProteinCapG(72)).toBe(58);
+  it('computes 0.8 g/kg floored, null without a usable weight', () => {
+    // floored so the stated cap never exceeds 0.8 g/kg
+    expect(ckdProteinCapG(72)).toBe(57); // 57.6
+    expect(ckdProteinCapG(52)).toBe(41); // 41.6
     expect(ckdProteinCapG(60)).toBe(48);
     expect(ckdProteinCapG(null)).toBeNull();
     expect(ckdProteinCapG(undefined)).toBeNull();
@@ -57,7 +84,7 @@ describe('CKD protein cap', () => {
 
   it('puts the gram cap into the AI health context when weight is known', () => {
     const ctx = buildHealthContextPrompt(['腎臓病'], [], 72);
-    expect(ctx).toContain('タンパク質は1日 58g');
+    expect(ctx).toContain('タンパク質は1日 57g');
     expect(ctx).toContain('上限を超える摂取を勧めない');
   });
 

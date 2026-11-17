@@ -3,12 +3,21 @@ import { GoogleGenAI, Type, type Schema } from '@google/genai';
 import { GEMINI_MODEL, generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { buildHealthContextPrompt } from '@/lib/medication-rules';
+import { parseBody, type ParsedBody } from '@/lib/nutritionist-request';
+import { screenSuggestions } from '@/lib/recommend-safety';
+import type { UserHealthProfile } from '@/lib/types';
 
 /**
  * AI nutritionist: exactly 3 concrete improvement suggestions for TODAY's
  * already-logged meals (swaps, portions, additions to an existing meal).
  * Scope guard: this route improves what the user actually ate; suggesting
  * new foods to eat is /api/recommend's job — the prompt forbids overlap.
+ *
+ * Safety (2026-11-17): optional health context (conditions, medications,
+ * weight) is prepended to the prompt — including the CKD protein cap — and
+ * every suggestion is re-screened deterministically (`screenSuggestions`);
+ * a contraindicated hit is replaced by a fixed placeholder.
  */
 
 const apiKey = process.env.GEMINI_API_KEY;
@@ -20,7 +29,8 @@ Rules:
 - Base every suggestion on a specific logged item or the day's actual totals (name the item).
 - Suggest swaps, portion changes, preparation changes, or small additions to existing meals — do NOT recommend brand-new meals or foods unrelated to what was logged.
 - When sodium (食塩相当量) or fiber (食物繊維) data is present, you may use it; never guess values that are not provided.
-- Non-diagnostic: no medical claims, no disease talk. Lifestyle guidance only.
+- Non-diagnostic: no medical claims, no diagnosis. Lifestyle guidance only.
+- If 【ユーザーの健康状態】 is given, its rules override the daily goals: never suggest foods it warns against, never suggest raising intake above any limit it states (e.g. a protein cap), and never suggest changing water intake when it says so.
 - title: ≤ 20 characters. detail: 1–2 sentences, specific and warm.
 - All text in Japanese.`;
 
@@ -42,63 +52,6 @@ const RESPONSE_SCHEMA: Schema = {
   },
   required: ['suggestions'],
 };
-
-interface EntryIn {
-  name: string;
-  calories: number;
-  protein: number;
-  fat: number;
-  carbs: number;
-  sodiumMg?: number;
-  fiberG?: number;
-}
-
-interface GoalsIn {
-  calories: number;
-  protein: number;
-  fat: number;
-  carbs: number;
-}
-
-const MAX_ENTRIES = 60;
-const MAX_NAME_LEN = 80;
-const MAX_VALUE = 99_999;
-
-function numOk(v: unknown): v is number {
-  return typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= MAX_VALUE;
-}
-
-/** Validate + sanitize the client payload; null on any shape violation. */
-function parseBody(body: unknown): { entries: EntryIn[]; goals: GoalsIn } | null {
-  if (typeof body !== 'object' || body === null) return null;
-  const { entries, goals } = body as { entries?: unknown; goals?: unknown };
-  if (!Array.isArray(entries) || entries.length === 0 || entries.length > MAX_ENTRIES) return null;
-  if (typeof goals !== 'object' || goals === null) return null;
-
-  const g = goals as Record<string, unknown>;
-  if (!numOk(g.calories) || !numOk(g.protein) || !numOk(g.fat) || !numOk(g.carbs)) return null;
-
-  const clean: EntryIn[] = [];
-  for (const raw of entries) {
-    if (typeof raw !== 'object' || raw === null) return null;
-    const e = raw as Record<string, unknown>;
-    if (typeof e.name !== 'string' || e.name.trim() === '') return null;
-    if (!numOk(e.calories) || !numOk(e.protein) || !numOk(e.fat) || !numOk(e.carbs)) return null;
-    clean.push({
-      name: e.name.trim().slice(0, MAX_NAME_LEN),
-      calories: e.calories,
-      protein: e.protein,
-      fat: e.fat,
-      carbs: e.carbs,
-      ...(numOk(e.sodiumMg) ? { sodiumMg: e.sodiumMg } : {}),
-      ...(numOk(e.fiberG) ? { fiberG: e.fiberG } : {}),
-    });
-  }
-  return {
-    entries: clean,
-    goals: { calories: g.calories, protein: g.protein, fat: g.fat, carbs: g.carbs },
-  };
-}
 
 export async function POST(request: Request): Promise<NextResponse> {
   const guard = await guardAiRoute(request, 'nutritionist');
@@ -122,7 +75,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  let parsedBody: { entries: EntryIn[]; goals: GoalsIn } | null;
+  let parsedBody: ParsedBody | null;
   try {
     parsedBody = parseBody(await request.json());
   } catch {
@@ -137,10 +90,13 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const userPrompt = JSON.stringify({
+    const { healthConditions, medications, weightKg } = parsedBody;
+    const healthCtx = buildHealthContextPrompt(healthConditions, medications, weightKg);
+    const payload = JSON.stringify({
       todayMeals: parsedBody.entries,
       dailyGoals: parsedBody.goals,
     });
+    const userPrompt = healthCtx ? `【ユーザーの健康状態】\n${healthCtx}\n\n${payload}` : payload;
 
     const response = await generateWithRetry(ai, {
       model: GEMINI_MODEL,
@@ -159,8 +115,25 @@ export async function POST(request: Request): Promise<NextResponse> {
       throw new Error(`nutritionist: expected 3 suggestions, got ${suggestions.length}`);
     }
 
+    // Deterministic post-filter: the prompt asks the model to avoid
+    // contraindicated foods; this guarantees it. Only the fields screenFood
+    // reads are needed, so the profile is built from the request.
+    const profile: UserHealthProfile = {
+      age: null,
+      healthConditions,
+      dietaryRestrictions: [],
+      medications,
+      fitnessGoal: 'maintenance',
+      activityLevel: 'moderately_active',
+    };
+    const screened = screenSuggestions(suggestions, profile);
+    if (screened.blockedRefs.length > 0) {
+      // Refs only (rule names), never the model text.
+      console.warn('[NUTRITIONIST_BLOCKED]', screened.blockedRefs.join(','));
+    }
+
     await recordAiUsage(guard.userId, 'nutritionist', response.usageMetadata?.totalTokenCount);
-    return NextResponse.json({ suggestions });
+    return NextResponse.json({ suggestions: screened.suggestions });
   } catch (error) {
     // Generic message only — never echo raw model output or error internals.
     console.error('Error generating nutritionist suggestions:', error);
