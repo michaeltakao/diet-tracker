@@ -229,7 +229,7 @@ export default function MedsPage() {
                         <p className="text-xs text-muted">{w}</p>
                       </div>
                     ))}
-                    {rule.nutritionWarnings.map((n, i) => (
+                    {rule.nutritionWarnings.filter(n => !rule.workoutWarnings.includes(n)).map((n, i) => (
                       <div key={`n${i}`} className="flex items-start gap-1.5">
                         <AlertTriangle size={11} className="text-amber-400 mt-0.5 shrink-0" />
                         <p className="text-xs text-muted">{n}</p>

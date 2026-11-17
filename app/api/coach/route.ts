@@ -3,7 +3,7 @@ import { GoogleGenAI, Type, type Schema } from '@google/genai';
 import { GEMINI_MODEL, generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
-import { buildHealthContextPrompt } from '@/lib/medication-rules';
+import { buildHealthContextPrompt, isFluidNeutral } from '@/lib/medication-rules';
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -79,8 +79,8 @@ ${healthCtx ? `【ユーザーの健康状態】\n${healthCtx}\n\n` : ''}【今�
 - カロリー: ${body.todayCalories} / ${body.calorieGoal} kcal (${Math.round((body.todayCalories / body.calorieGoal) * 100)}%)
 - タンパク質: ${body.todayProtein}g / ${body.proteinGoal}g
 - 脂質: ${body.todayFat}g / ${body.fatGoal}g
-- 炭水化物: ${body.todayCarbs}g / ${body.carbsGoal}g
-- 水分: ${body.waterConsumed}ml / ${body.waterGoal}ml
+- 炭水化物: ${body.todayCarbs}g / ${body.carbsGoal}g${isFluidNeutral(body.healthConditions ?? []) ? '' : `
+- 水分: ${body.waterConsumed}ml / ${body.waterGoal}ml`}
 
 【今日のトレーニング】
 ${body.todayWorkouts.length === 0

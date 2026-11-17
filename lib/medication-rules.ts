@@ -8,6 +8,26 @@
 
 // ── Condition-specific rules ────────────────────────────────────────────────
 
+/**
+ * CKD fluid policy (2026-11-17, "neutral: follow doctor"). Fluid restriction is
+ * common in advanced CKD / dialysis and the app does not know the stage, so it
+ * must never push water intake up OR down — only defer to the treating doctor.
+ * Shown to users (workout + nutrition warnings) …
+ */
+export const CKD_FLUID_GUIDANCE =
+  '水分量は主治医の指示に従ってください（腎臓病の病期によっては水分制限が必要です）';
+/**
+ * Conditions under which the app stays fluid-neutral (no water push, no water
+ * scoring). Only CKD for now; 心臓病 (heart failure) is a known follow-up.
+ */
+export const FLUID_NEUTRAL_CONDITIONS: readonly string[] = ['腎臓病'];
+export function isFluidNeutral(healthConditions: readonly string[]): boolean {
+  return healthConditions.some(c => FLUID_NEUTRAL_CONDITIONS.includes(c));
+}
+/** … and injected into every AI prompt that carries the health context. */
+export const CKD_FLUID_PROMPT =
+  '■ 腎臓病のため、水分摂取を増やす・減らす提案はしないこと。水分に触れる場合は「主治医の指示に従う」とだけ述べること';
+
 export interface ConditionRule {
   condition: string;
   workoutWarnings: string[];
@@ -44,12 +64,13 @@ export const CONDITION_RULES: ConditionRule[] = [
     condition: '腎臓病',
     workoutWarnings: [
       '高強度運動後の横紋筋融解症（ミオグロビン尿）に注意。初期は低強度から開始',
-      '運動中・後の水分補給を徹底してください',
+      CKD_FLUID_GUIDANCE,
     ],
     nutritionWarnings: [
       'タンパク質摂取量を0.6〜0.8 g/kg/日以下に制限（CKD stage 3以上が目安）',
       'カリウム・リンの多い食品（果物・野菜・乳製品・ナッツ）は主治医の指示に従って制限',
       'プロテインサプリは必ず主治医に相談してから使用してください',
+      CKD_FLUID_GUIDANCE,
     ],
     proteinGuide: '0.6〜0.8 g/kg/日',
   },
@@ -294,5 +315,9 @@ export function buildHealthContextPrompt(
       }
     });
   }
+  // Every AI route (coach, weekly-report, suggest-workout, recommend) gets the
+  // fluid instruction from here; listing the condition by name alone let the
+  // model invent "drink more for kidney protection" (route smoke, 2026-11-17).
+  if (isFluidNeutral(healthConditions)) parts.push(CKD_FLUID_PROMPT);
   return parts.join('\n');
 }

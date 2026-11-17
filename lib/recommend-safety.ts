@@ -25,6 +25,8 @@ import {
   getConditionRules,
   getMedicationRules,
   buildHealthContextPrompt,
+  isFluidNeutral,
+  CKD_FLUID_GUIDANCE,
 } from '@/lib/medication-rules';
 import {
   isMinor,
@@ -283,6 +285,9 @@ export function buildSafetyReport(
   if (isSenior(profile.age)) {
     // CKD (contraindication-grade cap) wins over the frailty protein floor —
     // omit the floor phrase entirely so the prompt never self-contradicts.
+    // Same for fluids: CKD may need fluid restriction, so the "drink often"
+    // nudge is dropped and CKD_FLUID_PROMPT (via healthCtx) governs instead.
+    const fluidNeutral = isFluidNeutral(conditions);
     const proteinLine = conditions.includes('腎臓病')
       ? ''
       : weightKg && weightKg > 0
@@ -291,7 +296,7 @@ export function buildSafetyReport(
     parts.push(
       '■ 利用者は65歳以上です。フレイル・サルコペニア予防を最優先すること: ' +
       proteinLine +
-      'こまめな水分補給を毎回促し（加齢で喉の渇きを感じにくくなるため）、' +
+      (fluidNeutral ? '' : 'こまめな水分補給を毎回促し（加齢で喉の渇きを感じにくくなるため）、') +
       '噛みやすい・飲み込みやすい調理法（柔らかく煮る等）の選択肢も添えること',
     );
   }
@@ -311,6 +316,8 @@ export function filterRecommendation(
   raw: Recommendation,
   profile: UserHealthProfile,
   weightKg: number | null,
+  /** The user's current water goal (ml). For fluid-neutral users the AI may not move it. */
+  currentWaterGoal?: number,
 ): Recommendation {
   const safeFoods: RecommendedFood[] = [];
   const blockedMessages: string[] = [];
@@ -333,6 +340,13 @@ export function filterRecommendation(
     const clamped = clampMacros(adjustedMacros, profile, weightKg);
     adjustedMacros = clamped.macros;
     capsApplied = clamped.capsApplied;
+    // CKD: the response schema forces a water number, so pin it back to the
+    // user's own goal — the model must never propose a new fluid target.
+    if (isFluidNeutral(profile.healthConditions ?? []) && currentWaterGoal != null
+        && adjustedMacros.water !== currentWaterGoal) {
+      adjustedMacros = { ...adjustedMacros, water: currentWaterGoal };
+      capsApplied = [...capsApplied, `水分目標はAIでは変更しません（${CKD_FLUID_GUIDANCE}）`];
+    }
   }
 
   const report = buildSafetyReport(profile, weightKg);

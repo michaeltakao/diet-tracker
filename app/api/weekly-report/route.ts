@@ -3,8 +3,9 @@ import { GoogleGenAI, Type, type Schema } from '@google/genai';
 import { GEMINI_MODEL, generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
-import { buildHealthContextPrompt } from '@/lib/medication-rules';
+import { buildHealthContextPrompt, CKD_FLUID_PROMPT, isFluidNeutral } from '@/lib/medication-rules';
 import { runParallelAgents } from '@/lib/parallel-agents';
+import { computeWeekScore } from '@/lib/week-score';
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -74,14 +75,21 @@ export async function POST(request: Request): Promise<NextResponse> {
     const calorieCompliance = Math.round((calorieCompliantDays / datadays.length) * 100);
     const waterGoalDays = datadays.filter(d => d.water >= body.waterGoal).length;
 
+    // CKD: fluid needs depend on stage (restriction is common), so the report
+    // neither scores nor comments on water — see CKD_FLUID_GUIDANCE.
+    const fluidNeutral = isFluidNeutral(body.healthConditions ?? []);
+
     // Week score (0–100)
-    const safeProteinGoal = Math.max(body.proteinGoal, 1);
-    const calScore = Math.min(calorieCompliance, 100) * 0.30;
-    const prtScore = Math.min((avgProtein / safeProteinGoal) * 100, 100) * 0.25;
-    const wktScore = Math.min((body.workoutDays / 4) * 100, 100) * 0.25;
-    const h2oScore = Math.min((waterGoalDays / datadays.length) * 100, 100) * 0.10;
-    const stkScore = Math.min((body.streak / 7) * 100, 100) * 0.10;
-    const weekScore = Math.round(calScore + prtScore + wktScore + h2oScore + stkScore);
+    const weekScore = computeWeekScore({
+      calorieCompliance,
+      avgProtein,
+      proteinGoal:   body.proteinGoal,
+      workoutDays:   body.workoutDays,
+      waterGoalDays,
+      loggedDays:    datadays.length,
+      streak:        body.streak,
+      fluidNeutral,
+    });
 
     const weightChange = body.weightStart != null && body.weightEnd != null
       ? +(body.weightEnd - body.weightStart).toFixed(1)
@@ -98,8 +106,8 @@ export async function POST(request: Request): Promise<NextResponse> {
 - 平均カロリー: ${avgCalories} kcal（目標: ${body.calorieGoal} kcal、達成率: ${calorieCompliance}%）
 - 平均タンパク質: ${avgProtein}g（目標: ${body.proteinGoal}g）
 - 平均脂質: ${avgFat}g（目標: ${body.fatGoal}g）
-- 平均炭水化物: ${avgCarbs}g（目標: ${body.carbsGoal}g）
-- 水分目標達成日: ${waterGoalDays}/${datadays.length}日
+- 平均炭水化物: ${avgCarbs}g（目標: ${body.carbsGoal}g）${fluidNeutral ? '' : `
+- 水分目標達成日: ${waterGoalDays}/${datadays.length}日`}
 ■ 日別カロリー
 ${nutrition7.map(d =>
   `${d.date}: ${d.mealCount > 0 ? `${d.calories}kcal (${d.mealCount}食)` : 'データなし'}`
@@ -120,7 +128,7 @@ ${weightChange != null
     const agentResults = await runParallelAgents(apiKey, [
       {
         id: 'nutrition',
-        systemPrompt: '日本語でのみ回答してください。あなたは栄養専門家です。以下のデータに基づき、今週の栄養摂取について2〜3文で具体的な数値を使って分析してください。マクロバランス、カロリー達成率、水分摂取に着目してください。分析のみを返してください。',
+        systemPrompt: `日本語でのみ回答してください。あなたは栄養専門家です。以下のデータに基づき、今週の栄養摂取について2〜3文で具体的な数値を使って分析してください。マクロバランス、カロリー達成率${fluidNeutral ? '' : '、水分摂取'}に着目してください。分析のみを返してください。`,
         userMessage: sharedContext,
       },
       {
@@ -171,7 +179,7 @@ ${resultMap['behavior'] || '（分析なし）'}
 【目標設定専門家の提案】
 ${resultMap['goal'] || '（提案なし）'}
 
-【週スコア】${weekScore}/100`;
+【週スコア】${weekScore}/100${fluidNeutral ? `\n\n【制約】\n${CKD_FLUID_PROMPT}` : ''}`;
 
     // Orchestrator only gets the schema — the 4 parallel specialists above
     // stay free-prose (their text is intermediate input, never client-facing).
