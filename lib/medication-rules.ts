@@ -37,9 +37,28 @@ export const CKD_PROTEIN_G_PER_KG = 0.8;
 export function isProteinCapped(healthConditions: readonly string[]): boolean {
   return healthConditions.includes('腎臓病');
 }
-/** Daily CKD protein cap in grams, or null when body weight is unknown. */
+/**
+ * Daily CKD protein cap in grams, or null when body weight is unknown.
+ * Floored (not rounded) so the stated cap never exceeds 0.8 g/kg
+ * (72 kg → 57 g, not 58 g).
+ */
 export function ckdProteinCapG(weightKg: number | null | undefined): number | null {
-  return weightKg != null && weightKg > 0 ? Math.round(CKD_PROTEIN_G_PER_KG * weightKg) : null;
+  return weightKg != null && weightKg > 0 ? Math.floor(CKD_PROTEIN_G_PER_KG * weightKg) : null;
+}
+/**
+ * Apply condition-based caps to stored goals at read time (stored data is
+ * never rewritten). CKD with a known weight → protein = min(goal, cap);
+ * otherwise the goals are returned unchanged (same object).
+ */
+export function capGoalsForConditions<G extends { protein: number }>(
+  goals: G,
+  healthConditions: readonly string[],
+  weightKg: number | null | undefined,
+): G {
+  if (!isProteinCapped(healthConditions)) return goals;
+  const cap = ckdProteinCapG(weightKg);
+  if (cap == null || goals.protein <= cap) return goals;
+  return { ...goals, protein: cap };
 }
 /** Prompt line for the CKD protein cap (weight-specific when known). */
 export function ckdProteinPrompt(weightKg: number | null | undefined): string {

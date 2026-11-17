@@ -186,6 +186,48 @@ export function screenFood(
   return { allowed, notes };
 }
 
+/** Free-text suggestion as returned by /api/nutritionist. */
+export interface TextSuggestion {
+  title:  string;
+  detail: string;
+}
+
+/**
+ * Deterministic post-filter for free-text LLM suggestions (/api/nutritionist).
+ * Each suggestion's title + detail is run through `screenFood`; any
+ * contraindicated hit replaces that suggestion with a fixed placeholder, so
+ * the route's exactly-N contract holds and no contraindicated food name
+ * reaches the user. Caution-level matches (e.g. CKD + プロテイン) pass
+ * unchanged — this is not a check on quantity advice.
+ *
+ * Known limitation: substring matching cannot read negation, so
+ * 「納豆は控えましょう」 is also replaced — a false block, never a false pass.
+ *
+ * Returns
+ * -------
+ * suggestions : same length as the input
+ * blockedRefs : the rule refs that triggered each replacement (for logging)
+ */
+export function screenSuggestions(
+  suggestions: readonly TextSuggestion[],
+  profile: UserHealthProfile,
+): { suggestions: TextSuggestion[]; blockedRefs: string[] } {
+  const blockedRefs: string[] = [];
+  const out = suggestions.map((s) => {
+    const { allowed, notes } = screenFood(`${s.title} ${s.detail}`, profile);
+    if (allowed) return s;
+    const refs = [...new Set(
+      notes.filter(n => n.severity === 'contraindicated').map(n => n.ref),
+    )];
+    blockedRefs.push(...refs);
+    return {
+      title:  '提案を除外しました',
+      detail: `AIの提案に${refs.join('・')}との禁忌食品が含まれていたため表示しません`,
+    };
+  });
+  return { suggestions: out, blockedRefs };
+}
+
 /**
  * Clamp an LLM-proposed macro target to condition- and age-based bounds.
  *

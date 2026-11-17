@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import { ChefHat, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
-import { getFoodEntriesForDate, getRealGoals } from '@/lib/data';
+import { getFoodEntriesForDate, getRealGoals, getHealthProfile, getLatestWeightEntry } from '@/lib/data';
 import { postJson } from '@/lib/httpClient';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { FoodEntry, DailyGoals } from '@/lib/types';
@@ -48,6 +48,10 @@ export function NutritionistCard() {
     setLoading(true);
     setError(null);
     try {
+      // Re-read at click time so goals (capped from the CURRENT profile and
+      // weight) and the health context sent below can't disagree.
+      const profile = getHealthProfile();
+      const currentGoals = getRealGoals() ?? goals;
       const res = await postJson<{ suggestions: Suggestion[] }>('/api/nutritionist', {
         entries: entries.map((e) => ({
           name: e.name,
@@ -59,11 +63,16 @@ export function NutritionistCard() {
           ...(e.fiberG != null ? { fiberG: e.fiberG } : {}),
         })),
         goals: {
-          calories: goals.calories,
-          protein: goals.protein,
-          fat: goals.fat,
-          carbs: goals.carbs,
+          calories: currentGoals.calories,
+          protein: currentGoals.protein,
+          fat: currentGoals.fat,
+          carbs: currentGoals.carbs,
         },
+        // Health context (2026-11-17): same fields as RecommendationCard.
+        // `goals` is already CKD-capped by getRealGoals().
+        healthConditions: profile.healthConditions ?? [],
+        medications: profile.medications ?? [],
+        weightKg: getLatestWeightEntry()?.weight ?? null,
       });
       setSuggestions(res.suggestions);
     } catch (err) {
