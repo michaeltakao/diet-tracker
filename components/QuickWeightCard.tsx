@@ -15,9 +15,7 @@ import { addWeightEntry, getLatestWeightEntry } from '@/lib/data';
 import { fmtShortJa, todayJst } from '@/lib/format-date';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { WeightEntry } from '@/lib/types';
-
-const MIN_KG = 20;
-const MAX_KG = 300;
+import { MIN_WEIGHT_KG, MAX_WEIGHT_KG, isValidWeightKg } from '@/lib/weight-bounds';
 
 export default function QuickWeightCard({ onSaved }: { onSaved?: () => void } = {}) {
   const { t } = useLanguage();
@@ -38,7 +36,7 @@ export default function QuickWeightCard({ onSaved }: { onSaved?: () => void } = 
   const handleSave = async (e: { preventDefault(): void }) => {
     e.preventDefault();
     const val = Number(input);
-    if (!Number.isFinite(val) || val < MIN_KG || val > MAX_KG) {
+    if (!isValidWeightKg(val)) {
       setError(t.quickWeightInvalid);
       return;
     }
@@ -81,8 +79,8 @@ export default function QuickWeightCard({ onSaved }: { onSaved?: () => void } = 
             type="number"
             inputMode="decimal"
             step="0.1"
-            min={MIN_KG}
-            max={MAX_KG}
+            min={MIN_WEIGHT_KG}
+            max={MAX_WEIGHT_KG}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={latest ? String(latest.weight) : '65.0'}

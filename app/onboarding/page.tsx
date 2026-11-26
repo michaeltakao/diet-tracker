@@ -3,12 +3,16 @@
 /**
  * 60-second onboarding wizard (FTUE design §2, D4–D5).
  *
- * 4 chip questions — goal / body (birth year・sex・height・weight) /
- * experience / today's environment — every step skippable with an explicit
- * labeled default, followed by a result screen: deterministic TDEE +
- * kcal/PFC targets (食事摂取基準 2025 via recommendedGoals, Mifflin-St Jeor
- * when the body step is fully specified), each with a 1-line WHY, then a
- * first-workout CTA. Numbers carry a 仮 badge until calibrated by real logs.
+ * 2 steps (STEPS) — goal / body (birth year・sex・height・weight・goal
+ * weight) — each skippable with an explicit labeled default; experience and
+ * environment are no longer asked (fixed defaults, ADR-011). Then a result
+ * screen: deterministic TDEE + kcal/PFC targets (食事摂取基準 2025 via
+ * recommendedGoals, Mifflin-St Jeor when the body step is fully specified),
+ * each with a 1-line WHY, and a "log your first meal" CTA. Numbers carry a
+ * 仮 badge until calibrated by real logs.
+ *
+ * Copy is Japanese-only (hard-coded): the study cohort is Japanese
+ * (docs/ux-audit/UX_AUDIT.md #9; full i18n deferred).
  *
  * Persistence on finish (all through lib/data, ADR-006):
  * - fitnessGoal + experience → health profile (always)
