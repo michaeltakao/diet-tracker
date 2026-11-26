@@ -1285,3 +1285,17 @@ anyway since it was cheap alongside the lipid/HbA1c work).
   time-zone / sync-health rules decided, weekly
   `.github/workflows/freeze-check.yml`.
 
+## Moved from STATUS.md 2026-11-27
+- **2026-11-12 ADR-008 P0 code complete** (`fix/study-p0`, draft PR #22):
+  P0-2…P0-13; `027` + `028` applied to prod, `025` + `026` held (Blockers).
+  Commit list + evidence: archive (11-17) and vault ADR-008 Progress.
+- 2026-11-13: `fix/study-p0` @ `019d5bd` (merge of `main` via
+  `feat/trial-data-notice` `559e8f5`) — lint 0 errors (3 warnings), vitest
+  **748/748** (66 files), study `next build` exit 0 (unsandboxed), `tsc` 0,
+  `npm audit --omit=dev` 0 vulnerabilities; `next` 16.4.1,
+  `eslint-config-next` 16.4.1, `sharp` 0.35.5, `fake-indexeddb` 6.2.8.
+  `feat/trial-data-notice`: vitest 612/612, same lint / tsc / build / audit;
+  PR #21 checks all pass (incl. `npm audit`). Prod `/` + `/login` 200 after
+  #23. Later: Supabase Redirect URLs + `http://localhost:3000/**` (4
+  entries, Site URL unchanged). NOT verified: outbox against Supabase,
+  PR #22's Vercel previews (pending at push time), 025/026.

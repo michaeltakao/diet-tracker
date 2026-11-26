@@ -6,6 +6,19 @@ Keep this file under 200 lines: Now (latest 3) / Next / Blockers / Key
 decisions / Last verified (latest 2) — move older entries to the archive.
 
 ## Now
+- **2026-11-27 UX P0 core loop** (`ux/p0-core-loop`, on `refactor/core-loop`;
+  draft PR, base #24). Audit + proposal: `docs/ux-audit/` (TOP10 with
+  file:line, P1/P2 written up but not built). Home = today card (kcal +
+  P/F/C vs goals + chips) → one deterministic next step
+  (`lib/next-action.ts`) → 4 meal slots with "log the same" → weight →
+  1-row water. Undo (5 s) for delete / adds / copy yesterday (confirm,
+  once per JST day); `/add?meal=` with slot recents; AI low-confidence
+  highlight; error/global-error/not-found; safe-area; 44 px targets;
+  feedback button desktop-only (inline on mobile home/settings); one
+  20–300 kg rule. No migration / API change. Same meal 1 tap (home) or
+  2 (via /add), meal 4, weight 2; today/next/slots on the first screen at
+  390×844 and 360×740 — `core-loop-2026-11-27/`. Exception to "no new
+  features": REDESIGN_PROPOSAL §10 (user decision 11-26).
 - **2026-11-17 ADR-011 core-loop cut** (`refactor/core-loop`, stacked on
   `fix/study-p0` @ `dc99005`; vault ADR-011, proposed). Deleted instead of
   hidden (supersedes ADR-008 P1): gamification, form checker, health logs
@@ -25,11 +38,10 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   `fix/study-p0` (`019d5bd`, PR #22) the same day; #21's `npm audit`
   check is green again. **Outbox run: still open** — the sign-in link now
   reaches localhost but was opened in another browser (PKCE); 0 rows.
-- **2026-11-12 ADR-008 P0 code complete** (`fix/study-p0`, draft PR #22):
-  P0-2…P0-13; `027` + `028` applied to prod, `025` + `026` held (Blockers).
-  Commit list + evidence: archive (11-17) and vault ADR-008 Progress.
-
 ## Next
+- **UX P0 (`ux/p0-core-loop`)**: merges after #24 (stacked). [🔒user] check
+  safe-area on an iPhone home-screen install. P1/P2 (weekly report, exercise
+  recommender, rank, voice) stay docs-only until there is usage data.
 - **ADR-011 (`refactor/core-loop`)**: `/code-review high` done (`ef2b403`);
   draft PR #24 (base `fix/study-p0`); advisor meeting with `thesis-pivot.md` (Q1–Q4 there) → ADR-011
   accepted; at the analysis-plan freeze decide S5 `planned_per_week` /
@@ -179,6 +191,14 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   --audit-level=high`, 2026-10-13). The full-tree audit still runs with
   `continue-on-error`; revert to a full-tree gate once `braces` ships a fix.
 ## Last verified state
+- 2026-11-27: `ux/p0-core-loop` @ `99c854b` (after `/code-review medium`:
+  10 findings, 9 fixed, 1 = scope exception documented) — lint 0, `tsc` 0,
+  vitest **527/527** (47 files), `next build` exit 0 unsandboxed (first run
+  stopped on Next's 16.4.1 advisory notice; re-run passed). Probe (`next
+  start`) at 390×844 + 360×740: meal 4 taps, weight 2, same meal 1 / 2,
+  console errors only `/research` 401 (as before). Photo low/high/failure
+  checked with a stubbed `/api/analyze-food`. NOT verified: real device
+  (safe-area), signed-in outbox with undo, Vercel preview.
 - 2026-11-17: `refactor/core-loop` @ `ef2b403` (after `/code-review high`:
   10 findings, 9 fixed, 1 = documented gate for 029) — lint 0, `tsc` 0,
   vitest **480/480** (43 files; legacy-key test fails on the unfixed code),
@@ -187,13 +207,3 @@ decisions / Last verified (latest 2) — move older entries to the archive.
   pre-review `after/`: no change (meal 4 taps, weight 2, home 1,034 px,
   1 card above the meal list) — `core-loop-2026-11-17/after-review-fixes/`.
   NOT verified: 029 on any database, outbox with 029, Vercel preview.
-- 2026-11-13: `fix/study-p0` @ `019d5bd` (merge of `main` via
-  `feat/trial-data-notice` `559e8f5`) — lint 0 errors (3 warnings), vitest
-  **748/748** (66 files), study `next build` exit 0 (unsandboxed), `tsc` 0,
-  `npm audit --omit=dev` 0 vulnerabilities; `next` 16.4.1,
-  `eslint-config-next` 16.4.1, `sharp` 0.35.5, `fake-indexeddb` 6.2.8.
-  `feat/trial-data-notice`: vitest 612/612, same lint / tsc / build / audit;
-  PR #21 checks all pass (incl. `npm audit`). Prod `/` + `/login` 200 after
-  #23. Later: Supabase Redirect URLs + `http://localhost:3000/**` (4
-  entries, Site URL unchanged). NOT verified: outbox against Supabase,
-  PR #22's Vercel previews (pending at push time), 025/026.
