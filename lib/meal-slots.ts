@@ -79,20 +79,36 @@ export function recentForSlot(all: readonly FoodEntry[], slot: MealSlot, limit =
 
 /**
  * A copy of `src` logged now in `slot` on `date`: new id, new timestamp,
- * no photo. Provenance (source/sourceId/servings/macrosEntered) is kept, so
+ * no photo (neither the local data URL nor the stored photo_url: nobody
+ * photographed the repeat). Provenance (source/sourceId/servings/macrosEntered) is kept, so
  * a repeated kcal-only meal stays kcal-only.
  */
 export function repeatEntry(src: FoodEntry, slot: MealSlot, date: string, addedAt: string, id: string): FoodEntry {
-  return { ...src, id, date, mealType: slot, addedAt, photoDataUrl: undefined };
+  return { ...src, id, date, mealType: slot, addedAt, photoDataUrl: undefined, photo_url: undefined };
+}
+
+/**
+ * Start of each slot in JST minutes after midnight — the single boundary
+ * table for /add's preselection and the home "next step" (lib/next-action).
+ */
+export const SLOT_START_MIN: Readonly<Record<MealSlot, number>> = {
+  breakfast: 0,
+  lunch: 11 * 60,
+  dinner: 16 * 60,
+  snack: 21 * 60,
+};
+
+export function hhmmToMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
 }
 
 /** Slot the /add form preselects from the JST wall clock (HH:MM). */
 export function guessSlotForTime(hhmm: string): MealSlot {
-  const h = Number(hhmm.slice(0, 2));
-  if (h < 10) return 'breakfast';
-  if (h < 14) return 'lunch';
-  if (h < 20) return 'dinner';
-  return 'snack';
+  const now = hhmmToMinutes(hhmm);
+  let slot: MealSlot = 'breakfast';
+  for (const s of MEAL_SLOTS) if (now >= SLOT_START_MIN[s]) slot = s;
+  return slot;
 }
 
 // ── Copy yesterday (UX P0 slice 3) ──────────────────────────────────────────

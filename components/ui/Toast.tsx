@@ -64,22 +64,24 @@ export const UNDO_MS = 5000;
  * against a newer change.
  */
 export function useToast() {
-  const [state, setState] = useState<{ message: string; action: ToastAction | null } | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [state, setState] = useState<{ message: string; action: ToastAction | null; ms: number; seq: number } | null>(null);
+  const seq = useRef(0);
 
-  const clear = useCallback(() => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-    setState(null);
-  }, []);
+  const clear = useCallback(() => setState(null), []);
 
   const show = useCallback((message: string, action: ToastAction | null = null, ms = action ? UNDO_MS : 2500) => {
-    if (timer.current) clearTimeout(timer.current);
-    setState({ message, action });
-    timer.current = setTimeout(() => { timer.current = null; setState(null); }, ms);
+    seq.current += 1;
+    setState({ message, action, ms, seq: seq.current });
   }, []);
 
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  // The timer belongs to the shown toast, not to a ref: an effect re-arms it
+  // after a StrictMode unmount/remount (a ref-held timer was cleared by the
+  // dev-only cleanup and the Undo toast then never went away).
+  useEffect(() => {
+    if (!state) return;
+    const id = setTimeout(() => setState((s) => (s?.seq === state.seq ? null : s)), state.ms);
+    return () => clearTimeout(id);
+  }, [state]);
 
   return { message: state?.message ?? null, action: state?.action ?? null, show, clear };
 }

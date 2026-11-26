@@ -10,10 +10,11 @@
  *   3. no weight today          → log weight
  *   4. otherwise                → done
  *
- * A main slot is "due" from its start time (JST): breakfast 00:00,
- * lunch 11:00, dinner 16:00. Snack is never suggested.
+ * A main slot is "due" from its start time (JST, SLOT_START_MIN in
+ * lib/meal-slots.ts — the same table /add preselects from): breakfast
+ * 00:00, lunch 11:00, dinner 16:00. Snack is never suggested.
  */
-import type { MealSlot } from './meal-slots';
+import { MAIN_SLOTS, SLOT_START_MIN, hhmmToMinutes, type MealSlot } from './meal-slots';
 
 export type NextAction =
   | { kind: 'set-goals' }
@@ -30,21 +31,10 @@ export interface NextActionInput {
   nowJst: string;
 }
 
-const DUE_FROM: ReadonlyArray<readonly [MealSlot, number]> = [
-  ['breakfast', 0],
-  ['lunch', 11 * 60],
-  ['dinner', 16 * 60],
-];
-
-function minutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
-  return h * 60 + m;
-}
-
 /** Main slots due at `nowJst`, latest first (current slot is index 0). */
 export function dueSlots(nowJst: string): MealSlot[] {
-  const now = minutes(nowJst);
-  return DUE_FROM.filter(([, from]) => now >= from).map(([s]) => s).reverse();
+  const now = hhmmToMinutes(nowJst);
+  return MAIN_SLOTS.filter((s) => now >= SLOT_START_MIN[s]).reverse();
 }
 
 export function nextAction(input: NextActionInput): NextAction {

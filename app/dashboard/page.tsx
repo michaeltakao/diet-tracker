@@ -11,7 +11,7 @@
  * See docs/ux-audit/REDESIGN_PROPOSAL.md.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Settings, Copy, ArrowRight } from 'lucide-react';
 import {
@@ -19,8 +19,8 @@ import {
   addFoodEntry, getRealGoals, getLatestWeightEntry, getWorkoutEntriesForDate,
 } from '@/lib/data';
 import type { FoodEntry, DailyGoals } from '@/lib/types';
-import TodaySummaryCard from '@/components/TodaySummaryCard';
-import MealSlotList from '@/components/MealSlotList';
+import { TodaySummaryCard } from '@/components/TodaySummaryCard';
+import { MealSlotList } from '@/components/MealSlotList';
 import WaterTracker from '@/components/WaterTracker';
 import QuickWeightCard from '@/components/QuickWeightCard';
 import PushPermissionCard from '@/components/PushPermissionCard';
@@ -85,7 +85,6 @@ export default function HomePage() {
   // fabricated numbers or a flash of the empty state.
   const [state, setState]       = useState<HomeState | null>(null);
   const [copyPlan, setCopyPlan] = useState<Extract<CopyPlan, { ok: true }> | null>(null);
-  const busy = useRef(false);
   const toast = useToast();
 
   const reload = () => setState(readState(today));
@@ -108,9 +107,18 @@ export default function HomePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Write `entries` and offer one Undo that removes exactly those ids. */
-  const addUndoable = async (entries: FoodEntry[], message: string, onUndo?: () => void) => {
-    for (const e of entries) await addFoodEntry(e);
+  /**
+   * Write `entries` and offer one Undo that removes exactly those ids.
+   * addFoodEntry writes localStorage synchronously and only then awaits the
+   * outbox (IndexedDB + background send), so starting every call before
+   * awaiting any makes the screen and the toast update at once; an outbox
+   * failure is logged and never blocks the UI (the outbox retries itself).
+   */
+  const addUndoable = (entries: FoodEntry[], message: string, onUndo?: () => void) => {
+    const writes = entries.map((e) => addFoodEntry(e));
+    void Promise.allSettled(writes).then((rs) => {
+      for (const r of rs) if (r.status === 'rejected') console.warn('[home] queued write failed:', r.reason);
+    });
     reload();
     toast.show(message, {
       label: t.undo,
@@ -149,20 +157,19 @@ export default function HomePage() {
     setState((s) => (s ? { ...s, water: getWaterForDate(today) } : s));
   };
 
-  const handleRepeat = async (slot: MealSlot) => {
-    if (busy.current || !state) return;
-    const last = lastSlotMeal(state.all, slot, today);
+  const handleRepeat = (slot: MealSlot) => {
+    if (!state) return;
+    // After the first tap the slot is filled, so its button is gone; the
+    // re-read guards a double tap that lands before React re-renders.
+    const current = getAppData().foodEntries;
+    if (current.some((e) => e.date === today && e.mealType === slot)) return;
+    const last = lastSlotMeal(current, slot, today);
     if (!last) return;
-    busy.current = true;
-    try {
-      const at = jstTimestamp(today, nowJstTime());
-      const copies = last.entries.map((e) => repeatEntry(e, slot, today, at, crypto.randomUUID()));
-      await addUndoable(copies, copies.length === 1
-        ? `✓ ${t.loggedToast.replace('{name}', copies[0].name)}`
-        : `✓ ${t.loggedManyToast.replace('{n}', String(copies.length))}`);
-    } finally {
-      busy.current = false;
-    }
+    const at = jstTimestamp(today, nowJstTime());
+    const copies = last.entries.map((e) => repeatEntry(e, slot, today, at, crypto.randomUUID()));
+    addUndoable(copies, copies.length === 1
+      ? `✓ ${t.loggedToast.replace('{name}', copies[0].name)}`
+      : `✓ ${t.loggedManyToast.replace('{n}', String(copies.length))}`);
   };
 
   const askCopyYesterday = () => {
@@ -175,20 +182,19 @@ export default function HomePage() {
     setCopyPlan(plan);
   };
 
-  const confirmCopyYesterday = async () => {
+  const confirmCopyYesterday = () => {
     const plan = copyPlan;
     setCopyPlan(null);
-    if (!plan || busy.current) return;
-    busy.current = true;
+    // Re-check the once-per-day flag: a second confirm can arrive before
+    // the first one's state update.
+    if (!plan || localStorage.getItem(COPIED_ON_KEY) === today) return;
+    const at = jstTimestamp(today, nowJstTime());
+    const copies = plan.entries.map((e) => repeatEntry(e, e.mealType, today, at, crypto.randomUUID()));
+    // Undoing the copy also re-allows it today.
+    addUndoable(copies, `✓ ${t.copyYesterdayDone}`, () => localStorage.removeItem(COPIED_ON_KEY));
+    // Set only after the local writes ran (they are synchronous), so a throw
+    // above never leaves the day blocked with nothing copied.
     localStorage.setItem(COPIED_ON_KEY, today);
-    try {
-      const at = new Date().toISOString();
-      const copies = plan.entries.map((e) => ({ ...e, id: crypto.randomUUID(), date: today, addedAt: at, photoDataUrl: undefined }));
-      // Undoing the copy also re-allows it today.
-      await addUndoable(copies, `✓ ${t.copyYesterdayDone}`, () => localStorage.removeItem(COPIED_ON_KEY));
-    } finally {
-      busy.current = false;
-    }
   };
 
   // ── Derived view state ───────────────────────────────────────────────────
@@ -216,7 +222,7 @@ export default function HomePage() {
           .replace('{kcal}', copyPlan.calories.toLocaleString()) : undefined}
         confirmLabel={t.copyYesterdayConfirm}
         cancelLabel={t.cancel}
-        onConfirm={() => void confirmCopyYesterday()}
+        onConfirm={confirmCopyYesterday}
         onCancel={() => setCopyPlan(null)}
       />
 
@@ -283,7 +289,7 @@ export default function HomePage() {
             lastMeals={lastMeals}
             onDelete={handleDelete}
             onEdit={handleEdit}
-            onRepeat={(s) => void handleRepeat(s)}
+            onRepeat={handleRepeat}
           />
 
           {/* ── 4. One-tap weight ────────────────────── */}

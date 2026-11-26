@@ -157,6 +157,7 @@ export default function WeightPage() {
               {t.logWeight}
             </button>
           </div>
+          {inputError && <p id="weight-input-error" role="alert" className="text-xs text-danger mt-2">{t.quickWeightInvalid}</p>}
           {todayEntry && (
             <p className="text-xs text-faint mt-2 font-medium">
               {t.todayEntryLabel} <span className="font-bold text-indigo-500">{todayEntry.weight} kg</span>{t.todayOverwrite}
@@ -211,7 +212,6 @@ export default function WeightPage() {
               <p className="text-sm text-faint font-medium mt-2">{t.goalNotSet}</p>
             )}
           </div>
-          {inputError && <p id="weight-input-error" role="alert" className="text-xs text-danger mt-2">{t.quickWeightInvalid}</p>}
         </div>
       )}
 

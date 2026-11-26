@@ -31,7 +31,7 @@ interface Props {
 
 const ROW_BTN = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)]';
 
-export default function MealSlotList({ grouped, lastMeals, onDelete, onEdit, onRepeat }: Props) {
+export function MealSlotList({ grouped, lastMeals, onDelete, onEdit, onRepeat }: Props) {
   const { t } = useLanguage();
   const [open, setOpen] = useState<Set<MealSlot>>(new Set());
   const label: Record<MealSlot, string> = { breakfast: t.breakfast, lunch: t.lunch, dinner: t.dinner, snack: t.snack };

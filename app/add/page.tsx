@@ -51,9 +51,12 @@ function guessMealType(): MealType {
 
 type FormData = FoodFormData;
 
+// mealType here is only a placeholder: the real default is computed when the
+// page mounts (emptyForm), not when the module loads — an open PWA reuses
+// the module for hours, which froze the preselection at the load time.
 const EMPTY_FORM: FormData = {
   name: '',
-  mealType: guessMealType(),
+  mealType: 'breakfast',
   calories: '',
   protein: '',
   fat: '',
@@ -67,7 +70,7 @@ export default function AddPage() {
   const { t } = useLanguage();
   // Manual entry first (ADR-011): photo waits on the AI and is secondary.
   const [tab, setTab]                       = useState<Tab>('manual');
-  const [form, setForm]                     = useState<FormData>(EMPTY_FORM);
+  const [form, setForm]                     = useState<FormData>(() => ({ ...EMPTY_FORM, mealType: guessMealType() }));
   const [errors, setErrors]                 = useState<Partial<FormData>>({});
   const [logTime, setLogTime]               = useState(getCurrentTime());
   const [recentFoods, setRecentFoods]       = useState<FoodEntry[]>([]);
@@ -283,6 +286,7 @@ export default function AddPage() {
       ...(scaledBase?.fiberG != null ? { fiberG: scaledBase.fiberG } : {}),
     };
     void addFoodEntry(entry);
+    refreshRecents();
     afterAdd([entry.id], entry.name);
     if (speedMode) {
       setForm({ ...EMPTY_FORM, mealType: form.mealType });
@@ -297,6 +301,12 @@ export default function AddPage() {
     }
   };
 
+  /** Re-read both suggestion lists after an add / undo (speed mode stays here). */
+  const refreshRecents = () => {
+    setRecentFoods(getRecentFoods(6));
+    if (slotParam) setSlotRecents(recentForSlot(getAllFoodEntries(), slotParam, 3));
+  };
+
   /**
    * Every add is undoable for 5 s (UX P0 slice 3). Speed mode stays here and
    * shows the Undo toast itself; otherwise the dashboard shows it after the
@@ -309,7 +319,7 @@ export default function AddPage() {
         label: t.undo,
         onClick: () => {
           for (const id of ids) void removeFoodEntry(id);
-          setRecentFoods(getRecentFoods(6));
+          refreshRecents();
           toast.show(t.undoDone);
         },
       });
@@ -322,7 +332,7 @@ export default function AddPage() {
   const handleQuickAdd = (recent: FoodEntry, slot: MealType = slotParam ?? guessMealType()) => {
     const entry = repeatEntry(recent, slot, getTodayDate(), buildTimestamp(getTodayDate(), getCurrentTime()), crypto.randomUUID());
     void addFoodEntry(entry);
-    setRecentFoods(getRecentFoods(6));
+    refreshRecents();
     afterAdd([entry.id], entry.name);
   };
 
@@ -341,6 +351,7 @@ export default function AddPage() {
       source: 'db',
       sourceId: fav.sourceId ?? `favorite:${fav.id}`,
     });
+    refreshRecents();
     afterAdd([id], fav.name);
   };
 

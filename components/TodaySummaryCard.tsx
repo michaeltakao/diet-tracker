@@ -36,7 +36,7 @@ function chipTone(done: boolean): string {
   return done ? 'bg-white text-brand-strong' : 'bg-white/20 text-white';
 }
 
-export default function TodaySummaryCard({ goals, totals, status, onWeightChip }: Props) {
+export function TodaySummaryCard({ goals, totals, status, onWeightChip }: Props) {
   const { t } = useLanguage();
   const over = totals.calories > goals.calories;
   const remaining = Math.max(0, goals.calories - totals.calories);

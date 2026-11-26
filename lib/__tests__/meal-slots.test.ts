@@ -61,15 +61,16 @@ describe('recentForSlot', () => {
 
 describe('repeatEntry', () => {
   it('keeps nutrition + provenance, resets id/date/time/photo, sets slot', () => {
-    const src = e({ macrosEntered: false, source: 'barcode', sourceId: '490', photoDataUrl: 'data:x', mealType: 'lunch' });
+    const src = e({ macrosEntered: false, source: 'barcode', sourceId: '490', photoDataUrl: 'data:x', photo_url: 'u/1.jpg', mealType: 'lunch' });
     const r = repeatEntry(src, 'dinner', '2026-11-27', 'T', 'new');
     expect(r).toMatchObject({ id: 'new', date: '2026-11-27', addedAt: 'T', mealType: 'dinner', macrosEntered: false, source: 'barcode', sourceId: '490' });
     expect(r.photoDataUrl).toBeUndefined();
+    expect(r.photo_url).toBeUndefined();
   });
 });
 
-describe('guessSlotForTime (unchanged /add thresholds)', () => {
-  it.each([['09:59', 'breakfast'], ['10:00', 'lunch'], ['13:59', 'lunch'], ['14:00', 'dinner'], ['19:59', 'dinner'], ['20:00', 'snack']])(
+describe('guessSlotForTime (same boundaries as next-action)', () => {
+  it.each([['00:00', 'breakfast'], ['10:59', 'breakfast'], ['11:00', 'lunch'], ['15:59', 'lunch'], ['16:00', 'dinner'], ['20:59', 'dinner'], ['21:00', 'snack'], ['23:59', 'snack']])(
     '%s → %s', (t, want) => expect(guessSlotForTime(t)).toBe(want));
 });
 
