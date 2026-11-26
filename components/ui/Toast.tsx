@@ -27,7 +27,7 @@ export function Toast({
       aria-live="polite"
       className={
         message
-          ? `fixed top-12 left-1/2 -translate-x-1/2 z-50 font-bold text-sm px-5 py-2.5 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap ${VARIANT_CLASS[variant]} ${className}`
+          ? `fixed top-12 mt-safe left-1/2 -translate-x-1/2 z-50 font-bold text-sm px-5 py-2.5 rounded-2xl shadow-lg animate-slide-in-up whitespace-nowrap ${VARIANT_CLASS[variant]} ${className}`
           : 'sr-only'
       }
     >

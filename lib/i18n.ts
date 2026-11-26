@@ -357,6 +357,9 @@ export const translations = {
     slotSuggestTitle: '前回の{slot}',
     waterCompactMinus: '水分を200ml減らす',
     lowConfidenceNote: 'AI の推定は確実ではありません。量 (人前) と kcal を確認してください。',
+    editLabel: '編集',
+    navMainAria: 'メインナビゲーション',
+    photoEstimateBadge: '推定値',
   },
   en: {
     appName: 'Diet Tracker 🥗',
@@ -714,6 +717,9 @@ export const translations = {
     slotSuggestTitle: 'Last {slot}',
     waterCompactMinus: 'Remove 200 ml of water',
     lowConfidenceNote: 'The AI estimate is uncertain. Check the portion and kcal.',
+    editLabel: 'Edit',
+    navMainAria: 'Main navigation',
+    photoEstimateBadge: 'Estimate',
   },
 } as const;
 

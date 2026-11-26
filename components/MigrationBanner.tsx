@@ -76,7 +76,7 @@ export default function MigrationBanner({ status, summary, onDismiss }: Props) {
       role="status"
       aria-live="polite"
       className="
-        fixed top-4 left-1/2 -translate-x-1/2 z-50
+        fixed top-4 left-1/2 -translate-x-1/2 z-50 mt-safe
         w-[calc(100%-2rem)] max-w-sm
         pointer-events-none
       "

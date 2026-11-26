@@ -54,6 +54,10 @@ export default function FeedbackButton() {
     }
   };
 
+  // Task-focused screens (meal entry, onboarding) get no floating button: on
+  // /add it sat over the form's lower fields (UX_AUDIT #6).
+  if (pathname === '/add' || pathname?.startsWith('/onboarding')) return null;
+
   return (
     <>
       <Toast message={toast} variant="success" />
@@ -66,7 +70,7 @@ export default function FeedbackButton() {
         onClick={() => setOpen(true)}
         aria-label={t.feedbackOpen}
         className="
-          fixed bottom-36 right-5 lg:bottom-6 lg:right-4 z-40
+          fixed bottom-36 right-5 lg:bottom-6 lg:right-4 z-40 mb-safe
           flex size-12 items-center justify-center rounded-full
           bg-fg text-surface shadow-[0_4px_16px_rgb(0,0,0,0.25)]
           hover:opacity-90 active:scale-95 transition-all
@@ -95,7 +99,7 @@ export default function FeedbackButton() {
                 type="button"
                 onClick={close}
                 aria-label={t.feedbackClose}
-                className="p-1.5 rounded-lg text-faint hover:text-fg hover:bg-surface-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                className="min-w-11 min-h-11 inline-flex items-center justify-center rounded-lg text-faint hover:text-fg hover:bg-surface-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
               >
                 <X size={16} aria-hidden="true" />
               </button>

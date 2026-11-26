@@ -29,7 +29,7 @@ export default function BottomNav() {
           href="/add"
           className="
             lg:hidden
-            fixed bottom-20 right-4 z-40
+            fixed bottom-20 right-4 z-40 mb-safe
             w-14 h-14 rounded-full
             bg-gradient-to-br from-brand-500 to-brand-600
             shadow-[0_8px_24px_rgba(88,204,2,0.5)]
@@ -45,10 +45,10 @@ export default function BottomNav() {
       )}
 
       <nav
-        aria-label="メインナビゲーション"
+        aria-label={t.navMainAria}
         className="
           lg:hidden
-          fixed bottom-0 left-0 right-0 z-50
+          fixed bottom-0 left-0 right-0 z-50 pb-safe
           bg-card/90
           backdrop-blur-md
           border-t border-line

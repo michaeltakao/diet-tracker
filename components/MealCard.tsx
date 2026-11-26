@@ -119,7 +119,7 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
           value={draft.name}
           onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
           className={`${inputCls} w-full mb-2 text-sm font-bold`}
-          placeholder="食品名"
+          placeholder={t.foodName}
           aria-label={t.foodName}
           autoFocus
         />
@@ -176,7 +176,7 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
             disabled={!draft.name.trim()}
             className="
               flex-1 flex items-center justify-center gap-1.5
-              py-2 rounded-xl text-xs font-black
+              min-h-11 rounded-xl text-xs font-black
               bg-gradient-to-r from-brand-500 to-brand-600 text-white
               hover:from-brand-600 hover:to-brand-700
               disabled:opacity-40 disabled:cursor-not-allowed
@@ -184,20 +184,20 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
             "
           >
-            <Check size={13} strokeWidth={3} aria-hidden="true" /> 確定
+            <Check size={13} strokeWidth={3} aria-hidden="true" /> {t.saveLabel}
           </button>
           <button
             onClick={handleCancel}
             className="
               flex items-center justify-center gap-1.5
-              px-4 py-2 rounded-xl text-xs font-bold
+              px-4 min-h-11 rounded-xl text-xs font-bold
               bg-surface-2 text-muted
               hover:bg-line
               active:scale-95 transition-all duration-150
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
             "
           >
-            <X size={13} aria-hidden="true" /> キャンセル
+            <X size={13} aria-hidden="true" /> {t.cancel}
           </button>
         </div>
       </div>
@@ -235,7 +235,7 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
               </p>
               {(entry.photoDataUrl || entry.photo_url) && (
                 <span className="text-[9px] font-bold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-1.5 py-0.5 rounded-full flex-shrink-0">
-                  📷 推定値
+                  📷 {t.photoEstimateBadge}
                 </span>
               )}
             </div>
@@ -244,13 +244,13 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
             </span>
           </div>
 
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex items-center -mr-2 -mt-2 flex-shrink-0">
             <button
               onClick={handleToggleFavorite}
               aria-pressed={fav}
               aria-label={`${entry.name}: ${fav ? t.removeFavoriteAria : t.addFavoriteAria}`}
               className={`
-                p-2 rounded-lg
+                min-w-11 min-h-11 inline-flex items-center justify-center rounded-lg
                 active:scale-95 transition-all duration-200
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
                 ${fav ? 'text-pink-500' : 'text-faint hover:text-pink-400'}
@@ -262,13 +262,13 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
               <button
                 onClick={() => { setDraft(entry); setEditing(true); }}
                 className="
-                  p-2 rounded-lg
+                  min-w-11 min-h-11 inline-flex items-center justify-center rounded-lg
                   text-faint
                   hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-900/20
                   active:scale-95 transition-all duration-200
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
                 "
-                aria-label={`${entry.name}を編集`}
+                aria-label={`${entry.name}: ${t.editLabel}`}
               >
                 <Pencil size={14} aria-hidden="true" />
               </button>
@@ -276,13 +276,13 @@ export default function MealCard({ entry, onDelete, onEdit }: MealCardProps) {
             <button
               onClick={() => onDelete(entry.id)}
               className="
-                p-2 rounded-lg
+                min-w-11 min-h-11 inline-flex items-center justify-center rounded-lg
                 text-faint
                 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20
                 active:scale-95 transition-all duration-200
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
               "
-              aria-label={`${entry.name}を${t.delete}`}
+              aria-label={`${entry.name}: ${t.delete}`}
             >
               <Trash2 size={15} aria-hidden="true" />
             </button>

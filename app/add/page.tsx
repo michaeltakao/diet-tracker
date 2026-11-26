@@ -372,16 +372,16 @@ export default function AddPage() {
             onClick={() => setShowTemplates(true)}
             title={t.mealTemplatesLabel}
             aria-label={t.mealTemplatesLabel}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-surface-2 text-faint border border-line-strong transition-all duration-200 hover:text-fg"
+            className="flex items-center justify-center min-w-11 min-h-11 rounded-xl text-xs font-bold bg-surface-2 text-faint border border-line-strong transition-all duration-200 hover:text-fg"
           >
-            <BookmarkPlus size={11} aria-hidden />
+            <BookmarkPlus size={16} aria-hidden />
           </button>
           {/* Speed Mode toggle */}
           <button
             onClick={toggleSpeedMode}
             title={t.speedModeDesc}
             className={`
-              flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold
+              flex items-center gap-1.5 px-3 min-h-11 rounded-xl text-xs font-bold
               transition-all duration-200
               ${speedMode
                 ? 'bg-ai-soft text-ai border border-ai/30'

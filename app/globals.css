@@ -252,7 +252,21 @@ body {
   color: var(--fg);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  /* viewportFit: cover + black-translucent status bar (app/layout.tsx): in
+     the installed PWA, content would run under the notch / home indicator.
+     env() is 0 in a normal browser tab, so this is a no-op there. */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
+
+/* Safe-area offsets for fixed elements (UX P0 slice 2). Margins, not new
+   bottom-/top- values, so the Tailwind position classes stay the single
+   source the fab-overlap test parses; env() adds the same inset to every
+   stacked element, so their relative gaps are unchanged. */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }
+.mt-safe { margin-top: env(safe-area-inset-top, 0px); }
 
 /* ── Accessibility primitives ────────────────────────── */
 
