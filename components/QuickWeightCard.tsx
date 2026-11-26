@@ -19,7 +19,7 @@ import type { WeightEntry } from '@/lib/types';
 const MIN_KG = 20;
 const MAX_KG = 300;
 
-export default function QuickWeightCard() {
+export default function QuickWeightCard({ onSaved }: { onSaved?: () => void } = {}) {
   const { t } = useLanguage();
   const [latest, setLatest] = useState<WeightEntry | undefined>();
   const [input, setInput] = useState('');
@@ -52,6 +52,7 @@ export default function QuickWeightCard() {
     await addWeightEntry(entry);
     setLatest(entry);
     setSavedToday(true);
+    onSaved?.();
   };
 
   return (
@@ -93,7 +94,7 @@ export default function QuickWeightCard() {
         </div>
         <button
           type="submit"
-          className="px-5 py-2.5 rounded-xl bg-indigo-500 text-white text-sm font-black hover:bg-indigo-600 active:scale-95 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500"
+          className="px-5 min-h-11 rounded-xl bg-indigo-600 text-white text-sm font-black hover:bg-indigo-700 active:scale-95 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500"
         >
           {t.quickWeightSave}
         </button>

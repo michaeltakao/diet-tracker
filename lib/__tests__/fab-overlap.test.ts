@@ -97,6 +97,13 @@ describe('safe-area insets (UX P0 slice 2)', () => {
     expect(nav.split(/\s+/)).toContain('pb-safe');
   });
 
+  it('floating feedback button is desktop-only (mobile uses the inline one)', () => {
+    const feedback = classBlock('components/FeedbackButton.tsx', /className="\s*(fixed[^"]+)"/);
+    const tokens = feedback.split(/\s+/);
+    expect(tokens).toContain('hidden');
+    expect(tokens).toContain('lg:flex');
+  });
+
   it('feedback button is not rendered on /add or /onboarding', () => {
     const src = readFileSync(resolve(__dirname, '../..', 'components/FeedbackButton.tsx'), 'utf8');
     expect(src).toMatch(/pathname === '\/add'/);
