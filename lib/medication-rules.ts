@@ -1,3 +1,5 @@
+import { medicationMatches } from '@/lib/ja-normalize';
+
 /**
  * Static rules for medication-food interactions and condition-specific
  * workout/nutrition warnings.
@@ -251,14 +253,9 @@ export function getConditionRules(healthConditions: string[]): ConditionRule[] {
 /** Returns medication rules matching any of the user's medications. */
 export function getMedicationRules(medications: string[]): MedicationRule[] {
   if (!medications.length) return [];
-  return MEDICATION_RULES.filter(rule =>
-    rule.keywords.some(kw =>
-      medications.some(med =>
-        med.toLowerCase().includes(kw.toLowerCase()) ||
-        kw.toLowerCase().includes(med.toLowerCase()),
-      ),
-    ),
-  );
+  // Normalised (NFKC, kana-folded, separator-free) so 'わーふぁりん' or
+  // half-width 'ﾜｰﾌｧﾘﾝ' still triggers the warfarin rule.
+  return MEDICATION_RULES.filter(rule => medicationMatches(rule.keywords, medications));
 }
 
 /** All workout warnings for the user. */
