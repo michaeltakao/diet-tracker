@@ -1,6 +1,7 @@
 // Core-loop friction probe (dt-critic hard metrics).
 //
 // Usage: node scripts/measure-core-loop.mjs <baseUrl> <outDir> [routes...]
+// Env: VIEWPORT=WxH (default 390x844), e.g. VIEWPORT=360x740.
 // Needs playwright-core (set PW_CORE=<dir containing node_modules/playwright-core>,
 // default: local install) and system Chrome.
 //
@@ -9,6 +10,12 @@
 //   y     = getBoundingClientRect().top + scrollY of the element, CSS px,
 //           viewport 390x844 (iPhone 12-class), one meal entry logged.
 //   errors= console "error" messages + uncaught page errors per route.
+//   ms    = wall time of the scripted task (Playwright clicks, no think time;
+//           compares builds on one machine, not human task time).
+//   UX P0 (2026-11-26) additions, null when the element does not exist:
+//   yNextAction / ySlotList / yTodayCard, firstScreen.* = element bottom
+//   < viewport height, sameMealTapsHome / sameMealTapsViaAdd = taps to log
+//   an earlier day's meal again from the home slot (seeded yesterday dinner).
 import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -22,7 +29,8 @@ const browser = await chromium.launch({
   executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   headless: true,
 });
-const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'ja-JP' });
+const [VW, VH] = (process.env.VIEWPORT ?? '390x844').split('x').map(Number);
+const ctx = await browser.newContext({ viewport: { width: VW, height: VH }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'ja-JP' });
 const host = new URL(base).hostname;
 await ctx.addCookies([
   { name: 'dt-guest', value: '1', domain: host, path: '/' },
@@ -49,11 +57,12 @@ let taps = 0;
 const tap = async (locator) => { await locator.first().click(); taps += 1; };
 const go = async (path) => { route = path; await page.goto(base + path, { waitUntil: 'networkidle' }); await page.waitForTimeout(600); };
 
-const result = { base, viewport: '390x844', at: new Date().toISOString() };
+const result = { base, viewport: `${VW}x${VH}`, at: new Date().toISOString() };
 
 // ── Meal: dashboard → saved ─────────────────────────────────
 await go('/dashboard');
 taps = 0;
+let t0 = Date.now();
 await tap(page.locator('a[href="/add"]').last()); // FAB
 await page.waitForURL('**/add');
 route = '/add'; await page.waitForTimeout(600);
@@ -83,6 +92,7 @@ if (page.url().endsWith('/add')) {
 }
 await page.waitForTimeout(1000);
 result.mealTaps = taps;
+result.mealMs = Date.now() - t0;
 result.mealSavedUrl = page.url();
 result.mealStored = await page.evaluate(() => (JSON.parse(localStorage.getItem('diet-tracker-v1') ?? '{}').foodEntries ?? []).length);
 
@@ -102,6 +112,24 @@ result.yWeightInput = await page.evaluate(() => {
   return el ? Math.round(el.getBoundingClientRect().top + window.scrollY) : null;
 });
 result.pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+const box = async (sel) => page.evaluate((s) => {
+  const el = document.querySelector(s);
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return { y: Math.round(r.top + window.scrollY), bottom: Math.round(r.bottom + window.scrollY) };
+}, sel);
+const todayBox = await box('[data-testid="today-card"]');
+const nextBox = await box('[data-testid="next-action"]');
+const slotBox = await box('[data-testid="meal-slots"]');
+result.yTodayCard = todayBox?.y ?? null;
+result.yNextAction = nextBox?.y ?? null;
+result.ySlotList = slotBox?.y ?? null;
+result.firstScreen = {
+  todayCard: todayBox ? todayBox.bottom <= VH : null,
+  nextAction: nextBox ? nextBox.bottom <= VH : null,
+  slotList: slotBox ? slotBox.bottom <= VH : null,
+  calorieLabel: result.yCalorieCard != null ? result.yCalorieCard < VH : null,
+};
 result.cardsAboveMealList = await page.evaluate((yMeal) => {
   const cards = [...document.querySelectorAll('.rounded-2xl')].filter((el) => {
     const r = el.getBoundingClientRect();
@@ -139,6 +167,47 @@ result.weightStored = await page.evaluate(() => {
   const d = JSON.parse(raw);
   return (d.weightEntries ?? d.weights ?? []).length;
 });
+
+// ── Same meal again (UX P0): seed yesterday's dinner, log it from home ──
+const seedYesterday = () => page.evaluate(() => {
+  const raw = JSON.parse(localStorage.getItem('diet-tracker-v1') ?? '{}');
+  const jst = (d) => new Date(Date.now() + 9 * 3600e3 + d * 864e5).toISOString().slice(0, 10);
+  const today = jst(0);
+  raw.foodEntries = (raw.foodEntries ?? []).filter((e) => !(e.date === today && e.mealType === 'dinner'));
+  raw.foodEntries.push({ id: crypto.randomUUID(), date: jst(-1), mealType: 'dinner', name: '計測用定食', calories: 600,
+    protein: 30, fat: 20, carbs: 70, addedAt: `${jst(-1)}T10:00:00.000Z` });
+  localStorage.setItem('diet-tracker-v1', JSON.stringify(raw));
+  return raw.foodEntries.length;
+});
+const stored = () => page.evaluate(() => (JSON.parse(localStorage.getItem('diet-tracker-v1') ?? '{}').foodEntries ?? []).length);
+await seedYesterday();
+await go('/dashboard');
+const repeatBtn = page.locator('[data-testid="repeat-dinner"]');
+if (await repeatBtn.count()) {
+  const before = await stored();
+  taps = 0; t0 = Date.now();
+  await tap(repeatBtn);
+  await page.waitForTimeout(500);
+  result.sameMealTapsHome = (await stored()) === before + 1 ? taps : null;
+  result.sameMealHomeMs = Date.now() - t0;
+} else {
+  result.sameMealTapsHome = null;
+}
+await seedYesterday();
+await go('/dashboard');
+const slotAdd = page.locator('[data-slot="dinner"] a[href="/add?meal=dinner"]');
+if (await slotAdd.count()) {
+  const before = await stored();
+  taps = 0; t0 = Date.now();
+  await tap(slotAdd);
+  await page.waitForURL('**/add?meal=dinner'); route = '/add'; await page.waitForTimeout(600);
+  await tap(page.locator('[data-testid="slot-recents"] button'));
+  await page.waitForURL('**/dashboard'); await page.waitForTimeout(500);
+  result.sameMealTapsViaAdd = (await stored()) === before + 1 ? taps : null;
+  result.sameMealViaAddMs = Date.now() - t0;
+} else {
+  result.sameMealTapsViaAdd = null;
+}
 
 // ── Every route: console errors + screenshot ─────────────────
 const routes = ['/dashboard', '/add', '/log', '/workout', '/weight', '/settings', '/research', ...extraRoutes];
