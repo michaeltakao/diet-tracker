@@ -15,7 +15,7 @@
 | 7 | タップ領域 44px 未満: MealCard アイコン ≈30px、推薦の評価ボタン ≈20px、水分グラス ≈28px、`/add` ヘッダーボタン ≈30px | `MealCard.tsx:253,264,279` (`p-2`+14px), `WaterTracker.tsx:77`, `add/page.tsx:375,384` |
 | 8 | 写真 AI の信頼度は表示だけ。low でも全項目が同じ見た目で確定扱い。量の調整は手入力 | `PhotoUpload.tsx:215-223` |
 | 9 | 言語の混在: onboarding 49 行・settings 45 行が日本語直書き。API エラーは英語のまま表示。metadata が削除済み機能 (AI ワークアウト生成, 1RM) を宣伝 | `onboarding/page.tsx`, `settings/page.tsx`, `PhotoUpload.tsx:122`, `layout.tsx:40-53` |
-| 10 | 入力検証の不一致とデータ経路の抜け: 体重はホーム 20–300kg / `/weight` は >0。水分は outbox を通らず失敗時は `console.warn` のみ | `QuickWeightCard.tsx:19-20`, `weight/page.tsx:42`, `lib/data/water.ts:57` |
+| 10 | 入力検証の不一致とデータ経路の抜け: 体重はホーム 20–300kg / `/weight` は >0。水分は outbox を通らず失敗時は `console.warn` のみ | `QuickWeightCard.tsx:19-20`, `weight/page.tsx:42`, `lib/data/water.ts:59` |
 
 ## 2. 使いにくさの原因 (意見)
 - 画面ごとに作られた機能の寄せ集めで、「今日の状態 → 次の一手」をまとめる層がない。
