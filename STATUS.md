@@ -6,6 +6,12 @@ Keep this file under 200 lines: Now (latest 3) / Next / Blockers / Key
 decisions / Last verified (latest 2) — move older entries to the archive.
 
 ## Now
+- **2026-11-27 merged to `main`: #26 (Next 16.4.6, `17f7fe6`) then #25
+  (Gemini pin → `gemini-3.5-flash-lite`, `06dc32b`).** Production deploy
+  created **2026-11-26T22:03Z (11-27 07:03 JST)**, status success; prod
+  `/` + `/login` 200. **Study data split point for the model change.**
+  Not yet: merge `main` into #21 / #22 / #24 (#24 conflicts with the
+  `lib/recommend-prompt.ts` extraction); #29→#30→#31 retarget to `main`.
 - **2026-11-27 UX P0 core loop** (`ux/p0-core-loop`, on `refactor/core-loop`;
   draft PR, base #24). Audit + proposal: `docs/ux-audit/` (TOP10 with
   file:line, P1/P2 written up but not built). Home = today card (kcal +
