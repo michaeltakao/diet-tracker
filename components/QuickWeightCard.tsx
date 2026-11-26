@@ -15,11 +15,9 @@ import { addWeightEntry, getLatestWeightEntry } from '@/lib/data';
 import { fmtShortJa, todayJst } from '@/lib/format-date';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { WeightEntry } from '@/lib/types';
+import { MIN_WEIGHT_KG, MAX_WEIGHT_KG, isValidWeightKg } from '@/lib/weight-bounds';
 
-const MIN_KG = 20;
-const MAX_KG = 300;
-
-export default function QuickWeightCard() {
+export default function QuickWeightCard({ onSaved }: { onSaved?: () => void } = {}) {
   const { t } = useLanguage();
   const [latest, setLatest] = useState<WeightEntry | undefined>();
   const [input, setInput] = useState('');
@@ -38,7 +36,7 @@ export default function QuickWeightCard() {
   const handleSave = async (e: { preventDefault(): void }) => {
     e.preventDefault();
     const val = Number(input);
-    if (!Number.isFinite(val) || val < MIN_KG || val > MAX_KG) {
+    if (!isValidWeightKg(val)) {
       setError(t.quickWeightInvalid);
       return;
     }
@@ -52,6 +50,7 @@ export default function QuickWeightCard() {
     await addWeightEntry(entry);
     setLatest(entry);
     setSavedToday(true);
+    onSaved?.();
   };
 
   return (
@@ -80,8 +79,8 @@ export default function QuickWeightCard() {
             type="number"
             inputMode="decimal"
             step="0.1"
-            min={MIN_KG}
-            max={MAX_KG}
+            min={MIN_WEIGHT_KG}
+            max={MAX_WEIGHT_KG}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={latest ? String(latest.weight) : '65.0'}
@@ -93,7 +92,7 @@ export default function QuickWeightCard() {
         </div>
         <button
           type="submit"
-          className="px-5 py-2.5 rounded-xl bg-indigo-500 text-white text-sm font-black hover:bg-indigo-600 active:scale-95 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500"
+          className="px-5 min-h-11 rounded-xl bg-indigo-600 text-white text-sm font-black hover:bg-indigo-700 active:scale-95 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500"
         >
           {t.quickWeightSave}
         </button>

@@ -70,9 +70,9 @@ function FeedbackButtons({
   onReact: (kind: FeedbackKind) => void;
 }) {
   const base =
-    'p-1 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]';
+    'min-w-11 min-h-11 inline-flex items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]';
   return (
-    <div className="flex items-center gap-1 mt-1.5" role="group" aria-label="この推薦へのフィードバック">
+    <div className="flex items-center -ml-3 mt-0.5" role="group" aria-label="この推薦へのフィードバック">
       <button
         type="button"
         onClick={() => onReact('favorite')}
@@ -276,7 +276,7 @@ export default function RecommendationCard() {
             <button
               onClick={() => setExpanded(p => !p)}
               aria-expanded={expanded}
-              className="text-faint hover:text-muted transition-colors p-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+              className="text-faint hover:text-muted transition-colors min-w-11 min-h-11 inline-flex items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
               aria-label={expanded ? '折りたたむ' : '展開する'}
             >
               {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
@@ -287,7 +287,7 @@ export default function RecommendationCard() {
               onClick={generate}
               disabled={loading}
               className={`
-                flex items-center gap-1.5 px-3 py-1.5 rounded-xl
+                flex items-center gap-1.5 px-3 min-h-11 rounded-xl
                 text-xs font-bold transition-all duration-200
                 hover:scale-[1.03] active:scale-95
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]

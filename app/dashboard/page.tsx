@@ -1,37 +1,47 @@
 'use client';
 
 /**
- * Home — the core loop on one screen (ADR-011):
- *   today's kcal vs goal → today's meals → one-tap weight → recommendation
- *   → water → push opt-in.
+ * Home — the core loop on one screen (ADR-011, UX P0 2026-11-26):
+ *   today card (kcal + P/F/C vs goals + status chips) → one next step →
+ *   four meal slots → one-tap weight → water (1 row) → recommendation
+ *   → push opt-in.
  *
- * Gamification (XP / rank / quests / badges / streak UI), AI cards, TDEE,
- * steps and health-log cards were deleted; see
- * docs/reviews/RADICAL_CRITIQUE_2026-11.md for the rationale and the
- * before/after measurements.
+ * Every destructive or bulk action is undoable for 5 s (delete, "log the
+ * same", copy yesterday); copy yesterday asks first and runs once per day.
+ * See docs/ux-audit/REDESIGN_PROPOSAL.md.
  */
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Settings, ChevronDown, ChevronRight, Copy } from 'lucide-react';
+import { Settings, Copy, ArrowRight } from 'lucide-react';
 import {
   getAppData, removeFoodEntry, updateFoodEntry, addWater, getWaterForDate,
-  addFoodEntry, getRealGoals,
+  addFoodEntry, getRealGoals, getLatestWeightEntry, getWorkoutEntriesForDate,
 } from '@/lib/data';
-import { FoodEntry, DailyGoals } from '@/lib/types';
-import MealCard from '@/components/MealCard';
+import type { FoodEntry, DailyGoals } from '@/lib/types';
+import { TodaySummaryCard } from '@/components/TodaySummaryCard';
+import { MealSlotList } from '@/components/MealSlotList';
 import WaterTracker from '@/components/WaterTracker';
 import QuickWeightCard from '@/components/QuickWeightCard';
 import PushPermissionCard from '@/components/PushPermissionCard';
 import RecommendationCard from '@/components/RecommendationCard';
 import BottomNav from '@/components/BottomNav';
-import { Toast } from '@/components/ui/Toast';
+import FeedbackButton from '@/components/FeedbackButton';
+import { Toast, useToast } from '@/components/ui/Toast';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Button } from '@/components/ui/Button';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { fmtMonthDayDowShortJa, shiftDate, todayJst } from '@/lib/format-date';
+import { fmtMonthDayDowShortJa, jstTimestamp, nowJstTime, shiftDate, todayJst } from '@/lib/format-date';
 import { sumIntake } from '@/lib/macros';
+import {
+  MEAL_SLOTS, groupBySlot, filledMainSlots, lastSlotMeal, repeatEntry, planCopyYesterday,
+  type MealSlot, type LastSlotMeal, type CopyPlan,
+} from '@/lib/meal-slots';
+import { nextAction, type NextAction } from '@/lib/next-action';
+import { takeUndoHint } from '@/lib/undo-hint';
 
-const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
+/** JST day "copy yesterday" last ran on this device (UX state, not study data). */
+const COPIED_ON_KEY = 'diet-tracker:copied-yesterday-on';
 
 const ICON_BTN = `
   w-11 h-11 rounded-2xl
@@ -43,97 +53,189 @@ const ICON_BTN = `
   transition-all duration-200
 `;
 
+interface HomeState {
+  all: FoodEntry[];
+  goals: DailyGoals | null;
+  water: number;
+  weightToday: boolean;
+  workoutToday: boolean;
+}
+
+function readState(today: string): HomeState {
+  const data = getAppData();
+  return {
+    all: data.foodEntries,
+    goals: getRealGoals(),
+    water: getWaterForDate(today),
+    weightToday: getLatestWeightEntry()?.date === today,
+    workoutToday: getWorkoutEntriesForDate(today).length > 0,
+  };
+}
+
+function focusWeightInput() {
+  const el = document.getElementById('quick-weight-input');
+  el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el?.focus({ preventScroll: true });
+}
+
 export default function HomePage() {
   const { t } = useLanguage();
-  const [entries, setEntries]   = useState<FoodEntry[]>([]);
-  // null = "no real goals set" (un-onboarded / skip path) → empty-state card.
-  const [goals, setGoals]       = useState<DailyGoals | null>(null);
-  // Gates first paint so we never flash fabricated numbers OR the empty card
-  // before the client-only data load resolves.
-  const [goalsReady, setGoalsReady] = useState(false);
-  const [water, setWater]       = useState(0);
   const [today]                 = useState(todayJst());
-  const [collapsedMeals, setCollapsedMeals] = useState<Set<string>>(new Set());
-  const [copyToast, setCopyToast]           = useState<string | null>(null);
+  // null until the client-only read resolves: render a skeleton, never
+  // fabricated numbers or a flash of the empty state.
+  const [state, setState]       = useState<HomeState | null>(null);
+  const [copyPlan, setCopyPlan] = useState<Extract<CopyPlan, { ok: true }> | null>(null);
+  const toast = useToast();
 
-  const loadData = () => {
-    const data = getAppData();
-    setEntries(data.foodEntries.filter((e) => e.date === today));
-    setGoals(getRealGoals());
-    setGoalsReady(true);
-    setWater(getWaterForDate(today));
-  };
+  const reload = () => setState(readState(today));
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
-    loadData();
+    reload();
+    // Undo hand-off from /add (lib/undo-hint.ts).
+    const hint = takeUndoHint();
+    if (hint) {
+      toast.show(`✓ ${hint.label}`, {
+        label: t.undo,
+        onClick: () => {
+          for (const id of hint.ids) void removeFoodEntry(id);
+          reload();
+          toast.show(t.undoDone);
+        },
+      });
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleDelete = (id: string) => { void removeFoodEntry(id); loadData(); };
-  const handleEdit   = (updated: FoodEntry) => { void updateFoodEntry(updated); loadData(); };
-
-  const handleAddWater = async (ml: number) => {
-    await addWater(today, ml);
-    setWater(getWaterForDate(today));
-  };
-
-  const handleCopyYesterday = async () => {
-    const yesterdayEntries = getAppData().foodEntries.filter((e) => e.date === shiftDate(today, -1));
-    if (yesterdayEntries.length === 0) {
-      setCopyToast(t.noYesterdayData);
-      setTimeout(() => setCopyToast(null), 2000);
-      return;
-    }
-    for (const entry of yesterdayEntries) {
-      await addFoodEntry({ ...entry, id: crypto.randomUUID(), date: today, addedAt: new Date().toISOString() });
-    }
-    loadData();
-    setCopyToast(t.copyYesterdayDone);
-    setTimeout(() => setCopyToast(null), 2500);
-  };
-
-  const toggleMeal = (type: string) => {
-    setCollapsedMeals((prev) => {
-      const next = new Set(prev);
-      if (next.has(type)) next.delete(type); else next.add(type);
-      return next;
+  /**
+   * Write `entries` and offer one Undo that removes exactly those ids.
+   * addFoodEntry writes localStorage synchronously and only then awaits the
+   * outbox (IndexedDB + background send), so starting every call before
+   * awaiting any makes the screen and the toast update at once; an outbox
+   * failure is logged and never blocks the UI (the outbox retries itself).
+   */
+  const addUndoable = (entries: FoodEntry[], message: string, onUndo?: () => void) => {
+    const writes = entries.map((e) => addFoodEntry(e));
+    void Promise.allSettled(writes).then((rs) => {
+      for (const r of rs) if (r.status === 'rejected') console.warn('[home] queued write failed:', r.reason);
+    });
+    reload();
+    toast.show(message, {
+      label: t.undo,
+      onClick: () => {
+        for (const e of entries) void removeFoodEntry(e.id);
+        onUndo?.();
+        reload();
+        toast.show(t.undoDone);
+      },
     });
   };
 
-  // P/F/C sums cover entered meals only; kcal-only meals are flagged (029).
-  const totals = sumIntake(entries);
-  const hasMacros = totals.enteredCount > 0;
-
-  const remaining = goals ? Math.max(0, goals.calories - totals.calories) : 0;
-  const over      = goals ? totals.calories > goals.calories : false;
-  const pct       = goals && goals.calories > 0 ? Math.min(100, Math.round((totals.calories / goals.calories) * 100)) : 0;
-
-  const grouped = MEAL_TYPES.reduce(
-    (acc, type) => { acc[type] = entries.filter((e) => e.mealType === type); return acc; },
-    {} as Record<string, FoodEntry[]>,
-  );
-
-  const MEAL_LABELS: Record<string, string> = {
-    breakfast: `🌅 ${t.breakfast}`,
-    lunch:     `☀️ ${t.lunch}`,
-    dinner:    `🌙 ${t.dinner}`,
-    snack:     `🍎 ${t.snack}`,
+  const handleDelete = (id: string) => {
+    const entry = state?.all.find((e) => e.id === id);
+    void removeFoodEntry(id);
+    reload();
+    if (!entry) return;
+    toast.show(t.deletedToast.replace('{name}', entry.name), {
+      label: t.undo,
+      onClick: () => {
+        // Same id: the outbox upsert supersedes the queued delete (or
+        // re-creates the row if the delete was already sent).
+        void addFoodEntry(entry);
+        reload();
+        toast.show(t.undoDone);
+      },
+    });
   };
+
+  // lib/data writes localStorage synchronously before awaiting the outbox,
+  // so reading back right after the call already sees the change.
+  const handleEdit = (updated: FoodEntry) => { void updateFoodEntry(updated); reload(); };
+
+  const handleAddWater = async (ml: number) => {
+    await addWater(today, ml);
+    setState((s) => (s ? { ...s, water: getWaterForDate(today) } : s));
+  };
+
+  const handleRepeat = (slot: MealSlot) => {
+    if (!state) return;
+    // After the first tap the slot is filled, so its button is gone; the
+    // re-read guards a double tap that lands before React re-renders.
+    const current = getAppData().foodEntries;
+    if (current.some((e) => e.date === today && e.mealType === slot)) return;
+    const last = lastSlotMeal(current, slot, today);
+    if (!last) return;
+    const at = jstTimestamp(today, nowJstTime());
+    const copies = last.entries.map((e) => repeatEntry(e, slot, today, at, crypto.randomUUID()));
+    addUndoable(copies, copies.length === 1
+      ? `✓ ${t.loggedToast.replace('{name}', copies[0].name)}`
+      : `✓ ${t.loggedManyToast.replace('{n}', String(copies.length))}`);
+  };
+
+  const askCopyYesterday = () => {
+    if (!state) return;
+    const plan = planCopyYesterday(state.all, today, shiftDate(today, -1), localStorage.getItem(COPIED_ON_KEY));
+    if (!plan.ok) {
+      toast.show(plan.reason === 'empty' ? t.noYesterdayData : t.copyYesterdayAlready);
+      return;
+    }
+    setCopyPlan(plan);
+  };
+
+  const confirmCopyYesterday = () => {
+    const plan = copyPlan;
+    setCopyPlan(null);
+    // Re-check the once-per-day flag: a second confirm can arrive before
+    // the first one's state update.
+    if (!plan || localStorage.getItem(COPIED_ON_KEY) === today) return;
+    const at = jstTimestamp(today, nowJstTime());
+    const copies = plan.entries.map((e) => repeatEntry(e, e.mealType, today, at, crypto.randomUUID()));
+    // Undoing the copy also re-allows it today.
+    addUndoable(copies, `✓ ${t.copyYesterdayDone}`, () => localStorage.removeItem(COPIED_ON_KEY));
+    // Set only after the local writes ran (they are synchronous), so a throw
+    // above never leaves the day blocked with nothing copied.
+    localStorage.setItem(COPIED_ON_KEY, today);
+  };
+
+  // ── Derived view state ───────────────────────────────────────────────────
+  const entries = state ? state.all.filter((e) => e.date === today) : [];
+  const totals  = sumIntake(entries);
+  const grouped = groupBySlot(entries);
+  const filled  = filledMainSlots(entries);
+  const lastMeals = Object.fromEntries(
+    MEAL_SLOTS.map((s) => [s, state && grouped[s].length === 0 ? lastSlotMeal(state.all, s, today) : null]),
+  ) as Record<MealSlot, LastSlotMeal | null>;
+  const next: NextAction | null = state
+    ? nextAction({ hasGoals: state.goals !== null, filledSlots: filled, weightLoggedToday: state.weightToday, nowJst: nowJstTime() })
+    : null;
+
+  const slotLabel: Record<MealSlot, string> = { breakfast: t.breakfast, lunch: t.lunch, dinner: t.dinner, snack: t.snack };
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
-      <Toast message={copyToast} variant="neutral" />
+      <Toast message={toast.message} action={toast.action} variant="neutral" />
+      <ConfirmDialog
+        open={copyPlan !== null}
+        title={t.copyYesterdayConfirmTitle}
+        description={copyPlan ? t.copyYesterdayConfirmBody
+          .replace('{n}', String(copyPlan.entries.length))
+          .replace('{kcal}', copyPlan.calories.toLocaleString()) : undefined}
+        confirmLabel={t.copyYesterdayConfirm}
+        cancelLabel={t.cancel}
+        onConfirm={confirmCopyYesterday}
+        onCancel={() => setCopyPlan(null)}
+      />
 
       {/* ── Header ─────────────────────────────────── */}
-      <div className="flex items-center justify-between pt-6 pb-4">
+      <div className="flex items-center justify-between pt-4 pb-3">
         <div>
-          <h1 className="text-2xl font-black text-fg tracking-tight">{t.appName}</h1>
-          <p className="text-xs text-faint mt-0.5 font-medium">{fmtMonthDayDowShortJa(today)}</p>
+          <h1 className="text-xl font-black text-fg tracking-tight">{fmtMonthDayDowShortJa(today)}</h1>
+          <p className="text-xs text-faint font-medium">{t.appName}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => void handleCopyYesterday()}
+            type="button"
+            onClick={askCopyYesterday}
             title={t.copyYesterdayDesc}
             aria-label={t.copyYesterdayDesc}
             className={ICON_BTN}
@@ -146,117 +248,104 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ── 1. Today's kcal vs goal ─────────────────── */}
-      {goalsReady && (goals ? (
-        <div className={`
-          rounded-2xl p-5 mb-3 shadow-elevated
-          ${over ? 'bg-gradient-to-br from-amber-500 to-red-600' : 'bg-gradient-to-br from-brand-500 to-brand-600'}
-        `}>
-          <p className="text-xs font-bold uppercase tracking-widest text-white/85 mb-1">
-            {over ? '⚠️ オーバー' : t.remaining}
-          </p>
-          <div className="flex items-end gap-2 mb-2">
-            <span className="text-5xl font-black text-white tracking-tight leading-none tabular-nums">
-              {over ? `+${(totals.calories - goals.calories).toLocaleString()}` : remaining.toLocaleString()}
-            </span>
-            <span className="text-lg text-white/85 font-medium mb-1">kcal</span>
-          </div>
-          <div
-            className="h-2 rounded-full bg-white/25 overflow-hidden mb-2"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={pct}
-            aria-label={t.consumed}
-          >
-            <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
-          </div>
-          <p className="text-xs text-white/80 font-medium tabular-nums">
-            {totals.calories.toLocaleString()} / {goals.calories.toLocaleString()} kcal {t.consumed}
-            {hasMacros && (
-              <span className="ml-2">
-                · P {Math.round(totals.protein)}g · F {Math.round(totals.fat)}g · C {Math.round(totals.carbs)}g
-                {totals.kcalOnlyCount > 0 && ` ${t.macrosPartialNote}`}
-              </span>
-            )}
-          </p>
+      {state === null ? (
+        <div aria-busy="true" aria-label={t.loadingLabel} data-testid="home-skeleton">
+          <div className="skeleton rounded-2xl h-48 mb-3" />
+          <div className="skeleton rounded-2xl h-14 mb-3" />
+          <div className="skeleton rounded-2xl h-52 mb-3" />
         </div>
       ) : (
-        <div className="bg-card rounded-2xl shadow-card border border-line p-6 text-center mb-3">
-          <p className="text-sm font-semibold text-muted">{t.noGoalsTitle}</p>
-          <p className="text-xs text-faint mt-1 mb-4">{t.noGoalsSub}</p>
-          <Button href="/onboarding" size="lg">{t.noGoalsCta}</Button>
-          <div className="mt-3">
-            <Link href="/settings" className="text-xs text-faint underline underline-offset-2 hover:text-fg transition-colors">
-              {t.noGoalsSettingsLink}
-            </Link>
-          </div>
-        </div>
-      ))}
-
-      {/* ── 2. Today's meals ───────────────────────── */}
-      <h2 className="text-sm font-bold text-muted mb-2 mt-1">{t.todayMeals}</h2>
-
-      {entries.length === 0 ? (
-        <div className="bg-card rounded-2xl shadow-card border border-line p-6 text-center mb-3">
-          <p className="text-sm font-semibold text-muted">{t.noMeals}</p>
-          <p className="text-xs text-faint mt-1 mb-4">{t.noMealsSub}</p>
-          <Button href="/add" size="lg">{t.noMealsCta}</Button>
-        </div>
-      ) : (
-        <div className="space-y-3 mb-3">
-          {MEAL_TYPES.map((type) => {
-            const typeEntries = grouped[type];
-            if (typeEntries.length === 0) return null;
-            const sectionCals = typeEntries.reduce((s, e) => s + e.calories, 0);
-            const collapsed = collapsedMeals.has(type);
-            return (
-              <div key={type} className="bg-card rounded-2xl shadow-card border border-line overflow-hidden">
-                <button
-                  onClick={() => toggleMeal(type)}
-                  aria-expanded={!collapsed}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)] transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    {collapsed
-                      ? <ChevronRight size={14} className="text-faint" aria-hidden="true" />
-                      : <ChevronDown size={14} className="text-faint" aria-hidden="true" />}
-                    <span className="text-xs font-black text-faint uppercase tracking-widest">
-                      {MEAL_LABELS[type]}
-                    </span>
-                  </div>
-                  <span className="text-xs font-bold text-faint tabular-nums">
-                    {sectionCals.toLocaleString()} kcal
-                  </span>
-                </button>
-                {!collapsed && (
-                  <div className="px-3 pb-3 space-y-2">
-                    {typeEntries.map((entry) => (
-                      <MealCard key={entry.id} entry={entry} onDelete={handleDelete} onEdit={handleEdit} />
-                    ))}
-                  </div>
-                )}
+        <>
+          {/* ── 1. Today ─────────────────────────────── */}
+          {state.goals ? (
+            <TodaySummaryCard
+              goals={state.goals}
+              totals={totals}
+              status={{ mainMealsLogged: filled.length, workoutLogged: state.workoutToday, weightLogged: state.weightToday }}
+              onWeightChip={focusWeightInput}
+            />
+          ) : (
+            <div className="bg-card rounded-2xl shadow-card border border-line p-5 text-center mb-3">
+              <p className="text-sm font-semibold text-muted">{t.noGoalsTitle}</p>
+              <p className="text-xs text-faint mt-1 mb-4">{t.noGoalsSub}</p>
+              <Button href="/onboarding" size="lg">{t.noGoalsCta}</Button>
+              <div className="mt-2">
+                <Link href="/settings" className="inline-flex items-center min-h-11 text-xs text-faint underline underline-offset-2 hover:text-fg transition-colors">
+                  {t.noGoalsSettingsLink}
+                </Link>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          )}
+
+          {/* ── 2. Next step (one, deterministic) ────── */}
+          {next && next.kind !== 'set-goals' && (
+            <NextStep action={next} slotLabel={slotLabel} />
+          )}
+
+          {/* ── 3. Today's meals ─────────────────────── */}
+          <h2 id="meals" className="text-sm font-bold text-muted mb-2 mt-1 scroll-mt-4">{t.todayMeals}</h2>
+          <MealSlotList
+            grouped={grouped}
+            lastMeals={lastMeals}
+            onDelete={handleDelete}
+            onEdit={handleEdit}
+            onRepeat={handleRepeat}
+          />
+
+          {/* ── 4. One-tap weight ────────────────────── */}
+          <QuickWeightCard onSaved={reload} />
+
+          {/* ── 5. Water (one row) ───────────────────── */}
+          <div className="bg-card rounded-2xl shadow-card border border-line px-4 py-2 mb-3">
+            <WaterTracker current={state.water} goal={state.goals?.water ?? 2000} onAdd={(ml) => void handleAddWater(ml)} />
+          </div>
+        </>
       )}
 
-      {/* ── 3. One-tap weight ──────────────────────── */}
-      <QuickWeightCard />
-
-      {/* ── 4. Safe recommendation (thesis artifact) ─ */}
+      {/* ── 6. Safe recommendation (thesis artifact) ─ */}
       <RecommendationCard />
-
-      {/* ── 5. Water ───────────────────────────────── */}
-      <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-3">
-        <WaterTracker current={water} goal={goals?.water ?? 2000} onAdd={handleAddWater} />
-      </div>
 
       {/* ── Web Push opt-in (authed users, sticky dismissal) ── */}
       <PushPermissionCard />
 
+      <FeedbackButton inline />
+
       <BottomNav />
+    </div>
+  );
+}
+
+function NextStep({ action, slotLabel }: { action: Exclude<NextAction, { kind: 'set-goals' }>; slotLabel: Record<MealSlot, string> }) {
+  const { t } = useLanguage();
+  const text =
+    action.kind === 'log-meal' ? t.nextLogMeal.replace('{slot}', slotLabel[action.slot])
+    : action.kind === 'log-weight' ? t.nextLogWeight
+    : t.nextDone;
+  const cta = action.kind === 'done' ? t.nextDoneCta : t.nextGo;
+  const cls = `
+    shrink-0 inline-flex items-center gap-1 min-h-11 px-4 rounded-xl text-sm font-black
+    bg-brand-strong text-white active:translate-y-[1px]
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--ring)]
+  `;
+  return (
+    <div
+      data-testid="next-action"
+      data-kind={action.kind}
+      className="flex items-center gap-3 bg-card rounded-2xl shadow-card border border-line pl-4 pr-2 py-2 mb-3"
+    >
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] font-bold text-faint uppercase tracking-widest">{t.nextActionLabel}</p>
+        <p className="text-sm font-bold text-fg truncate">{text}</p>
+      </div>
+      {action.kind === 'log-meal' && (
+        <Link href={`/add?meal=${action.slot}`} className={cls}>{cta}<ArrowRight size={14} aria-hidden="true" /></Link>
+      )}
+      {action.kind === 'log-weight' && (
+        <button type="button" onClick={focusWeightInput} className={cls}>{cta}<ArrowRight size={14} aria-hidden="true" /></button>
+      )}
+      {action.kind === 'done' && (
+        <Link href="/log" className={cls}>{cta}<ArrowRight size={14} aria-hidden="true" /></Link>
+      )}
     </div>
   );
 }

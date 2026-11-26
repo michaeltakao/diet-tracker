@@ -2,9 +2,9 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Diet Tracker — ワークアウト & 栄養プランナー',
+    name: 'Diet Tracker — 食事・体重の記録',
     short_name: 'DietTracker',
-    description: 'ワークアウトを計画・記録し、食事・体重も一緒に管理してAIコーチングを受けよう',
+    description: '食事・体重を数タップで記録し、今日の残りカロリーとPFCを確認する研究用アプリ',
     start_url: '/',
     scope: '/',
     display: 'standalone',
@@ -34,13 +34,6 @@ export default function manifest(): MetadataRoute.Manifest {
     screenshots: [],
     shortcuts: [
       {
-        name: 'ワークアウトを記録',
-        short_name: 'ワークアウト',
-        description: '今日のトレーニングを記録する',
-        url: '/workout',
-        icons: [{ src: '/icon', sizes: '96x96' }],
-      },
-      {
         name: '食事を追加',
         short_name: '追加',
         description: '今日の食事をすばやく追加する',
@@ -52,6 +45,13 @@ export default function manifest(): MetadataRoute.Manifest {
         short_name: '体重',
         description: '今日の体重を記録する',
         url: '/weight',
+        icons: [{ src: '/icon', sizes: '96x96' }],
+      },
+      {
+        name: 'ワークアウトを記録',
+        short_name: 'ワークアウト',
+        description: '今日のトレーニングを記録する',
+        url: '/workout',
         icons: [{ src: '/icon', sizes: '96x96' }],
       },
     ],

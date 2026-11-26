@@ -75,3 +75,38 @@ describe('PWA install banner vs FAB + feedback button (390×844)', () => {
     expect(bannerBottom).toBeLessThanOrEqual(feedback.top);
   });
 });
+
+describe('safe-area insets (UX P0 slice 2)', () => {
+  // viewportFit: cover + black-translucent → the installed PWA draws under
+  // the home indicator. Every bottom-anchored fixed element must add the
+  // inset; using one margin class keeps the gaps tested above unchanged.
+  const css = readFileSync(resolve(__dirname, '../..', 'app/globals.css'), 'utf8');
+
+  it('globals.css defines the env() utilities', () => {
+    expect(css).toMatch(/\.mb-safe\s*\{\s*margin-bottom:\s*env\(safe-area-inset-bottom/);
+    expect(css).toMatch(/\.pb-safe\s*\{\s*padding-bottom:\s*env\(safe-area-inset-bottom/);
+    expect(css).toMatch(/padding-top:\s*env\(safe-area-inset-top/);
+  });
+
+  it('FAB, feedback button and install banner carry mb-safe; the tab bar pb-safe', () => {
+    const fab = classBlock('components/BottomNav.tsx', /href="\/add"\s*className="\s*lg:hidden\s*(fixed[^"]+)"/);
+    const feedback = classBlock('components/FeedbackButton.tsx', /className="\s*(fixed[^"]+)"/);
+    const banner = classBlock('components/PwaInstallBanner.tsx', /aria-label="ホーム画面に追加"\s*className="\s*(fixed[^"]+)"/);
+    const nav = classBlock('components/BottomNav.tsx', /<nav[\s\S]*?className="\s*lg:hidden\s*(fixed[^"]+)"/);
+    for (const c of [fab, feedback, banner]) expect(c.split(/\s+/)).toContain('mb-safe');
+    expect(nav.split(/\s+/)).toContain('pb-safe');
+  });
+
+  it('floating feedback button is desktop-only (mobile uses the inline one)', () => {
+    const feedback = classBlock('components/FeedbackButton.tsx', /className="\s*(fixed[^"]+)"/);
+    const tokens = feedback.split(/\s+/);
+    expect(tokens).toContain('hidden');
+    expect(tokens).toContain('lg:flex');
+  });
+
+  it('feedback button is not rendered on /add or /onboarding', () => {
+    const src = readFileSync(resolve(__dirname, '../..', 'components/FeedbackButton.tsx'), 'utf8');
+    expect(src).toMatch(/pathname === '\/add'/);
+    expect(src).toMatch(/startsWith\('\/onboarding'\)/);
+  });
+});

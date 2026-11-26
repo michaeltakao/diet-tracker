@@ -16,6 +16,7 @@ function getTodayDate() { return todayJst(); }
 
 import { fmtShortJa, todayJst } from '@/lib/format-date';
 import { CARD_CLASS as cardCls } from '@/components/ui/Card';
+import { isValidWeightKg, MIN_WEIGHT_KG, MAX_WEIGHT_KG } from '@/lib/weight-bounds';
 
 function formatDateShort(dateStr: string) {
   return fmtShortJa(dateStr);
@@ -26,6 +27,7 @@ export default function WeightPage() {
   const [entries, setEntries]           = useState<WeightEntry[]>([]);
   const [goalWeight, setGoalWeightState] = useState<number | undefined>();
   const [input, setInput]               = useState('');
+  const [inputError, setInputError]     = useState(false);
   const [showForm, setShowForm]         = useState(false);
 
   const load = () => {
@@ -39,7 +41,9 @@ export default function WeightPage() {
 
   const handleAdd = async () => {
     const val = parseFloat(input);
-    if (isNaN(val) || val <= 0 || val > 300) return;
+    // Same 20–300 kg rule as the home logger; say why instead of ignoring the tap.
+    if (!isValidWeightKg(val)) { setInputError(true); return; }
+    setInputError(false);
     const today = getTodayDate();
     await addWeightEntry({
       id: crypto.randomUUID(),
@@ -118,12 +122,14 @@ export default function WeightPage() {
             <input
               type="number"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => { setInput(e.target.value); setInputError(false); }}
               placeholder="60.0"
               step="0.1"
-              min="20"
-              max="300"
+              min={MIN_WEIGHT_KG}
+              max={MAX_WEIGHT_KG}
               aria-label={t.bodyWeight}
+              aria-invalid={inputError || undefined}
+              aria-describedby={inputError ? 'weight-input-error' : undefined}
               className="
                 flex-1 px-3.5 py-3 rounded-2xl
                 border border-line-strong
@@ -151,6 +157,7 @@ export default function WeightPage() {
               {t.logWeight}
             </button>
           </div>
+          {inputError && <p id="weight-input-error" role="alert" className="text-xs text-danger mt-2">{t.quickWeightInvalid}</p>}
           {todayEntry && (
             <p className="text-xs text-faint mt-2 font-medium">
               {t.todayEntryLabel} <span className="font-bold text-indigo-500">{todayEntry.weight} kg</span>{t.todayOverwrite}

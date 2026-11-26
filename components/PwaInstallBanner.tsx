@@ -91,7 +91,7 @@ export default function PwaInstallBanner() {
         role="dialog"
         aria-label="ホーム画面に追加"
         className="
-          fixed bottom-52 lg:bottom-20 left-4 right-4 z-40 max-w-md mx-auto
+          fixed bottom-52 lg:bottom-20 left-4 right-4 z-40 mb-safe max-w-md mx-auto
           bg-card/90
           backdrop-blur-md
           border border-line

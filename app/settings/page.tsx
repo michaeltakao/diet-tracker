@@ -13,6 +13,7 @@ import {
 } from '@/lib/export';
 import BottomNav from '@/components/BottomNav';
 import AccountSection from '@/components/AccountSection';
+import FeedbackButton from '@/components/FeedbackButton';
 import PushSettingsRow from '@/components/PushSettingsRow';
 import { Button } from '@/components/ui/Button';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -863,6 +864,8 @@ export default function SettingsPage() {
           {clearConfirm ? '本当に削除する？（もう一度タップで確定）' : 'すべてのデータを削除'}
         </button>
       </div>
+
+      <FeedbackButton inline />
 
       <BottomNav />
     </div>

@@ -22,7 +22,13 @@ import { Toast } from '@/components/ui/Toast';
 
 const MAX_LENGTH = 2000;
 
-export default function FeedbackButton() {
+/**
+ * `inline` renders a full-width text button for page content (mobile only).
+ * The floating button is desktop-only since UX P0: on a 390 px screen it was
+ * the third element in the bottom-right stack and covered the home weight
+ * button (UX_AUDIT #6), so mobile reaches feedback from home + settings.
+ */
+export default function FeedbackButton({ inline = false }: { inline?: boolean } = {}) {
   const { t } = useLanguage();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -54,6 +60,10 @@ export default function FeedbackButton() {
     }
   };
 
+  // Task-focused screens (meal entry, onboarding) get no floating button: on
+  // /add it sat over the form's lower fields (UX_AUDIT #6).
+  if (!inline && (pathname === '/add' || pathname?.startsWith('/onboarding'))) return null;
+
   return (
     <>
       <Toast message={toast} variant="success" />
@@ -61,13 +71,23 @@ export default function FeedbackButton() {
       {/* ADR-008 P0-3: stacked above the dashboard FAB (bottom-20, 56 px tall →
           top edge at 136 px) — at bottom-20 it covered the FAB, so a tap on
           「+」 opened feedback instead of /add. Guarded by fab-overlap.test.ts. */}
+      {inline ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="lg:hidden w-full min-h-11 mb-3 inline-flex items-center justify-center gap-2 rounded-2xl text-sm font-bold text-muted hover:text-fg hover:bg-surface-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        >
+          <MessageCircle className="size-4" aria-hidden="true" />
+          {t.feedbackOpen}
+        </button>
+      ) : (
       <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label={t.feedbackOpen}
         className="
-          fixed bottom-36 right-5 lg:bottom-6 lg:right-4 z-40
-          flex size-12 items-center justify-center rounded-full
+          fixed bottom-36 right-5 lg:bottom-6 lg:right-4 z-40 mb-safe
+          hidden lg:flex size-12 items-center justify-center rounded-full
           bg-fg text-surface shadow-[0_4px_16px_rgb(0,0,0,0.25)]
           hover:opacity-90 active:scale-95 transition-all
           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]
@@ -75,6 +95,7 @@ export default function FeedbackButton() {
       >
         <MessageCircle className="size-5" aria-hidden="true" />
       </button>
+      )}
 
       {open && (
         <div
@@ -95,7 +116,7 @@ export default function FeedbackButton() {
                 type="button"
                 onClick={close}
                 aria-label={t.feedbackClose}
-                className="p-1.5 rounded-lg text-faint hover:text-fg hover:bg-surface-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                className="min-w-11 min-h-11 inline-flex items-center justify-center rounded-lg text-faint hover:text-fg hover:bg-surface-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
               >
                 <X size={16} aria-hidden="true" />
               </button>

@@ -119,7 +119,10 @@ export default function PhotoUpload({ onAnalysisComplete, mode = 'analyze-food',
         onAnalysisComplete(analysisResult, preview);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Analysis failed. Please try again.');
+      // Server/API messages are English and technical (UX_AUDIT #9): show a
+      // localized message, keep the detail in the console for debugging.
+      console.warn('[photo-upload] analysis failed:', err instanceof Error ? err.message : err);
+      setError(t.analysisFailed);
     } finally {
       setIsAnalyzing(false);
     }

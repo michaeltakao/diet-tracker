@@ -4,7 +4,7 @@ import { todayJst, nowJstTime, jstTimestamp } from '@/lib/format-date';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, PenLine, Clock, Zap, BookmarkPlus, Heart, ScanBarcode } from 'lucide-react';
-import { addFoodEntry, getRecentFoods, getHealthProfile, getFavoriteFoods } from '@/lib/data';
+import { addFoodEntry, removeFoodEntry, getRecentFoods, getHealthProfile, getFavoriteFoods, getAllFoodEntries } from '@/lib/data';
 import { scaleFood, type ScalableFood } from '@/lib/food-scaling';
 import { FoodEntryForm, type FoodFormData } from '@/components/FoodEntryForm';
 import { MealTemplateSheet } from '@/components/MealTemplateSheet';
@@ -13,11 +13,13 @@ import PhotoUpload, { type LabelAnalysisResult } from '@/components/PhotoUpload'
 import { BarcodeScanner } from '@/components/BarcodeScanner';
 import type { NormalizedProduct } from '@/lib/off';
 import BottomNav from '@/components/BottomNav';
-import { Toast } from '@/components/ui/Toast';
+import { Toast, useToast } from '@/components/ui/Toast';
+import { setUndoHint } from '@/lib/undo-hint';
 import MedWarning from '@/components/MedWarning';
 import { getNutritionWarnings } from '@/lib/medication-rules';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { partialMacroFields } from '@/lib/macros';
+import { repeatEntry, recentForSlot, isMealSlot, guessSlotForTime } from '@/lib/meal-slots';
 
 type MealType = FoodEntry['mealType'];
 type Tab = 'photo' | 'manual' | 'recent' | 'barcode';
@@ -44,18 +46,17 @@ function buildTimestamp(date: string, time: string): string {
 
 /** Guess meal type from the current JST hour (same clock as the stored time). */
 function guessMealType(): MealType {
-  const h = Number(nowJstTime().slice(0, 2));
-  if (h < 10) return 'breakfast';
-  if (h < 14) return 'lunch';
-  if (h < 20) return 'dinner';
-  return 'snack';
+  return guessSlotForTime(nowJstTime());
 }
 
 type FormData = FoodFormData;
 
+// mealType here is only a placeholder: the real default is computed when the
+// page mounts (emptyForm), not when the module loads — an open PWA reuses
+// the module for hours, which froze the preselection at the load time.
 const EMPTY_FORM: FormData = {
   name: '',
-  mealType: guessMealType(),
+  mealType: 'breakfast',
   calories: '',
   protein: '',
   fat: '',
@@ -69,14 +70,12 @@ export default function AddPage() {
   const { t } = useLanguage();
   // Manual entry first (ADR-011): photo waits on the AI and is secondary.
   const [tab, setTab]                       = useState<Tab>('manual');
-  const [form, setForm]                     = useState<FormData>(EMPTY_FORM);
+  const [form, setForm]                     = useState<FormData>(() => ({ ...EMPTY_FORM, mealType: guessMealType() }));
   const [errors, setErrors]                 = useState<Partial<FormData>>({});
   const [logTime, setLogTime]               = useState(getCurrentTime());
-  const [quickAddToast, setQuickAddToast]   = useState(false);
   const [recentFoods, setRecentFoods]       = useState<FoodEntry[]>([]);
   const [nutritionWarnings, setNutritionWarnings] = useState<string[]>([]);
   const [speedMode, setSpeedMode]           = useState(false);
-  const [speedToast, setSpeedToast]         = useState(false);
   const [servings, setServings]             = useState(1);
   // Per-serving nutrition base: scaling always multiplies this, never the
   // displayed (rounded) values, so stepping 1×→0.5×→1× is an exact round trip.
@@ -95,7 +94,13 @@ export default function AddPage() {
   const [photoMode, setPhotoMode]           = useState<'analyze-food' | 'analyze-label'>('analyze-food');
   const [favorites, setFavorites]           = useState<FavoriteFood[]>([]);
   const [showTemplates, setShowTemplates]   = useState(false);
-  const [templateToast, setTemplateToast]   = useState(false);
+  const toast = useToast();
+  // /add?meal=<slot> (home slot ＋ / next step): the slot is fixed and its
+  // previous foods are offered first (UX P0 slice 5). null = FAB entry.
+  const [slotParam, setSlotParam]           = useState<MealType | null>(null);
+  const [slotRecents, setSlotRecents]       = useState<FoodEntry[]>([]);
+  // AI confidence of the current photo prefill; null for other sources.
+  const [aiConfidence, setAiConfidence]     = useState<string | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
@@ -104,6 +109,13 @@ export default function AddPage() {
     setNutritionWarnings(getNutritionWarnings(profile.healthConditions, profile.medications ?? []));
     setSpeedMode(localStorage.getItem(SPEED_MODE_KEY) === 'true');
     setFavorites(getFavoriteFoods());
+    // Read once on mount (no useSearchParams → no Suspense boundary needed).
+    const meal = new URLSearchParams(window.location.search).get('meal');
+    if (isMealSlot(meal)) {
+      setSlotParam(meal);
+      setForm((f) => ({ ...f, mealType: meal }));
+      setSlotRecents(recentForSlot(getAllFoodEntries(), meal, 3));
+    }
   }, []);
 
   // Auto-refresh time when tab changes to manual so it's fresh
@@ -121,10 +133,11 @@ export default function AddPage() {
   const applyBaseNutrition = (
     name: string,
     base: ScalableFood,
-    meta: { source: FoodSource; sourceId?: string; basis: PortionBasis; servingG?: number },
+    meta: { source: FoodSource; sourceId?: string; basis: PortionBasis; servingG?: number; confidence?: string },
   ) => {
     baseNutritionRef.current = base;
     setPrefilled(true);
+    setAiConfidence(meta.confidence ?? null);
     setSource(meta.source);
     setSourceId(meta.sourceId);
     setBasis(meta.basis);
@@ -143,14 +156,14 @@ export default function AddPage() {
   };
 
   const handleAnalysisComplete = (
-    result: { name: string; calories: number; protein: number; fat: number; carbs: number },
+    result: { name: string; calories: number; protein: number; fat: number; carbs: number; confidence?: string },
   ) => {
     applyBaseNutrition(result.name, {
       calories: result.calories,
       protein: result.protein,
       fat: result.fat,
       carbs: result.carbs,
-    }, { source: 'ai', basis: 'perServing' });
+    }, { source: 'ai', basis: 'perServing', confidence: result.confidence });
   };
 
   /** Barcode product: OFF values are per 100 g → the stepper counts 100 g units. */
@@ -178,6 +191,7 @@ export default function AddPage() {
       source: 'ai',
       basis: label.basis === 'per100g' ? 'per100g' : 'perServing',
       servingG: label.servingG,
+      confidence: label.confidence,
     });
   };
 
@@ -272,6 +286,8 @@ export default function AddPage() {
       ...(scaledBase?.fiberG != null ? { fiberG: scaledBase.fiberG } : {}),
     };
     void addFoodEntry(entry);
+    refreshRecents();
+    afterAdd([entry.id], entry.name);
     if (speedMode) {
       setForm({ ...EMPTY_FORM, mealType: form.mealType });
       setServings(1);
@@ -281,36 +297,51 @@ export default function AddPage() {
       setSourceId(undefined);
       setBasis('perServing');
       setServingG(undefined);
-      setSpeedToast(true);
-      setTimeout(() => setSpeedToast(false), 1500);
-    } else {
-      router.push('/dashboard');
+      setAiConfidence(null);
     }
   };
 
-  const handleQuickAdd = (recent: FoodEntry) => {
-    void addFoodEntry({
-      ...recent,
-      id: crypto.randomUUID(),
-      date: getTodayDate(),
-      mealType: guessMealType(),
-      photoDataUrl: undefined,
-      addedAt: buildTimestamp(getTodayDate(), getCurrentTime()),
-    });
+  /** Re-read both suggestion lists after an add / undo (speed mode stays here). */
+  const refreshRecents = () => {
     setRecentFoods(getRecentFoods(6));
-    setQuickAddToast(true);
-    if (!speedMode) {
-      setTimeout(() => router.push('/dashboard'), 900);
-    } else {
-      setTimeout(() => setQuickAddToast(false), 1200);
+    if (slotParam) setSlotRecents(recentForSlot(getAllFoodEntries(), slotParam, 3));
+  };
+
+  /**
+   * Every add is undoable for 5 s (UX P0 slice 3). Speed mode stays here and
+   * shows the Undo toast itself; otherwise the dashboard shows it after the
+   * redirect (lib/undo-hint.ts).
+   */
+  const afterAdd = (ids: string[], name: string) => {
+    const label = t.loggedToast.replace('{name}', name);
+    if (speedMode) {
+      toast.show(`✓ ${label}`, {
+        label: t.undo,
+        onClick: () => {
+          for (const id of ids) void removeFoodEntry(id);
+          refreshRecents();
+          toast.show(t.undoDone);
+        },
+      });
+      return;
     }
+    setUndoHint(ids, label);
+    router.push('/dashboard');
+  };
+
+  const handleQuickAdd = (recent: FoodEntry, slot: MealType = slotParam ?? guessMealType()) => {
+    const entry = repeatEntry(recent, slot, getTodayDate(), buildTimestamp(getTodayDate(), getCurrentTime()), crypto.randomUUID());
+    void addFoodEntry(entry);
+    refreshRecents();
+    afterAdd([entry.id], entry.name);
   };
 
   const handleFavoriteAdd = (fav: FavoriteFood) => {
+    const id = crypto.randomUUID();
     void addFoodEntry({
-      id: crypto.randomUUID(),
+      id,
       date: getTodayDate(),
-      mealType: guessMealType(),
+      mealType: slotParam ?? guessMealType(),
       name: fav.name,
       calories: fav.calories,
       protein: fav.protein,
@@ -320,12 +351,8 @@ export default function AddPage() {
       source: 'db',
       sourceId: fav.sourceId ?? `favorite:${fav.id}`,
     });
-    setQuickAddToast(true);
-    if (!speedMode) {
-      setTimeout(() => router.push('/dashboard'), 900);
-    } else {
-      setTimeout(() => setQuickAddToast(false), 1200);
-    }
+    refreshRecents();
+    afterAdd([id], fav.name);
   };
 
   const updateField = (field: keyof FormData, value: string) => {
@@ -354,7 +381,7 @@ export default function AddPage() {
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto pb-28 lg:pb-8 px-4 lg:px-6 bg-[var(--background)] min-h-screen">
       {/* Quick-add / speed-mode success toast */}
-      <Toast message={quickAddToast || speedToast ? `✓ ${t.quickAddSuccess}` : templateToast ? `✓ ${t.templateLoggedToast}` : null} />
+      <Toast message={toast.message} action={toast.action} />
 
       {/* ── Med / condition warnings ─────────────── */}
       {nutritionWarnings.length > 0 && (
@@ -372,16 +399,16 @@ export default function AddPage() {
             onClick={() => setShowTemplates(true)}
             title={t.mealTemplatesLabel}
             aria-label={t.mealTemplatesLabel}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-surface-2 text-faint border border-line-strong transition-all duration-200 hover:text-fg"
+            className="flex items-center justify-center min-w-11 min-h-11 rounded-xl text-xs font-bold bg-surface-2 text-faint border border-line-strong transition-all duration-200 hover:text-fg"
           >
-            <BookmarkPlus size={11} aria-hidden />
+            <BookmarkPlus size={16} aria-hidden />
           </button>
           {/* Speed Mode toggle */}
           <button
             onClick={toggleSpeedMode}
             title={t.speedModeDesc}
             className={`
-              flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold
+              flex items-center gap-1.5 px-3 min-h-11 rounded-xl text-xs font-bold
               transition-all duration-200
               ${speedMode
                 ? 'bg-ai-soft text-ai border border-ai/30'
@@ -393,10 +420,34 @@ export default function AddPage() {
           </button>
           <div className="flex items-center gap-1.5 text-xs text-faint font-medium">
             <Clock size={12} />
-            <span>{mealTypeLabels[guessMealType()]}</span>
+            <span>{mealTypeLabels[slotParam ?? guessMealType()]}</span>
           </div>
         </div>
       </div>
+
+      {/* ── This slot's previous foods (/add?meal=…) ── */}
+      {slotParam && slotRecents.length > 0 && (
+        <section className="mb-4" data-testid="slot-recents" aria-labelledby="slot-recents-title">
+          <h2 id="slot-recents-title" className="text-xs font-bold text-faint uppercase tracking-widest mb-2">
+            {t.slotSuggestTitle.replace('{slot}', mealTypeLabels[slotParam])}
+          </h2>
+          <ul className="bg-card rounded-2xl shadow-card border border-line divide-y divide-line overflow-hidden">
+            {slotRecents.map((food) => (
+              <li key={food.id}>
+                <button
+                  type="button"
+                  onClick={() => handleQuickAdd(food, slotParam)}
+                  className="w-full flex items-center gap-3 min-h-12 px-4 text-left hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)]"
+                >
+                  <span className="flex-1 min-w-0 text-sm font-bold text-fg truncate">{food.name}</span>
+                  <span className="text-xs text-faint tabular-nums whitespace-nowrap">{food.calories} kcal</span>
+                  <span className="text-lg font-black text-brand leading-none" aria-hidden="true">＋</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* ── Frequently Logged pills (always visible) ── */}
       {recentFoods.length > 0 && (
@@ -596,6 +647,7 @@ export default function AddPage() {
           servings={servings}
           mealTypeLabels={mealTypeLabels}
           showConfirmHeading={tab === 'photo'}
+          lowConfidence={source === 'ai' && (aiConfidence === 'low' || aiConfidence === 'medium')}
           t={t}
           onUpdateField={updateField}
           onLogTimeChange={setLogTime}
@@ -608,10 +660,7 @@ export default function AddPage() {
       <MealTemplateSheet
         open={showTemplates}
         onClose={() => setShowTemplates(false)}
-        onLogged={(_tmpl: MealTemplate) => {
-          setTemplateToast(true);
-          setTimeout(() => setTemplateToast(false), 1500);
-        }}
+        onLogged={(_tmpl: MealTemplate) => toast.show(`✓ ${t.templateLoggedToast}`)}
       />
 
       <BottomNav />

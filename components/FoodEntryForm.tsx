@@ -7,6 +7,7 @@
  * parent rescales the numeric fields (lib/food-scaling.ts).
  */
 
+import { AlertTriangle } from 'lucide-react';
 import type { FoodEntry } from '@/lib/types';
 import type { Translations } from '@/lib/i18n';
 
@@ -31,6 +32,13 @@ interface FoodEntryFormProps {
   servings: number;
   mealTypeLabels: Record<MealType, string>;
   showConfirmHeading: boolean;
+  /**
+   * AI photo estimate with confidence low/medium (UX P0 slice 5): portion
+   * and kcal are highlighted with a "check these" note. Display only — the
+   * confidence is not stored (no schema change), and saving still needs
+   * the user's tap as before.
+   */
+  lowConfidence?: boolean;
   t: Translations;
   onUpdateField: (field: keyof FoodFormData, value: string) => void;
   onLogTimeChange: (value: string) => void;
@@ -45,6 +53,7 @@ export function FoodEntryForm({
   servings,
   mealTypeLabels,
   showConfirmHeading,
+  lowConfidence = false,
   t,
   onUpdateField,
   onLogTimeChange,
@@ -55,6 +64,17 @@ export function FoodEntryForm({
     <div className="bg-card rounded-2xl shadow-card border border-line p-4 mb-4 space-y-4">
       {showConfirmHeading && (
         <h2 className="text-sm font-bold text-muted">{t.confirmAdd}</h2>
+      )}
+
+      {lowConfidence && (
+        <p
+          role="note"
+          data-testid="low-confidence-note"
+          className="flex items-start gap-2 rounded-xl p-3 text-xs font-semibold bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700"
+        >
+          <AlertTriangle size={14} className="shrink-0 mt-0.5" aria-hidden="true" />
+          {t.lowConfidenceNote}
+        </p>
       )}
 
       {/* Meal type */}
@@ -125,7 +145,7 @@ export function FoodEntryForm({
       </div>
 
       {/* Servings stepper */}
-      <div>
+      <div className={lowConfidence ? 'rounded-xl p-2 -m-2 ring-2 ring-amber-400' : undefined}>
         <label htmlFor="servings-input" className="text-xs font-bold text-faint uppercase tracking-widest block mb-2">
           {t.servingsLabel}
         </label>
@@ -175,6 +195,7 @@ export function FoodEntryForm({
         </label>
         <input
           type="number"
+          aria-invalid={errors.calories ? true : undefined}
           value={form.calories}
           onChange={(e) => onUpdateField('calories', e.target.value)}
           placeholder="0"
@@ -185,7 +206,7 @@ export function FoodEntryForm({
             bg-surface-2
             placeholder:text-faint
             focus:outline-none focus:ring-2 focus:ring-green-400
-            ${errors.calories ? 'border-red-400' : 'border-line-strong'}
+            ${errors.calories ? 'border-red-400' : lowConfidence ? 'border-amber-500 ring-2 ring-amber-300' : 'border-line-strong'}
           `}
         />
         {errors.calories && <p className="text-xs text-danger mt-1">{errors.calories}</p>}

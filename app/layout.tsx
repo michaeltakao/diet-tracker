@@ -37,20 +37,20 @@ const mplusRounded = M_PLUS_Rounded_1c({
 export const metadata: Metadata = {
   metadataBase: new URL('https://diet-tracker-two-blue.vercel.app'),
   title: {
-    default: 'Diet Tracker — ワークアウト & 栄養プランナー',
+    default: 'Diet Tracker — 食事・体重の記録',
     template: '%s | Diet Tracker',
   },
-  description: 'トレーニング計画・1RM記録・AIワークアウト生成で運動を続ける。食事・体重・水分も一緒に記録し、Gemini AIが習慣を分析してコーチング。',
+  description: '食事・体重を数タップで記録し、今日の残りカロリーとPFCを確認。持病・服薬に配慮した安全な食事提案つき（研究用アプリ）。',
   applicationName: 'Diet Tracker',
-  keywords: ['workout planner', 'training plan', 'exercise tracker', '筋トレ', 'ワークアウト', '1RM', 'diet', 'calorie', 'PFC', 'weight loss', 'nutrition', 'ダイエット'],
+  keywords: ['diet', 'calorie', 'PFC', 'meal log', 'weight', 'nutrition', '食事記録', '体重', 'ダイエット'],
   authors: [{ name: 'Diet Tracker' }],
   creator: 'Diet Tracker',
   // PWA — open-graph
   openGraph: {
     type: 'website',
     siteName: 'Diet Tracker',
-    title: 'Diet Tracker — 運動計画 & 栄養トラッカー',
-    description: 'AIでワークアウトを計画し、1RMと進捗を記録。食事・体重もまとめて管理。',
+    title: 'Diet Tracker — 食事・体重の記録',
+    description: '食事・体重を数タップで記録し、残りカロリーとPFCを確認できる研究用アプリ。',
   },
   // PWA — mobile web app
   appleWebApp: {
