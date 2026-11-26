@@ -14,7 +14,7 @@
  */
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type, type Schema } from '@google/genai';
-import { generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
+import { GEMINI_MODEL, generateWithRetry, jsonConfig, parseGeminiJson } from '@/lib/gemini';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { guardAiRoute, recordAiUsage } from '@/lib/api-guard';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
@@ -334,7 +334,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const ai = new GoogleGenAI({ apiKey });
   const result = await generateWithRetry(ai, {
-    model: 'gemini-2.5-flash',
+    model: GEMINI_MODEL,
     // Merge into the existing config: systemInstruction/temperature survive.
     config: { systemInstruction: SYSTEM_PROMPT, temperature: 0.7, ...jsonConfig(RESPONSE_SCHEMA) },
     contents: [{ role: 'user', parts: [{ text: userMessage }] }],

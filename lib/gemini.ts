@@ -2,7 +2,7 @@
  * Gemini call helpers: transient-failure retry with exponential backoff,
  * structured-output config, and defensive JSON parsing.
  *
- * `gemini-2.5-flash` intermittently returns 503 ``UNAVAILABLE`` ("high demand")
+ * Gemini intermittently returns 503 ``UNAVAILABLE`` ("high demand")
  * or 429. These are transient, so a couple of backed-off retries absorb them
  * before the user ever sees an error. Non-transient errors (400, auth, parse)
  * are re-thrown immediately so they surface fast.
@@ -11,6 +11,15 @@
 import type { GoogleGenAI, Schema } from '@google/genai';
 
 type GenerateRequest = Parameters<GoogleGenAI['models']['generateContent']>[0];
+
+/**
+ * The one Gemini model every AI route calls. Pinned explicitly because
+ * `gemini-2.5-flash` shuts down on 2026-12-01 and Google then silently routes
+ * it to `gemini-3.5-flash-lite` (AI Studio deprecations page, read 2026-11-17);
+ * pinning makes the switch a reviewed code change instead of a server-side
+ * swap. Sampling settings (temperature, thinking) stay at API defaults.
+ */
+export const GEMINI_MODEL = 'gemini-3.5-flash-lite';
 
 export interface RetryOptions {
   /** Total attempts including the first (default 3). */
