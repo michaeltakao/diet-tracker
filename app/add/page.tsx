@@ -4,7 +4,7 @@ import { todayJst, nowJstTime, jstTimestamp } from '@/lib/format-date';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, PenLine, Clock, Zap, BookmarkPlus, Heart, ScanBarcode } from 'lucide-react';
-import { addFoodEntry, removeFoodEntry, getRecentFoods, getHealthProfile, getFavoriteFoods } from '@/lib/data';
+import { addFoodEntry, removeFoodEntry, getRecentFoods, getHealthProfile, getFavoriteFoods, getAllFoodEntries } from '@/lib/data';
 import { scaleFood, type ScalableFood } from '@/lib/food-scaling';
 import { FoodEntryForm, type FoodFormData } from '@/components/FoodEntryForm';
 import { MealTemplateSheet } from '@/components/MealTemplateSheet';
@@ -19,7 +19,7 @@ import MedWarning from '@/components/MedWarning';
 import { getNutritionWarnings } from '@/lib/medication-rules';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { partialMacroFields } from '@/lib/macros';
-import { repeatEntry } from '@/lib/meal-slots';
+import { repeatEntry, recentForSlot, isMealSlot, guessSlotForTime } from '@/lib/meal-slots';
 
 type MealType = FoodEntry['mealType'];
 type Tab = 'photo' | 'manual' | 'recent' | 'barcode';
@@ -46,11 +46,7 @@ function buildTimestamp(date: string, time: string): string {
 
 /** Guess meal type from the current JST hour (same clock as the stored time). */
 function guessMealType(): MealType {
-  const h = Number(nowJstTime().slice(0, 2));
-  if (h < 10) return 'breakfast';
-  if (h < 14) return 'lunch';
-  if (h < 20) return 'dinner';
-  return 'snack';
+  return guessSlotForTime(nowJstTime());
 }
 
 type FormData = FoodFormData;
@@ -96,6 +92,12 @@ export default function AddPage() {
   const [favorites, setFavorites]           = useState<FavoriteFood[]>([]);
   const [showTemplates, setShowTemplates]   = useState(false);
   const toast = useToast();
+  // /add?meal=<slot> (home slot ＋ / next step): the slot is fixed and its
+  // previous foods are offered first (UX P0 slice 5). null = FAB entry.
+  const [slotParam, setSlotParam]           = useState<MealType | null>(null);
+  const [slotRecents, setSlotRecents]       = useState<FoodEntry[]>([]);
+  // AI confidence of the current photo prefill; null for other sources.
+  const [aiConfidence, setAiConfidence]     = useState<string | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe client-only data load on mount
@@ -104,6 +106,13 @@ export default function AddPage() {
     setNutritionWarnings(getNutritionWarnings(profile.healthConditions, profile.medications ?? []));
     setSpeedMode(localStorage.getItem(SPEED_MODE_KEY) === 'true');
     setFavorites(getFavoriteFoods());
+    // Read once on mount (no useSearchParams → no Suspense boundary needed).
+    const meal = new URLSearchParams(window.location.search).get('meal');
+    if (isMealSlot(meal)) {
+      setSlotParam(meal);
+      setForm((f) => ({ ...f, mealType: meal }));
+      setSlotRecents(recentForSlot(getAllFoodEntries(), meal, 3));
+    }
   }, []);
 
   // Auto-refresh time when tab changes to manual so it's fresh
@@ -121,10 +130,11 @@ export default function AddPage() {
   const applyBaseNutrition = (
     name: string,
     base: ScalableFood,
-    meta: { source: FoodSource; sourceId?: string; basis: PortionBasis; servingG?: number },
+    meta: { source: FoodSource; sourceId?: string; basis: PortionBasis; servingG?: number; confidence?: string },
   ) => {
     baseNutritionRef.current = base;
     setPrefilled(true);
+    setAiConfidence(meta.confidence ?? null);
     setSource(meta.source);
     setSourceId(meta.sourceId);
     setBasis(meta.basis);
@@ -143,14 +153,14 @@ export default function AddPage() {
   };
 
   const handleAnalysisComplete = (
-    result: { name: string; calories: number; protein: number; fat: number; carbs: number },
+    result: { name: string; calories: number; protein: number; fat: number; carbs: number; confidence?: string },
   ) => {
     applyBaseNutrition(result.name, {
       calories: result.calories,
       protein: result.protein,
       fat: result.fat,
       carbs: result.carbs,
-    }, { source: 'ai', basis: 'perServing' });
+    }, { source: 'ai', basis: 'perServing', confidence: result.confidence });
   };
 
   /** Barcode product: OFF values are per 100 g → the stepper counts 100 g units. */
@@ -178,6 +188,7 @@ export default function AddPage() {
       source: 'ai',
       basis: label.basis === 'per100g' ? 'per100g' : 'perServing',
       servingG: label.servingG,
+      confidence: label.confidence,
     });
   };
 
@@ -282,6 +293,7 @@ export default function AddPage() {
       setSourceId(undefined);
       setBasis('perServing');
       setServingG(undefined);
+      setAiConfidence(null);
     }
   };
 
@@ -307,7 +319,7 @@ export default function AddPage() {
     router.push('/dashboard');
   };
 
-  const handleQuickAdd = (recent: FoodEntry, slot: MealType = guessMealType()) => {
+  const handleQuickAdd = (recent: FoodEntry, slot: MealType = slotParam ?? guessMealType()) => {
     const entry = repeatEntry(recent, slot, getTodayDate(), buildTimestamp(getTodayDate(), getCurrentTime()), crypto.randomUUID());
     void addFoodEntry(entry);
     setRecentFoods(getRecentFoods(6));
@@ -319,7 +331,7 @@ export default function AddPage() {
     void addFoodEntry({
       id,
       date: getTodayDate(),
-      mealType: guessMealType(),
+      mealType: slotParam ?? guessMealType(),
       name: fav.name,
       calories: fav.calories,
       protein: fav.protein,
@@ -397,10 +409,34 @@ export default function AddPage() {
           </button>
           <div className="flex items-center gap-1.5 text-xs text-faint font-medium">
             <Clock size={12} />
-            <span>{mealTypeLabels[guessMealType()]}</span>
+            <span>{mealTypeLabels[slotParam ?? guessMealType()]}</span>
           </div>
         </div>
       </div>
+
+      {/* ── This slot's previous foods (/add?meal=…) ── */}
+      {slotParam && slotRecents.length > 0 && (
+        <section className="mb-4" data-testid="slot-recents" aria-labelledby="slot-recents-title">
+          <h2 id="slot-recents-title" className="text-xs font-bold text-faint uppercase tracking-widest mb-2">
+            {t.slotSuggestTitle.replace('{slot}', mealTypeLabels[slotParam])}
+          </h2>
+          <ul className="bg-card rounded-2xl shadow-card border border-line divide-y divide-line overflow-hidden">
+            {slotRecents.map((food) => (
+              <li key={food.id}>
+                <button
+                  type="button"
+                  onClick={() => handleQuickAdd(food, slotParam)}
+                  className="w-full flex items-center gap-3 min-h-12 px-4 text-left hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)]"
+                >
+                  <span className="flex-1 min-w-0 text-sm font-bold text-fg truncate">{food.name}</span>
+                  <span className="text-xs text-faint tabular-nums whitespace-nowrap">{food.calories} kcal</span>
+                  <span className="text-lg font-black text-brand leading-none" aria-hidden="true">＋</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* ── Frequently Logged pills (always visible) ── */}
       {recentFoods.length > 0 && (
@@ -600,6 +636,7 @@ export default function AddPage() {
           servings={servings}
           mealTypeLabels={mealTypeLabels}
           showConfirmHeading={tab === 'photo'}
+          lowConfidence={source === 'ai' && (aiConfidence === 'low' || aiConfidence === 'medium')}
           t={t}
           onUpdateField={updateField}
           onLogTimeChange={setLogTime}
